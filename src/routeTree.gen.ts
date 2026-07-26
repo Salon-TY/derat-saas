@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TechRouteImport } from './routes/tech'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as TechIndexRouteImport } from './routes/tech.index'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as TechCamionRouteImport } from './routes/tech.camion'
@@ -53,6 +54,11 @@ const AuthRoute = AuthRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AppRoute,
 } as any)
 const TechIndexRoute = TechIndexRouteImport.update({
   id: '/',
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/tech': typeof TechRouteWithChildren
+  '/onboarding': typeof AppOnboardingRoute
   '/parametres': typeof AppParametresRoute
   '/planning': typeof AppPlanningRoute
   '/stats': typeof AppStatsRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/parametres': typeof AppParametresRoute
   '/planning': typeof AppPlanningRoute
   '/stats': typeof AppStatsRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/tech': typeof TechRouteWithChildren
+  '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/parametres': typeof AppParametresRoute
   '/_app/planning': typeof AppPlanningRoute
   '/_app/stats': typeof AppStatsRoute
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/tech'
+    | '/onboarding'
     | '/parametres'
     | '/planning'
     | '/stats'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/onboarding'
     | '/parametres'
     | '/planning'
     | '/stats'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/tech'
+    | '/_app/onboarding'
     | '/_app/parametres'
     | '/_app/planning'
     | '/_app/stats'
@@ -408,6 +420,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
     }
     '/tech/': {
       id: '/tech/'
@@ -602,6 +621,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppOnboardingRoute: typeof AppOnboardingRoute
   AppParametresRoute: typeof AppParametresRoute
   AppPlanningRoute: typeof AppPlanningRoute
   AppStatsRoute: typeof AppStatsRoute
@@ -628,6 +648,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppOnboardingRoute: AppOnboardingRoute,
   AppParametresRoute: AppParametresRoute,
   AppPlanningRoute: AppPlanningRoute,
   AppStatsRoute: AppStatsRoute,
