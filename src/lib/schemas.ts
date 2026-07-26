@@ -125,6 +125,16 @@ export const settingsSchema = z.object({
 });
 export type SettingsForm = z.infer<typeof settingsSchema>;
 
+export const onboardingSchema = z.object({
+  nom: z.string().trim().min(1, "Requis").max(200),
+  siret: z.string().max(50).default(""),
+  tva_number: z.string().max(50).default(""),
+  telephone: z.string().max(50).default(""),
+  adresse: z.string().max(500).default(""),
+  email: z.string().email("Email invalide").or(z.literal("")).default(""),
+});
+export type OnboardingForm = z.infer<typeof onboardingSchema>;
+
 export const STATUTS_DEVIS = [
   { value: "brouillon", label: "Brouillon" },
   { value: "envoye", label: "Envoyé" },
