@@ -1,8 +1,8 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { useCurrentRole, useMyPoste } from "@/lib/queries";
+import { useCurrentRole, useMyPoste, useSettings } from "@/lib/queries";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -10,9 +10,11 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sessionReady, setSessionReady] = useState(false);
   const { data: role } = useCurrentRole();
   const { data: myPoste } = useMyPoste();
+  const { data: settings } = useSettings();
 
   useEffect(() => {
     let mounted = true;
@@ -39,7 +41,13 @@ function AppLayout() {
   }, [navigate]);
 
   const posteResolved = role !== undefined && myPoste !== undefined;
+  const settingsResolved = settings !== undefined;
   const isTechnician = role !== undefined && role !== "owner" && myPoste === "technicien";
+
+  // Société pas encore configurée (nom vide) : ne concerne que le propriétaire,
+  // les employés rejoignent une société déjà configurée par leur patron.
+  const isOnboardingRoute = location.pathname === "/onboarding";
+  const needsOnboarding = role === "owner" && settingsResolved && !settings?.nom?.trim();
 
   // Un technicien ne doit JAMAIS rendre l'interface admin, même une fraction
   // de seconde : il a sa propre interface (/tech/*). On attend la résolution
@@ -50,7 +58,19 @@ function AppLayout() {
     }
   }, [sessionReady, posteResolved, isTechnician, navigate]);
 
-  if (!sessionReady || !posteResolved || isTechnician) {
+  useEffect(() => {
+    if (sessionReady && posteResolved && settingsResolved && needsOnboarding && !isOnboardingRoute) {
+      navigate({ to: "/onboarding", replace: true });
+    }
+  }, [sessionReady, posteResolved, settingsResolved, needsOnboarding, isOnboardingRoute, navigate]);
+
+  if (
+    !sessionReady ||
+    !posteResolved ||
+    !settingsResolved ||
+    isTechnician ||
+    (needsOnboarding && !isOnboardingRoute)
+  ) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <div className="text-sm text-muted-foreground">Chargement...</div>
