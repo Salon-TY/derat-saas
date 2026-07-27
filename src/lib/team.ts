@@ -1,4 +1,4 @@
-export const EMPLOYEE_EMAIL_DOMAIN = "team.cityderat.local";
+export const EMPLOYEE_EMAIL_DOMAIN = "team.app.local";
 
 /** Normalise un identifiant : minuscules, sans espaces. */
 export function normalizeUsername(u: string): string {
