@@ -56,6 +56,13 @@ function companySirenFormatted(siret: string | null | undefined): string {
   return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)}`;
 }
 
+// Miroir de clientLegalIdPhrase côté société : jamais de SIREN inventé, mais
+// une clause lisible même quand le SIRET n'est pas encore renseigné.
+function companySirenPhrase(siret: string | null | undefined): string {
+  const formatted = companySirenFormatted(siret);
+  return formatted ? `SIREN ${formatted}` : "immatriculation non renseignée";
+}
+
 function clientLegalIdLine(client: { rcs?: string | null; siren?: string | null; siret?: string | null }): string {
   if (client.rcs) return `RCS : ${client.rcs}`;
   if (client.siren) return `SIREN : ${client.siren}`;
@@ -121,7 +128,6 @@ function ContractDetail() {
     const clientNom = client?.raison_sociale ?? "";
     const formeJuridique = (client as any)?.forme_juridique as string | null | undefined;
     const clientNomAvecForme = formeJuridique ? `${clientNom}, ${formeJuridique}` : clientNom;
-    const companySiren = companySirenFormatted(s?.siret);
     const adresseEtablissement = contract.adresse_etablissement || client?.adresse_site || "";
     const ville = contract.ville_signature || "Paris";
 
@@ -157,9 +163,9 @@ function ContractDetail() {
       ${s?.logo_url ? `<img src="${s.logo_url}" style="max-height:40px;max-width:100px;object-fit:contain;display:block;margin-bottom:4px" alt="Logo">` : ""}
       <strong>${nomSociete}</strong>
       ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : ""}
-      <br>Siret : ${s?.siret ?? ""}
-      <br>N° TVA : ${s?.tva_number ?? ""}
-      <br>Tél : ${s?.telephone ?? ""}
+      ${s?.siret ? `<br>Siret : ${s.siret}` : ""}
+      ${s?.tva_number ? `<br>N° TVA : ${s.tva_number}` : ""}
+      ${s?.telephone ? `<br>Tél : ${s.telephone}` : ""}
     </div>
     <div class="client-block">
       <strong>${clientNom}</strong>
@@ -172,7 +178,7 @@ function ContractDetail() {
   <div class="sous-titre">${adresseEtablissement}</div>
 
   <p class="para">
-    La société ${nomSociete} immatriculée sous le SIREN ${companySiren} et la société ${clientNomAvecForme}, immatriculée sous le ${clientLegalIdPhrase(client ?? {})},
+    La société ${nomSociete} immatriculée sous le ${companySirenPhrase(s?.siret)} et la société ${clientNomAvecForme}, immatriculée sous le ${clientLegalIdPhrase(client ?? {})},
     s'engagent pour un contrat de ${contract.type_prestation} dans l'établissement nommé ${contract.nom_etablissement} situé au ${adresseEtablissement}.
   </p>
 
@@ -195,7 +201,7 @@ function ContractDetail() {
   </div>
 
   <div class="footer">
-    ${contract.numero ?? ""} &nbsp;·&nbsp; Généré le ${new Date().toLocaleString("fr-FR")} &nbsp;·&nbsp; ${nomSociete}
+    ${[contract.numero ?? "", `Généré le ${new Date().toLocaleString("fr-FR")}`, nomSociete].filter(Boolean).join(" &nbsp;·&nbsp; ")}
   </div>
 `;
 
