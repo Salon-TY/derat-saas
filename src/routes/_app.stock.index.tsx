@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
+import { Pager } from "@/components/pager";
+
+const HISTORY_PAGE_SIZE = 50;
 
 export const Route = createFileRoute("/_app/stock/")({
   head: () => ({ meta: [{ title: `Stock — ${APP_NAME}` }] }),
@@ -342,6 +345,11 @@ function HistoryTab({ products, members }: { products: StockProduct[]; members: 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setPage(0);
+  }, [productFilter, technicienFilter, typeFilter, dateFrom, dateTo]);
 
   const activeFiltersCount = [
     productFilter !== "all" ? 1 : 0,
@@ -351,13 +359,18 @@ function HistoryTab({ products, members }: { products: StockProduct[]; members: 
     dateTo ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
-  const { data: movements = [], isLoading } = useStockMovements({
+  const { data: historyResult, isLoading } = useStockMovements({
     product_id: productFilter !== "all" ? productFilter : undefined,
     technicien_id: technicienFilter === "all" ? undefined : technicienFilter === "garage" ? null : technicienFilter,
     type: typeFilter !== "all" ? typeFilter : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo ? `${dateTo}T23:59:59` : undefined,
+    page,
+    pageSize: HISTORY_PAGE_SIZE,
   });
+  const historyData = (historyResult as { rows: StockMovement[]; total: number } | undefined) ?? { rows: [], total: 0 };
+  const movements = historyData.rows;
+  const total = historyData.total;
 
   function resetFilters() {
     setProductFilter("all"); setTechnicienFilter("all"); setTypeFilter("all"); setDateFrom(""); setDateTo("");
@@ -437,7 +450,9 @@ function HistoryTab({ products, members }: { products: StockProduct[]; members: 
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
+          <div className="text-xs text-muted-foreground">{total} mouvement{total > 1 ? "s" : ""}</div>
           {movements.map((m) => <MovementRow key={m.id} m={m} members={members} />)}
+          <Pager page={page} pageSize={HISTORY_PAGE_SIZE} total={total} onPageChange={setPage} />
         </div>
       )}
     </div>
