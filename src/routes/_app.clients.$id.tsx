@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useClient, useInterventions, useContracts } from "@/lib/queries";
 import { ClientForm } from "@/components/client-form";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import type { ClientForm as ClientFormType } from "@/lib/schemas";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/clients/$id")({
-  head: () => ({ meta: [{ title: "Fiche client — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Fiche client — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="clients">
       <ClientDetail />

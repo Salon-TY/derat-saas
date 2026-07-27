@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSettings, useMyTodoCount } from "@/lib/queries";
+import { APP_NAME } from "@/lib/brand";
 
 const techNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { to: "/tech", label: "Ma journée", icon: LayoutDashboard, exact: true },
@@ -43,7 +44,7 @@ export function TechShell({ children }: { children: React.ReactNode }) {
                 : <Bug className="h-5 w-5 text-white" />}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-base font-bold tracking-tight leading-none">{settings?.nom ?? "CITY DERAT"}</div>
+              <div className="truncate text-base font-bold tracking-tight leading-none">{settings?.nom ?? APP_NAME}</div>
               <div className="truncate text-[10px] uppercase tracking-widest text-primary-foreground/60 mt-0.5">
                 Espace technicien
               </div>

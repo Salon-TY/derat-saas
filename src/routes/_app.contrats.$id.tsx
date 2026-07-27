@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState } from "react";
 import { useContract, useInterventions, useSettings } from "@/lib/queries";
 import { formatDateFR, STATUTS_CONTRAT, STATUTS_INTERVENTION } from "@/lib/schemas";
@@ -25,7 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/contrats/$id")({
-  head: () => ({ meta: [{ title: "Contrat — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Contrat — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="contrats">
       <ContractDetail />
@@ -116,7 +117,7 @@ function ContractDetail() {
     if (!contract) return;
     const s = settings;
     const client = contract.client;
-    const nomSociete = s?.nom ?? "CITY DERAT";
+    const nomSociete = s?.nom ?? "";
     const clientNom = client?.raison_sociale ?? "";
     const formeJuridique = (client as any)?.forme_juridique as string | null | undefined;
     const clientNomAvecForme = formeJuridique ? `${clientNom}, ${formeJuridique}` : clientNom;
@@ -208,7 +209,7 @@ function ContractDetail() {
     if (!clientEmail) { toast.warning("Aucun email renseigné pour ce client"); return; }
 
     const s = settings;
-    const nomSociete = s?.nom ?? "CITY DERAT";
+    const nomSociete = s?.nom ?? "";
     const num = contract.numero ?? "";
 
     const objet = `Contrat ${num} — ${nomSociete}`;

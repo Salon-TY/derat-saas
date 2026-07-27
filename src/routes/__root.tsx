@@ -10,6 +10,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { APP_NAME } from "../lib/brand";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -65,8 +66,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#1a3c2e" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "CITY DERAT" },
-      { title: "CITY DERAT — Gestion dératiseur" },
+      { name: "apple-mobile-web-app-title", content: APP_NAME },
+      { title: `${APP_NAME} — Gestion dératiseur` },
       { name: "description", content: "Application de gestion pour technicien dératiseur indépendant." },
     ],
     links: [

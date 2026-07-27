@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
@@ -10,7 +11,7 @@ import { ClipboardList, MapPin, Phone, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/")({
-  head: () => ({ meta: [{ title: "Ma journée — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Ma journée — ${APP_NAME}` }] }),
   component: TechToday,
 });
 

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDashboardStats, useSettings, useRelances, useCurrentRole, useMyPoste, useMyAccess, useMyTodoCount, usePendingStockRequestsCount, usePassagesAProgrammer } from "@/lib/queries";
@@ -12,7 +13,7 @@ import { useMemo } from "react";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/")({
-  head: () => ({ meta: [{ title: "Tableau de bord — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Tableau de bord — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="accueil">
       <Dashboard />

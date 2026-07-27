@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,7 +41,7 @@ export async function nextContractNumero(): Promise<string> {
 }
 
 export const Route = createFileRoute("/_app/contrats/")({
-  head: () => ({ meta: [{ title: "Contrats — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Contrats — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="contrats">
       <ContratsPage />

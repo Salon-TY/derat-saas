@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
@@ -16,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/interventions/")({
-  head: () => ({ meta: [{ title: "Interventions — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Interventions — ${APP_NAME}` }] }),
   component: InterventionsPage,
 });
 

@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { quoteSchema, type QuoteForm, formatEUR } from "@/lib/schemas";
@@ -16,7 +17,7 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/devis/new")({
-  head: () => ({ meta: [{ title: "Nouveau devis — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Nouveau devis — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="devis">
       <NewDevisPage />

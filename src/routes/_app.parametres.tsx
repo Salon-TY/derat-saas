@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingsSchema, type SettingsForm } from "@/lib/schemas";
@@ -19,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/parametres")({
-  head: () => ({ meta: [{ title: "Paramètres — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Paramètres — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="parametres">
       <ParametresPage />
@@ -355,13 +356,13 @@ function ParametresPage() {
 
   const form = useForm<SettingsForm>({
     resolver: zodResolver(settingsSchema) as any,
-    defaultValues: { nom: "CITY DERAT", adresse: "", siret: "", tva_number: "", telephone: "", email: "", iban: "", bic: "", objectif_ca_mensuel: 3000 },
+    defaultValues: { nom: "", adresse: "", siret: "", tva_number: "", telephone: "", email: "", iban: "", bic: "", objectif_ca_mensuel: 3000 },
   });
 
   useEffect(() => {
     if (settings) {
       form.reset({
-        nom: settings.nom ?? "CITY DERAT",
+        nom: settings.nom ?? "",
         adresse: settings.adresse ?? "",
         siret: settings.siret ?? "",
         tva_number: settings.tva_number ?? "",

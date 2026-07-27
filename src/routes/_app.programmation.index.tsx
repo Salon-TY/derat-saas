@@ -4,6 +4,7 @@
 // d'intervention pour que seule la date (et éventuellement le technicien)
 // reste à saisir.
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ import { TYPES_NUISIBLES, TYPES_INTERVENTION } from "@/lib/schemas";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/programmation/")({
-  head: () => ({ meta: [{ title: "Passages à programmer — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Passages à programmer — ${APP_NAME}` }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     contract_id: typeof s.contract_id === "string" ? s.contract_id : undefined,
   }),

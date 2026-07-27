@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/devis/")({
-  head: () => ({ meta: [{ title: "Devis — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Devis — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="devis">
       <DevisListPage />

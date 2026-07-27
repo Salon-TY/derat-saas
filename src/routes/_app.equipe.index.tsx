@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState } from "react";
 import { useCurrentRole, useTeamMembers, type TeamMember } from "@/lib/queries";
 import { USERNAME_RE } from "@/lib/team";
@@ -26,7 +27,7 @@ import { Plus, Trash2, KeyRound, ShieldOff, ShieldCheck, Users, Lock } from "luc
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/equipe/")({
-  head: () => ({ meta: [{ title: "Équipe — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Équipe — ${APP_NAME}` }] }),
   component: EquipePage,
 });
 

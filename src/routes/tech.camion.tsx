@@ -2,6 +2,7 @@
 // camion, aucune entrée de stock, aucun transfert : uniquement ses propres
 // niveaux, ses demandes de réappro et son historique de mouvements.
 import { createFileRoute } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/camion")({
-  head: () => ({ meta: [{ title: "Mon camion — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Mon camion — ${APP_NAME}` }] }),
   component: TechCamionPage,
 });
 

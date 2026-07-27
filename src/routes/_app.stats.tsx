@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import { useMonthlyStats, useProductStats, useTechnicianStats, useCurrentRole, type TechnicianStatsEntry, type TechnicianStatsPeriod } from "@/lib/queries";
 import { formatEUR } from "@/lib/schemas";
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/stats")({
-  head: () => ({ meta: [{ title: "Statistiques — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Statistiques — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="stats">
       <StatsPage />

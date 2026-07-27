@@ -4,6 +4,7 @@
 // (lecture seule). Rien d'autre : pas de facturation, pas d'envoi email,
 // pas de PDF, pas de certificat, pas de duplication, pas de paramètres.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import {
   useIntervention, useContracts, useSiteHistory, useAssignableMembers,
@@ -28,7 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/chantiers/$id")({
-  head: () => ({ meta: [{ title: "Chantier — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Chantier — ${APP_NAME}` }] }),
   component: TechChantierDetail,
 });
 

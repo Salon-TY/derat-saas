@@ -1,6 +1,6 @@
 {
-  "name": "CITY DERAT",
-  "short_name": "CITY DERAT",
+  "name": "Gestion Dératisation",
+  "short_name": "Gestion Dératisation",
   "description": "Gestion pour technicien dératiseur",
   "start_url": "/",
   "scope": "/",

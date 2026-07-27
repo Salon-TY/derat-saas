@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
@@ -15,7 +16,7 @@ import { toast } from "sonner";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/tresorerie")({
-  head: () => ({ meta: [{ title: "Trésorerie — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Trésorerie — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="tresorerie">
       <TresoreriePage />

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
@@ -11,7 +12,7 @@ import { MapPin, List as ListIcon, CalendarDays, ChevronLeft, ChevronRight } fro
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/chantiers/")({
-  head: () => ({ meta: [{ title: "Mes chantiers — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Mes chantiers — ${APP_NAME}` }] }),
   component: TechChantiersList,
 });
 

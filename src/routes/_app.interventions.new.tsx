@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { ArrowLeft } from "lucide-react";
 import { InterventionForm, type StockUsageItem } from "@/components/intervention-form";
 import { logStockMovement } from "@/lib/queries";
@@ -9,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { InterventionForm as IFType } from "@/lib/schemas";
 
 export const Route = createFileRoute("/_app/interventions/new")({
-  head: () => ({ meta: [{ title: "Nouvelle intervention — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Nouvelle intervention — ${APP_NAME}` }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     client_id: typeof s.client_id === "string" ? s.client_id : undefined,
     date: typeof s.date === "string" ? s.date : undefined,

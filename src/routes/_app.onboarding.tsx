@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/onboarding")({
-  head: () => ({ meta: [{ title: "Bienvenue — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Bienvenue — ${APP_NAME}` }] }),
   component: OnboardingPage,
 });
 

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/stock/")({
-  head: () => ({ meta: [{ title: "Stock — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Stock — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="stock">
       <StockPage />

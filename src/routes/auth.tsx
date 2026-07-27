@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +12,7 @@ import { toast } from "sonner";
 import { Bug } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Connexion — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Connexion — ${APP_NAME}` }] }),
   component: AuthPage,
 });
 
@@ -104,7 +105,7 @@ function AuthPage() {
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
             <Bug className="h-7 w-7" />
           </div>
-          <CardTitle className="mt-2 text-2xl tracking-tight">CITY DERAT</CardTitle>
+          <CardTitle className="mt-2 text-2xl tracking-tight">{APP_NAME}</CardTitle>
           <CardDescription>{mode === "login" ? "Connectez-vous à votre espace" : "Créez votre compte société"}</CardDescription>
         </CardHeader>
         <CardContent>

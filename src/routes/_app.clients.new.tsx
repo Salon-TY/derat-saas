@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { ClientForm } from "@/components/client-form";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
@@ -9,7 +10,7 @@ import type { ClientForm as ClientFormType } from "@/lib/schemas";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/clients/new")({
-  head: () => ({ meta: [{ title: "Nouveau client — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Nouveau client — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="clients">
       <NewClient />

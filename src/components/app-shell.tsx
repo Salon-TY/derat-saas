@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { formatEUR, formatDateFR, TYPES_INTERVENTION } from "@/lib/schemas";
 import { useClients, useSettings, useMyAccess, useCurrentRole, useMyPoste, useMyTodoCount } from "@/lib/queries";
 import type { PermissionKey } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/brand";
 
 const mainNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; perm?: PermissionKey }[] = [
   { to: "/", label: "Accueil", icon: LayoutDashboard, exact: true, perm: "accueil" },
@@ -413,7 +414,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 : <Bug className="h-5 w-5 text-white" />}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-base font-bold tracking-tight leading-none">{settings?.nom ?? "CITY DERAT"}</div>
+              <div className="truncate text-base font-bold tracking-tight leading-none">{settings?.nom ?? APP_NAME}</div>
               <div className="truncate text-[10px] uppercase tracking-widest text-primary-foreground/60 mt-0.5">
                 Dératisation · Désinsectisation
               </div>

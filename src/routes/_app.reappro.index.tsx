@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/reappro/")({
-  head: () => ({ meta: [{ title: "Réappro — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Réappro — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="reappro">
       <ReapproPage />

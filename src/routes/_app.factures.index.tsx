@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useState, useMemo } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -19,7 +20,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_app/factures/")({
-  head: () => ({ meta: [{ title: "Factures — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Factures — ${APP_NAME}` }] }),
   validateSearch: zodValidator(searchSchema),
   component: () => (
     <PermissionGate perm="factures">
