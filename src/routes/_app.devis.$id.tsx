@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useQuote, useSettings, useClients, usePresets } from "@/lib/queries";
 import { formatEUR, formatDateFR, STATUTS_DEVIS, quoteSchema, type QuoteForm } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/devis/$id")({
-  head: () => ({ meta: [{ title: "Devis — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Devis — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="devis">
       <DevisDetail />
@@ -370,13 +371,13 @@ function DevisDetail() {
     <div class="logo-block">
       ${s?.logo_url ? `<img src="${s.logo_url}" style="max-height:48px;max-width:120px;object-fit:contain" alt="Logo">` : `<div class="logo-icon">🐀</div>`}
       <div class="logo-text">
-        <div class="name">${s?.nom ?? "CITY DERAT"}</div>
+        <div class="name">${s?.nom ?? ""}</div>
         <div class="sub">Dératisation · Désinsectisation</div>
       </div>
     </div>
     <div class="header-coords">
       ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : "17 RUE DU DOCTEUR LAURENT<br>75013 PARIS 13"}<br>
-      Siret : ${s?.siret ?? "88268913600019"}<br>
+      ${s?.siret ? `Siret : ${s.siret}<br>` : ""}
       Tél : ${s?.telephone ?? "06 47 83 25 71"}
     </div>
   </div>
@@ -420,7 +421,7 @@ function DevisDetail() {
   ${quote.notes ? `<div class="notes"><strong>Notes :</strong> ${quote.notes}</div>` : ""}
 
   <div class="footer">
-    Document généré le ${dateHeure} — ${s?.nom ?? "CITY DERAT"} · SIRET ${s?.siret ?? "88268913600019"} · ${s?.tva_number ?? ""}
+    Document généré le ${dateHeure} — ${[s?.nom ?? "", s?.siret ? `SIRET ${s.siret}` : "", s?.tva_number ? `TVA ${s.tva_number}` : ""].filter(Boolean).join(" · ")}
   </div>
 `;
 

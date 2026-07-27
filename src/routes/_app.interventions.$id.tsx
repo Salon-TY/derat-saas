@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useIntervention, useSettings, useProduitsBiocides, useContracts, useAssignableMembers, resolveTechnicianName, useSiteHistory, logStockMovement, syncContractPassageCount, type AssignableMember, type Intervention } from "@/lib/queries";
 import { formatDateFR, STATUTS_INTERVENTION } from "@/lib/schemas";
 import type { InterventionForm as IFType } from "@/lib/schemas";
@@ -31,7 +32,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/_app/interventions/$id")({
-  head: () => ({ meta: [{ title: "Rapport d'intervention — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Rapport d'intervention — ${APP_NAME}` }] }),
   component: InterventionDetail,
 });
 
@@ -437,10 +438,10 @@ function InterventionDetail() {
   <div class="header">
     <div class="prestataire">
       ${s?.logo_url ? `<img src="${s.logo_url}" style="max-height:40px;max-width:100px;object-fit:contain;display:block;margin-bottom:4px" alt="Logo">` : ""}
-      <strong>${s?.nom ?? "CITY DERAT"}</strong>
+      <strong>${s?.nom ?? ""}</strong>
       ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : "17 RUE DU DOCTEUR LAURENT<br>75013 PARIS 13"}
-      <br>Siret : ${s?.siret ?? "88268913600019"}
-      <br>N° TVA : ${s?.tva_number ?? "FR12882689136"}
+      ${s?.siret ? `<br>Siret : ${s.siret}` : ""}
+      ${s?.tva_number ? `<br>N° TVA : ${s.tva_number}` : ""}
       <br>Tél : ${s?.telephone ?? "06 47 83 25 71"}
     </div>
     <div class="client-block">
@@ -486,11 +487,11 @@ function InterventionDetail() {
 
   <div class="mention">
     ⚠️ Ce rapport constitue une preuve de réalisation de la prestation. Conservez ce document.
-    En cas de litige, ce document fait foi de l'intervention réalisée par ${s?.nom ?? "CITY DERAT"}.
+    En cas de litige, ce document fait foi de l'intervention réalisée par ${s?.nom ?? ""}.
   </div>
 
   <div class="footer">
-    ${num} &nbsp;·&nbsp; Généré le ${new Date().toLocaleString("fr-FR")} &nbsp;·&nbsp; ${s?.nom ?? "CITY DERAT"}
+    ${num} &nbsp;·&nbsp; Généré le ${new Date().toLocaleString("fr-FR")} &nbsp;·&nbsp; ${s?.nom ?? ""}
   </div>
 `;
 
@@ -576,7 +577,7 @@ function InterventionDetail() {
   <div class="logo-block">
     ${s?.logo_url ? `<img src="${s.logo_url}" style="max-height:44px;max-width:110px;object-fit:contain;display:block" alt="Logo">` : ""}
     <div class="logo-text">
-      <div class="name">${s?.nom ?? "CITY DERAT"}</div>
+      <div class="name">${s?.nom ?? ""}</div>
       <div class="sub">Dératisation · Désinsectisation</div>
     </div>
   </div>
@@ -608,7 +609,7 @@ function InterventionDetail() {
     </div>
     <div class="info-box">
       <div class="lbl">Technicien</div>
-      <div class="val">${technicienName || s?.nom || "CITY DERAT"}</div>
+      <div class="val">${technicienName || s?.nom || ""}</div>
     </div>
   </div>
 </div>
@@ -675,7 +676,7 @@ ${intervention.observations ? `
 <p class="mention">Traitement réalisé conformément à la réglementation en vigueur relative aux produits biocides (Règlement UE 528/2012)</p>
 
 <div class="footer">
-  Certificat N° ${certNum} · Généré le ${dateGeneration} · ${s?.nom ?? "CITY DERAT"} · SIRET ${s?.siret ?? ""}
+  Certificat N° ${certNum} · Généré le ${dateGeneration} · ${[s?.nom ?? "", s?.siret ? `SIRET ${s.siret}` : ""].filter(Boolean).join(" · ")}
 </div>
 `;
 
@@ -696,7 +697,7 @@ ${intervention.observations ? `
 
     const num = rapportNum;
     const s = settings;
-    const nomSociete = s?.nom ?? "CITY DERAT";
+    const nomSociete = s?.nom ?? "";
     const prochainPassage = intervention.date_prochain_passage
       ? `\nProchain passage prévu le : ${formatDateFR(intervention.date_prochain_passage)}`
       : "";

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { APP_NAME } from "@/lib/brand";
 import { useInvoice, useSettings, useClients, usePresets, useRelancesForInvoice, type Relance } from "@/lib/queries";
 import { formatEUR, formatDateFR, STATUTS_FACTURE, type InvoiceForm, invoiceSchema } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PermissionGate } from "@/components/permission-gate";
 
 export const Route = createFileRoute("/_app/factures/$id")({
-  head: () => ({ meta: [{ title: "Facture — CITY DERAT" }] }),
+  head: () => ({ meta: [{ title: `Facture — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="factures">
       <FactureDetail />
@@ -402,13 +403,13 @@ function FactureDetail() {
     <div class="logo-block">
       ${s?.logo_url ? `<img src="${s.logo_url}" style="max-height:48px;max-width:120px;object-fit:contain;display:block" alt="Logo">` : `<div class="logo-icon">🐀</div>`}
       <div class="logo-text">
-        <div class="name">${s?.nom ?? "CITY DERAT"}</div>
+        <div class="name">${s?.nom ?? ""}</div>
         <div class="sub">Dératisation · Désinsectisation</div>
       </div>
     </div>
     <div class="header-coords">
       ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : "17 RUE DU DOCTEUR LAURENT<br>75013 PARIS 13"}<br>
-      Siret : ${s?.siret ?? "88268913600019"}<br>
+      ${s?.siret ? `Siret : ${s.siret}<br>` : ""}
       Tél : ${s?.telephone ?? "06 47 83 25 71"}
     </div>
   </div>
@@ -468,7 +469,7 @@ function FactureDetail() {
       En cas de retard de paiement, une pénalité au taux annuel de 5 % sera appliquée,
       à laquelle s'ajoutera une indemnité forfaitaire pour frais de recouvrement de 40 €
       (Art. L441-10 du Code de commerce).<br>
-      Document émis par ${s?.nom ?? "CITY DERAT"} — Généré le ${new Date().toLocaleDateString("fr-FR")}
+      Document émis par ${s?.nom ?? ""} — Généré le ${new Date().toLocaleDateString("fr-FR")}
     </div>
 
   </div>
@@ -484,7 +485,7 @@ function FactureDetail() {
     if (!email) { toast.error("Aucun email renseigné pour ce client"); return; }
 
     const s = settings;
-    const nomSociete = s?.nom ?? "CITY DERAT";
+    const nomSociete = s?.nom ?? "";
     const signature = s?.relance_signature ? `\n\n${s.relance_signature}` : `\n\nCordialement,\n${nomSociete}${s?.telephone ? `\nTél : ${s.telephone}` : ""}`;
     const niveau = niveauRelance(invoice.echeance ?? null, settings);
     const montant = formatEUR(invoice.total_ttc);
@@ -540,7 +541,7 @@ function FactureDetail() {
     const email = invoice.client?.email ?? "";
     if (!email) { toast.warning("Aucun email renseigné pour ce client"); return; }
     const s = settings;
-    const nomSociete = s?.nom ?? "CITY DERAT";
+    const nomSociete = s?.nom ?? "";
     const objet = `Facture N°${invoice.numero} - ${nomSociete}`;
     const corps = [
       "Bonjour,",
