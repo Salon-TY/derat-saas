@@ -265,6 +265,9 @@ function Dashboard() {
               <span className="font-semibold text-destructive">
                 {stats!.overdueInvoices.length} facture{stats!.overdueInvoices.length > 1 ? "s" : ""} en retard depuis plus de 7 jours
               </span>
+              <p className="text-xs text-destructive/80 mt-0.5">
+                {stats!.overdueInvoices.length} affichée{stats!.overdueInvoices.length > 1 ? "s" : ""} sur {stats?.unpaidCount ?? 0} facture{(stats?.unpaidCount ?? 0) > 1 ? "s" : ""} impayée{(stats?.unpaidCount ?? 0) > 1 ? "s" : ""} au total
+              </p>
               <ul className="mt-1 space-y-1">
                 {stats!.overdueInvoices.map((inv: any) => (
                   <li key={inv.id} className="flex items-center justify-between gap-2">

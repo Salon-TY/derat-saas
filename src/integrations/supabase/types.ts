@@ -645,6 +645,10 @@ export type Database = {
       next_invoice_number: { Args: never; Returns: number }
       current_user_role: { Args: never; Returns: string }
       account_owner: { Args: never; Returns: string }
+      dashboard_money_stats: {
+        Args: { p_month_start: string; p_prev_month_start: string; p_prev_month_end: string }
+        Returns: { ca_month: number; ca_prev_month: number; unpaid_total: number; unpaid_count: number }[]
+      }
     }
     Enums: {
       [_ in never]: never

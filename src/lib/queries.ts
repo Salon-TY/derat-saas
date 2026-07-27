@@ -141,7 +141,7 @@ export function useRelances() {
   return useQuery({
     queryKey: ["relances"],
     queryFn: async (): Promise<Relance[]> => {
-      const { data, error } = await db.from("relances").select("*").order("created_at", { ascending: false });
+      const { data, error } = await db.from("relances").select("*").order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
       return (data ?? []).map((r: any) => ({ ...r, niveau: Number(r.niveau) as 1 | 2 | 3 }));
     },
@@ -153,7 +153,7 @@ export function useRelancesForInvoice(factureId: string | undefined) {
     queryKey: ["relances", factureId],
     enabled: !!factureId,
     queryFn: async (): Promise<Relance[]> => {
-      const { data, error } = await db.from("relances").select("*").eq("facture_id", factureId!).order("created_at", { ascending: false });
+      const { data, error } = await db.from("relances").select("*").eq("facture_id", factureId!).order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       return (data ?? []).map((r: any) => ({ ...r, niveau: Number(r.niveau) as 1 | 2 | 3 }));
     },
@@ -174,7 +174,7 @@ export function useProduitsBiocides() {
   return useQuery({
     queryKey: ["produits_biocides"],
     queryFn: async (): Promise<ProduitBiocide[]> => {
-      const { data, error } = await db.from("produits_biocides").select("*").order("ordre");
+      const { data, error } = await db.from("produits_biocides").select("*").order("ordre").limit(200);
       if (error) throw error;
       return data ?? [];
     },
@@ -237,7 +237,7 @@ export function useStockProducts() {
   return useQuery({
     queryKey: ["stock_products"],
     queryFn: async (): Promise<StockProduct[]> => {
-      const { data, error } = await db.from("stock_products").select("*").order("nom");
+      const { data, error } = await db.from("stock_products").select("*").order("nom").limit(200);
       if (error) throw error;
       return (data ?? []).map((p: any) => ({
         ...p,
@@ -272,7 +272,8 @@ export function useStockLevels() {
       const { data, error } = await db
         .from("stock_levels")
         .select("*, product:stock_products(nom, unite, seuil_alerte)")
-        .order("created_at");
+        .order("created_at")
+        .limit(200);
       if (error) throw error;
       return (data ?? []).map(mapStockLevel);
     },
@@ -289,7 +290,8 @@ export function useMyVanStock() {
         .from("stock_levels")
         .select("*, product:stock_products(nom, unite, seuil_alerte)")
         .eq("technicien_id", user.id)
-        .order("created_at");
+        .order("created_at")
+        .limit(200);
       if (error) throw error;
       return (data ?? []).map(mapStockLevel);
     },
@@ -331,11 +333,14 @@ export function useStockMovements(filters?: {
   type?: StockMovementType;
   dateFrom?: string;
   dateTo?: string;
+  page?: number;
+  pageSize?: number;
 }) {
+  const paginated = filters?.page !== undefined;
   return useQuery({
-    queryKey: ["stock_movements", filters],
-    queryFn: async (): Promise<StockMovement[]> => {
-      let q = db.from("stock_movements").select("*, product:stock_products(nom, unite)").order("created_at", { ascending: false });
+    queryKey: ["stock_movements", filters ?? null],
+    queryFn: async (): Promise<StockMovement[] | PaginatedResult<StockMovement>> => {
+      let q = db.from("stock_movements").select("*, product:stock_products(nom, unite)", paginated ? { count: "exact" } : undefined).order("created_at", { ascending: false });
       if (filters?.product_id) q = q.eq("product_id", filters.product_id);
       if (filters && "technicien_id" in filters && filters.technicien_id !== undefined) {
         q = filters.technicien_id === null ? q.is("technicien_id", null) : q.eq("technicien_id", filters.technicien_id);
@@ -343,9 +348,18 @@ export function useStockMovements(filters?: {
       if (filters?.type) q = q.eq("type", filters.type);
       if (filters?.dateFrom) q = q.gte("created_at", filters.dateFrom);
       if (filters?.dateTo) q = q.lte("created_at", filters.dateTo);
-      const { data, error } = await q;
+      if (paginated) {
+        const page = filters!.page!;
+        const pageSize = filters!.pageSize ?? 50;
+        q = q.range(page * pageSize, page * pageSize + pageSize - 1);
+      } else {
+        q = q.limit(200);
+      }
+      const { data, error, count } = await q;
       if (error) throw error;
-      return (data ?? []).map((m: any) => ({ ...m, quantite: Number(m.quantite) }));
+      const mapped = (data ?? []).map((m: any) => ({ ...m, quantite: Number(m.quantite) }));
+      if (paginated) return { rows: mapped, total: count ?? 0 };
+      return mapped;
     },
   });
 }
@@ -360,7 +374,8 @@ export function useMyVanMovements() {
         .from("stock_movements")
         .select("*, product:stock_products(nom, unite)")
         .eq("technicien_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (error) throw error;
       return (data ?? []).map((m: any) => ({ ...m, quantite: Number(m.quantite) }));
     },
@@ -421,7 +436,7 @@ export function useStockRequests(statut?: StockRequestStatut) {
   return useQuery({
     queryKey: ["stock_requests", statut ?? "all"],
     queryFn: async (): Promise<StockRequest[]> => {
-      let q = db.from("stock_requests").select("*, product:stock_products(nom, unite)").order("created_at", { ascending: false });
+      let q = db.from("stock_requests").select("*, product:stock_products(nom, unite)").order("created_at", { ascending: false }).limit(200);
       if (statut) q = q.eq("statut", statut);
       const { data, error } = await q;
       if (error) throw error;
@@ -441,7 +456,8 @@ export function useMyStockRequests() {
         .from("stock_requests")
         .select("*, product:stock_products(nom, unite)")
         .eq("technicien_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (error) throw error;
       return (data ?? []).map(mapStockRequest);
     },
@@ -492,7 +508,11 @@ export function useProductStats() {
     queryFn: async (): Promise<ProductStat[]> => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const [stockRes, intRes] = await Promise.all([
-        db.from("stock_products").select("id, nom, unite, prix_achat_ht"),
+        db.from("stock_products").select("id, nom, unite, prix_achat_ht").order("nom").limit(500),
+        // Bornée par la fenêtre de 30 jours (gte "since"), pas de .limit() ajouté ici :
+        // une troncature silencieuse fausserait la conso produits comme le ferait
+        // un .limit() sur une somme financière — le filtre de date suffit déjà à
+        // borner ce volume pour un usage réaliste.
         db.from("interventions").select("produits_utilises, date").gte("date", since),
       ]);
       const stockMap = new Map<string, { nom: string; unite: string; prix: number }>();
@@ -517,12 +537,37 @@ export function useProductStats() {
   });
 }
 
-export function useClients() {
+export type PaginatedResult<T> = { rows: T[]; total: number };
+
+// Options de pagination facultatives : quand `page` est fourni, la requête
+// utilise .range()+{count:"exact"} et le hook renvoie { rows, total } au lieu
+// d'un simple tableau. Sans pagination, comportement inchangé (tableau borné) —
+// tous les autres appelants (sélecteurs client, recherche globale…) ne passent
+// jamais ces options et ne sont donc pas affectés.
+export function useClients(opts?: {
+  search?: string;
+  type_nuisible?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const paginated = opts?.page !== undefined;
   return useQuery({
-    queryKey: ["clients"],
-    queryFn: async (): Promise<Client[]> => {
-      const { data, error } = await db.from("clients").select("*").order("raison_sociale");
+    queryKey: ["clients", opts ?? null],
+    queryFn: async (): Promise<Client[] | PaginatedResult<Client>> => {
+      let q = db.from("clients").select("*", paginated ? { count: "exact" } : undefined).order("raison_sociale");
+      const term = opts?.search?.trim().replace(/[,()%]/g, " ").trim();
+      if (term) q = q.or(`raison_sociale.ilike.%${term}%,adresse_site.ilike.%${term}%,telephone.ilike.%${term}%,email.ilike.%${term}%`);
+      if (opts?.type_nuisible) q = q.eq("type_nuisible", opts.type_nuisible);
+      if (paginated) {
+        const page = opts!.page!;
+        const pageSize = opts!.pageSize ?? 50;
+        q = q.range(page * pageSize, page * pageSize + pageSize - 1);
+      } else {
+        q = q.limit(200);
+      }
+      const { data, error, count } = await q;
       if (error) throw error;
+      if (paginated) return { rows: data ?? [], total: count ?? 0 };
       return data ?? [];
     },
   });
@@ -540,17 +585,45 @@ export function useClient(id: string | undefined) {
   });
 }
 
-export function useInterventions(filters?: { client_id?: string; statut?: string; contract_id?: string; technicien_id?: string }) {
+export function useInterventions(filters?: {
+  client_id?: string;
+  statut?: string;
+  contract_id?: string;
+  technicien_id?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const paginated = filters?.page !== undefined;
   return useQuery({
-    queryKey: ["interventions", filters],
-    queryFn: async (): Promise<Intervention[]> => {
-      let q = db.from("interventions").select("*, client:clients(*)").order("date", { ascending: false });
+    queryKey: ["interventions", filters ?? null],
+    queryFn: async (): Promise<Intervention[] | PaginatedResult<Intervention>> => {
+      let q = db.from("interventions").select("*, client:clients(*)", paginated ? { count: "exact" } : undefined).order("date", { ascending: false });
       if (filters?.client_id) q = q.eq("client_id", filters.client_id);
       if (filters?.statut) q = q.eq("statut", filters.statut);
       if (filters?.contract_id) q = q.eq("contract_id", filters.contract_id);
       if (filters?.technicien_id) q = q.eq("technicien_id", filters.technicien_id);
-      const { data, error } = await q;
+      if (filters?.dateFrom) q = q.gte("date", filters.dateFrom);
+      if (filters?.dateTo) q = q.lte("date", filters.dateTo);
+      // Recherche poussée côté serveur uniquement sur les colonnes de la table
+      // interventions (adresse, nuisible, produits) : un ilike fiable sur
+      // client.raison_sociale via l'embed par défaut (LEFT JOIN) n'est pas
+      // garanti par PostgREST sans risquer d'exclure les interventions sans
+      // client. Le nom du client n'est donc pas (encore) cherché côté serveur.
+      const term = filters?.search?.trim().replace(/[,()%]/g, " ").trim();
+      if (term) q = q.or(`adresse_site.ilike.%${term}%,type_nuisible.ilike.%${term}%,produits.ilike.%${term}%`);
+      if (paginated) {
+        const page = filters!.page!;
+        const pageSize = filters!.pageSize ?? 50;
+        q = q.range(page * pageSize, page * pageSize + pageSize - 1);
+      } else {
+        q = q.limit(200);
+      }
+      const { data, error, count } = await q;
       if (error) throw error;
+      if (paginated) return { rows: data ?? [], total: count ?? 0 };
       return data ?? [];
     },
   });
@@ -593,7 +666,7 @@ export function useContracts() {
   return useQuery({
     queryKey: ["contracts"],
     queryFn: async (): Promise<Contract[]> => {
-      const { data, error } = await db.from("contracts").select("*, client:clients(*)").order("date_fin", { ascending: true });
+      const { data, error } = await db.from("contracts").select("*, client:clients(*)").order("date_fin", { ascending: true }).limit(200);
       if (error) throw error;
       return data ?? [];
     },
@@ -654,8 +727,8 @@ export function usePassagesAProgrammer() {
     queryFn: async (): Promise<PassageAProgrammer[]> => {
       const today = localDate(new Date());
       const [contractsRes, interventionsRes] = await Promise.all([
-        db.from("contracts").select("*, client:clients(*)").eq("statut", "actif").gte("date_fin", today),
-        db.from("interventions").select("contract_id, statut").in("statut", ["planifiee", "en_cours"]).not("contract_id", "is", null),
+        db.from("contracts").select("*, client:clients(*)").eq("statut", "actif").gte("date_fin", today).order("date_fin", { ascending: true }).limit(200),
+        db.from("interventions").select("contract_id, statut").in("statut", ["planifiee", "en_cours"]).not("contract_id", "is", null).limit(500),
       ]);
       if (contractsRes.error) throw contractsRes.error;
       if (interventionsRes.error) throw interventionsRes.error;
@@ -678,12 +751,49 @@ export function usePassagesAProgrammer() {
   });
 }
 
-export function useInvoices() {
+export function useInvoices(opts?: {
+  statut?: string;
+  client_id?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  sortField?: "date" | "montant";
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}) {
+  const paginated = opts?.page !== undefined;
   return useQuery({
-    queryKey: ["invoices"],
-    queryFn: async (): Promise<Invoice[]> => {
-      const { data, error } = await db.from("invoices").select("*, client:clients(*)").order("numero", { ascending: false });
+    queryKey: ["invoices", opts ?? null],
+    queryFn: async (): Promise<Invoice[] | PaginatedResult<Invoice>> => {
+      let q = db.from("invoices").select("*, client:clients(*)", paginated ? { count: "exact" } : undefined);
+      if (opts?.statut) q = q.eq("statut", opts.statut);
+      if (opts?.client_id) q = q.eq("client_id", opts.client_id);
+      if (opts?.dateFrom) q = q.gte("date_facture", opts.dateFrom);
+      if (opts?.dateTo) q = q.lte("date_facture", opts.dateTo);
+      const term = opts?.search?.trim();
+      if (term) {
+        const normalized = term.replace(",", ".");
+        const asNumber = Number(normalized);
+        // Recherche poussée côté serveur : uniquement un match exact de N° de
+        // facture quand le terme est numérique. Le nom du client (colonne
+        // jointe) et le montant formaté ne sont pas cherchés côté serveur —
+        // même limite que useInterventions, cf. son commentaire.
+        if (normalized !== "" && Number.isFinite(asNumber)) q = q.eq("numero", asNumber);
+      }
+      if (paginated) {
+        const sortField = opts?.sortField ?? "date";
+        const ascending = opts?.sortDir === "asc";
+        q = sortField === "montant" ? q.order("total_ttc", { ascending }) : q.order("date_facture", { ascending });
+        const page = opts!.page!;
+        const pageSize = opts!.pageSize ?? 50;
+        q = q.range(page * pageSize, page * pageSize + pageSize - 1);
+      } else {
+        q = q.order("numero", { ascending: false }).limit(200);
+      }
+      const { data, error, count } = await q;
       if (error) throw error;
+      if (paginated) return { rows: data ?? [], total: count ?? 0 };
       return data ?? [];
     },
   });
@@ -748,7 +858,7 @@ export function useTeamMembers() {
   return useQuery({
     queryKey: ["team_members"],
     queryFn: async (): Promise<TeamMember[]> => {
-      const { data, error } = await db.from("team_members").select("*").eq("role", "employe").order("created_at", { ascending: false });
+      const { data, error } = await db.from("team_members").select("*").eq("role", "employe").order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
       return data ?? [];
     },
@@ -774,7 +884,8 @@ export function useAssignableMembers() {
         .select("user_id, display_name, role, username, poste")
         .eq("active", true)
         .or("role.eq.owner,poste.eq.technicien")
-        .order("display_name");
+        .order("display_name")
+        .limit(200);
       if (error) throw error;
       return (data ?? []).map((m: any) => ({
         user_id: m.user_id,
@@ -797,7 +908,8 @@ export function useTechnicianWorkload() {
         .from("interventions")
         .select("technicien_id")
         .eq("statut", "planifiee")
-        .not("technicien_id", "is", null);
+        .not("technicien_id", "is", null)
+        .limit(500);
       if (error) throw error;
       const counts: Record<string, number> = {};
       for (const i of data ?? []) {
@@ -857,7 +969,7 @@ export function usePresets() {
   return useQuery({
     queryKey: ["presets"],
     queryFn: async (): Promise<Preset[]> => {
-      const { data, error } = await db.from("service_presets").select("*").order("ordre");
+      const { data, error } = await db.from("service_presets").select("*").order("ordre").limit(200);
       if (error) throw error;
       return data ?? [];
     },
@@ -875,30 +987,33 @@ export function useDashboardStats() {
       const prevMonthStart = localDate(new Date(_now.getFullYear(), _now.getMonth() - 1, 1));
       const prevMonthEnd = localDate(new Date(_now.getFullYear(), _now.getMonth(), 0));
 
-      const [todayRes, todayInterventions, monthRes, prevMonthRes, unpaidRes, contractsRes, stockLevelsRes, teamRes, roleRes, userRes, toVerifyRes] = await Promise.all([
+      const [todayRes, todayInterventions, moneyStatsRes, unpaidListRes, contractsRes, stockLevelsRes, teamRes, roleRes, userRes, toVerifyRes] = await Promise.all([
         db.from("interventions").select("*", { count: "exact", head: true }).eq("date", today),
-        db.from("interventions").select("*, client:clients(raison_sociale, telephone)").eq("date", today).order("created_at"),
-        db.from("invoices").select("total_ttc, date_facture, statut").gte("date_facture", monthStart),
-        db.from("invoices").select("total_ttc, statut").gte("date_facture", prevMonthStart).lte("date_facture", prevMonthEnd),
-        db.from("invoices").select("id, total_ttc, statut, echeance, client:clients(raison_sociale)").in("statut", ["envoyee", "retard"]),
-        db.from("contracts").select("*, client:clients(raison_sociale)").eq("statut", "actif"),
-        db.from("stock_levels").select("product_id, technicien_id, quantite, product:stock_products(nom, unite, seuil_alerte)"),
-        db.from("team_members").select("user_id, display_name, username"),
+        db.from("interventions").select("*, client:clients(raison_sociale, telephone)").eq("date", today).order("created_at").limit(200),
+        db.rpc("dashboard_money_stats", {
+          p_month_start: monthStart,
+          p_prev_month_start: prevMonthStart,
+          p_prev_month_end: prevMonthEnd,
+        }),
+        // Liste affichée uniquement (quelques factures en retard) : jamais la
+        // source du total, qui vient de dashboard_money_stats.unpaid_count.
+        db.from("invoices").select("id, total_ttc, statut, echeance, client:clients(raison_sociale)").in("statut", ["envoyee", "retard"]).order("echeance", { ascending: true }).limit(20),
+        db.from("contracts").select("*, client:clients(raison_sociale)").eq("statut", "actif").order("date_fin", { ascending: true }).limit(50),
+        db.from("stock_levels").select("product_id, technicien_id, quantite, product:stock_products(nom, unite, seuil_alerte)").order("quantite", { ascending: true }).limit(200),
+        db.from("team_members").select("user_id, display_name, username").limit(200),
         db.rpc("current_user_role"),
         db.auth.getUser(),
         db.from("interventions").select("*", { count: "exact", head: true }).eq("statut", "realisee"),
       ]);
 
-      const ca = (monthRes.data ?? [])
-        .filter((i: any) => ["payee", "envoyee", "retard"].includes(i.statut))
-        .reduce((sum: number, i: any) => sum + Number(i.total_ttc ?? 0), 0);
+      if (moneyStatsRes.error) throw moneyStatsRes.error;
+      const moneyStats = (moneyStatsRes.data as any[])?.[0] ?? { ca_month: 0, ca_prev_month: 0, unpaid_total: 0, unpaid_count: 0 };
+      const ca = Number(moneyStats.ca_month ?? 0);
+      const caPrevMonth = Number(moneyStats.ca_prev_month ?? 0);
+      const unpaidCount = Number(moneyStats.unpaid_count ?? 0);
+      const unpaidTotal = Number(moneyStats.unpaid_total ?? 0);
 
-      const caPrevMonth = (prevMonthRes.data ?? [])
-        .filter((i: any) => ["payee", "envoyee", "retard"].includes(i.statut))
-        .reduce((sum: number, i: any) => sum + Number(i.total_ttc ?? 0), 0);
-
-      const impayes = unpaidRes.data ?? [];
-      const impayesTotal = impayes.reduce((sum: number, i: any) => sum + Number(i.total_ttc ?? 0), 0);
+      const impayes = unpaidListRes.data ?? [];
 
       const now = new Date();
       const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -953,8 +1068,8 @@ export function useDashboardStats() {
         todayInterventions: todayInterventions.data ?? [],
         caMonth: ca,
         caPrevMonth,
-        unpaidCount: impayes.length,
-        unpaidTotal: impayesTotal,
+        unpaidCount,
+        unpaidTotal,
         overdueInvoices,
         expiringContracts,
         stockAlerts,
@@ -969,7 +1084,7 @@ export function useQuotes() {
   return useQuery({
     queryKey: ["devis"],
     queryFn: async (): Promise<Quote[]> => {
-      const { data, error } = await db.from("devis").select("*, client:clients(*)").order("created_at", { ascending: false });
+      const { data, error } = await db.from("devis").select("*, client:clients(*)").order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
       return (data ?? []).map((q: any) => ({
         ...q,
@@ -1035,6 +1150,12 @@ export function useTechnicianStats(period: TechnicianStatsPeriod) {
     queryFn: async () => {
       const dateStart = periodStartDate(period);
 
+      // ⚠️ Pas de .limit() ici : ces 3 requêtes alimentent des sommes (CA,
+      // conso stock) par technicien. Une troncature silencieuse fausserait
+      // ces totaux exactement comme le faisait l'ancien calcul de CA du
+      // dashboard — le vrai correctif serait une agrégation SQL (comme
+      // dashboard_money_stats), pas un .limit() côté client. Période "tout"
+      // (dateStart === null) reste donc un risque non résolu à grande échelle.
       let interventionsQ = db.from("interventions").select("technicien_id, type_nuisible, date");
       if (dateStart) interventionsQ = interventionsQ.gte("date", dateStart);
 
@@ -1135,6 +1256,11 @@ export function useMonthlyStats() {
       const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
       const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 10);
 
+      // ⚠️ Pas de .limit() sur invoicesMonth/invoicesPrev/invoices12m/interventionsMonth/
+      // interventionsPrev : ce sont des sommes/comptes (CA du mois, top 5 clients,
+      // courbe 6 mois). Même risque que useDashboardStats avant son passage à
+      // dashboard_money_stats — mériterait la même agrégation SQL plutôt qu'un
+      // bornage client qui fausserait silencieusement ces chiffres.
       const [invoicesMonth, invoicesPrev, invoices12m, interventionsMonth, interventionsPrev, clientsMonth] = await Promise.all([
         db.from("invoices").select("total_ttc, statut").gte("date_facture", monthStart),
         db.from("invoices").select("total_ttc, statut").gte("date_facture", prevMonthStart).lte("date_facture", prevMonthEnd),
