@@ -376,9 +376,9 @@ function DevisDetail() {
       </div>
     </div>
     <div class="header-coords">
-      ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : "17 RUE DU DOCTEUR LAURENT<br>75013 PARIS 13"}<br>
+      ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : ""}<br>
       ${s?.siret ? `Siret : ${s.siret}<br>` : ""}
-      Tél : ${s?.telephone ?? "06 47 83 25 71"}
+      ${s?.telephone ? `Tél : ${s.telephone}` : ""}
     </div>
   </div>
 

@@ -439,10 +439,10 @@ function InterventionDetail() {
     <div class="prestataire">
       ${s?.logo_url ? `<img src="${s.logo_url}" style="max-height:40px;max-width:100px;object-fit:contain;display:block;margin-bottom:4px" alt="Logo">` : ""}
       <strong>${s?.nom ?? ""}</strong>
-      ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : "17 RUE DU DOCTEUR LAURENT<br>75013 PARIS 13"}
+      ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : ""}
       ${s?.siret ? `<br>Siret : ${s.siret}` : ""}
       ${s?.tva_number ? `<br>N° TVA : ${s.tva_number}` : ""}
-      <br>Tél : ${s?.telephone ?? "06 47 83 25 71"}
+      ${s?.telephone ? `<br>Tél : ${s.telephone}` : ""}
     </div>
     <div class="client-block">
       <div class="rapport-num">${num}</div>

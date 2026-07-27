@@ -408,9 +408,9 @@ function FactureDetail() {
       </div>
     </div>
     <div class="header-coords">
-      ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : "17 RUE DU DOCTEUR LAURENT<br>75013 PARIS 13"}<br>
+      ${s?.adresse ? s.adresse.replace(/\n/g, "<br>") : ""}<br>
       ${s?.siret ? `Siret : ${s.siret}<br>` : ""}
-      Tél : ${s?.telephone ?? "06 47 83 25 71"}
+      ${s?.telephone ? `Tél : ${s.telephone}` : ""}
     </div>
   </div>
 
@@ -459,11 +459,13 @@ function FactureDetail() {
       <div class="t-row ttc"><span>Total TTC</span><span>${formatEUR(invoice.total_ttc)}</span></div>
     </div>
 
+    ${s?.iban || s?.bic ? `
     <div class="rib">
       <strong>Coordonnées bancaires</strong>
-      IBAN : ${s?.iban ?? "FR76 1695 8000 0121 4222 2612 637"}<br>
-      BIC : ${s?.bic ?? "QNTOFRP1XXX"}
+      ${s?.iban ? `IBAN : ${s.iban}<br>` : ""}
+      ${s?.bic ? `BIC : ${s.bic}` : ""}
     </div>
+    ` : ""}
 
     <div class="footer">
       En cas de retard de paiement, une pénalité au taux annuel de 5 % sera appliquée,
