@@ -12,9 +12,10 @@ function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sessionReady, setSessionReady] = useState(false);
-  const { data: role } = useCurrentRole();
-  const { data: myPoste } = useMyPoste();
-  const { data: settings } = useSettings();
+  const [dataConfirmed, setDataConfirmed] = useState(false);
+  const roleQuery = useCurrentRole();
+  const posteQuery = useMyPoste();
+  const settingsQuery = useSettings();
 
   useEffect(() => {
     let mounted = true;
@@ -40,34 +41,56 @@ function AppLayout() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, [navigate]);
 
-  const posteResolved = role !== undefined && myPoste !== undefined;
-  const settingsResolved = settings !== undefined;
-  const isTechnician = role !== undefined && role !== "owner" && myPoste === "technicien";
+  // Une requête lancée avant l'attachement effectif de la session peut se
+  // résoudre "avec succès" sur un résultat vide (RLS sans session ⇒ zéro ligne,
+  // pas une erreur), ce qui ressemble à tort à une société non configurée. On
+  // ne fait donc confiance au rôle/poste/réglages qu'une fois qu'on les a
+  // explicitement redemandés après confirmation de la session.
+  useEffect(() => {
+    if (!sessionReady) { setDataConfirmed(false); return; }
+    let cancelled = false;
+    Promise.all([roleQuery.refetch(), posteQuery.refetch(), settingsQuery.refetch()]).then(() => {
+      if (!cancelled) setDataConfirmed(true);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionReady]);
 
-  // Société pas encore configurée (nom vide) : ne concerne que le propriétaire,
-  // les employés rejoignent une société déjà configurée par leur patron.
-  const isOnboardingRoute = location.pathname === "/onboarding";
-  const needsOnboarding = role === "owner" && settingsResolved && !settings?.nom?.trim();
+  const role = roleQuery.data;
+  const myPoste = posteQuery.data;
+  const settings = settingsQuery.data;
+
+  // undefined = requête pas encore résolue (on attend) ; une valeur définie
+  // (y compris null) = résolue pour de vrai, on peut décider.
+  const dataReady = dataConfirmed && role !== undefined && myPoste !== undefined && settings !== undefined;
 
   // Un technicien ne doit JAMAIS rendre l'interface admin, même une fraction
   // de seconde : il a sa propre interface (/tech/*). On attend la résolution
-  // du rôle/poste avant de rendre quoi que ce soit.
-  useEffect(() => {
-    if (sessionReady && posteResolved && isTechnician) {
-      navigate({ to: "/tech", replace: true });
-    }
-  }, [sessionReady, posteResolved, isTechnician, navigate]);
+  // complète du rôle/poste/réglages avant de rendre quoi que ce soit.
+  const isTechnician = dataReady && role !== "owner" && myPoste === "technicien";
+
+  // Société pas encore configurée : ne concerne que le propriétaire, les
+  // employés rejoignent une société déjà configurée par leur patron.
+  // "settings" null (aucune ligne) ou nom vide/espaces = réellement non
+  // configurée ; tant que dataReady est faux on ne décide rien.
+  const isOnboardingRoute = location.pathname === "/onboarding";
+  const needsOnboarding = dataReady && role === "owner" && (!settings || !settings.nom.trim());
 
   useEffect(() => {
-    if (sessionReady && posteResolved && settingsResolved && needsOnboarding && !isOnboardingRoute) {
+    if (dataReady && isTechnician) {
+      navigate({ to: "/tech", replace: true });
+    }
+  }, [dataReady, isTechnician, navigate]);
+
+  useEffect(() => {
+    if (needsOnboarding && !isOnboardingRoute) {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [sessionReady, posteResolved, settingsResolved, needsOnboarding, isOnboardingRoute, navigate]);
+  }, [needsOnboarding, isOnboardingRoute, navigate]);
 
   if (
     !sessionReady ||
-    !posteResolved ||
-    !settingsResolved ||
+    !dataReady ||
     isTechnician ||
     (needsOnboarding && !isOnboardingRoute)
   ) {
