@@ -1,19 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useInvoices, useRelances } from "@/lib/queries";
+import { useInvoices, useRelances, useInvoicesStatutCounts, useClients } from "@/lib/queries";
 import { formatEUR, formatDateFR, STATUTS_FACTURE } from "@/lib/schemas";
 import { Plus, FileText, Search, Filter, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, useDebouncedValue } from "@/lib/utils";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { PermissionGate } from "@/components/permission-gate";
+import { Pager } from "@/components/pager";
+
+const PAGE_SIZE = 50;
 
 const searchSchema = z.object({
   statut: fallback(z.string(), "all").default("all"),
@@ -65,9 +68,49 @@ function getPeriodDates(period: string): { start: string; end: string } | null {
 }
 
 function FacturesPage() {
-  const { data: invoices = [], isLoading } = useInvoices();
-  const { data: relances = [] } = useRelances();
   const { statut: statutParam } = Route.useSearch();
+
+  const [q, setQ] = useState("");
+  const debouncedQ = useDebouncedValue(q, 300);
+  const [statutFilter, setStatutFilter] = useState(statutParam || "all");
+  const [period, setPeriod] = useState("all");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [sortField, setSortField] = useState<"date" | "montant">("date");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedQ, statutFilter, period, clientFilter, sortField, sortDir]);
+
+  const periodDates = period !== "all" ? getPeriodDates(period) : null;
+
+  const { data: listResult, isLoading } = useInvoices({
+    statut: statutFilter !== "all" ? statutFilter : undefined,
+    client_id: clientFilter !== "all" ? clientFilter : undefined,
+    dateFrom: periodDates?.start,
+    dateTo: periodDates?.end,
+    search: debouncedQ.trim() || undefined,
+    sortField,
+    sortDir,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const listData = (listResult as { rows: any[]; total: number } | undefined) ?? { rows: [], total: 0 };
+  const filtered = listData.rows;
+  const total = listData.total;
+
+  const { data: relances = [] } = useRelances();
+  const { data: statutCounts } = useInvoicesStatutCounts();
+  // Liste des clients pour le filtre : la liste complète des clients du
+  // compte (bornée à 200, cf. useClients), pas uniquement ceux qui ont déjà
+  // une facture sur la page courante.
+  const { data: allClients = [] } = useClients();
+  const clients = useMemo(
+    () => allClients.map((c) => ({ id: c.id, nom: c.raison_sociale })),
+    [allClients]
+  );
 
   // Build per-invoice relance index
   const relancedSet = useMemo(() => {
@@ -81,54 +124,12 @@ function FacturesPage() {
   const navigate = Route.useNavigate();
   const qc = useQueryClient();
 
-  const [q, setQ] = useState("");
-  const [statutFilter, setStatutFilter] = useState(statutParam || "all");
-  const [period, setPeriod] = useState("all");
-  const [clientFilter, setClientFilter] = useState("all");
-  const [sortField, setSortField] = useState<"date" | "montant">("date");
-  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-
-  const clients = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { id: string; nom: string }[] = [];
-    for (const inv of invoices) {
-      if (inv.client_id && !seen.has(inv.client_id)) {
-        seen.add(inv.client_id);
-        out.push({ id: inv.client_id, nom: (inv.client as any)?.raison_sociale ?? inv.client_id });
-      }
-    }
-    return out.sort((a, b) => a.nom.localeCompare(b.nom));
-  }, [invoices]);
-
   const activeFiltersCount = [
     q.trim() ? 1 : 0,
     statutFilter !== "all" ? 1 : 0,
     period !== "all" ? 1 : 0,
     clientFilter !== "all" ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
-
-  const filtered = useMemo(() => {
-    let list = [...invoices];
-    const s = q.trim().toLowerCase();
-    if (s) {
-      list = list.filter((inv) =>
-        [String(inv.numero), (inv.client as any)?.raison_sociale ?? "", String(inv.total_ttc)]
-          .some((v) => v.toLowerCase().includes(s))
-      );
-    }
-    if (statutFilter !== "all") list = list.filter((i) => i.statut === statutFilter);
-    if (clientFilter !== "all") list = list.filter((i) => i.client_id === clientFilter);
-    const pd = getPeriodDates(period);
-    if (pd) list = list.filter((i) => i.date_facture >= pd.start && i.date_facture <= pd.end);
-    list.sort((a, b) => {
-      const cmp = sortField === "date"
-        ? a.date_facture.localeCompare(b.date_facture)
-        : a.total_ttc - b.total_ttc;
-      return cmp * (sortDir === "desc" ? -1 : 1);
-    });
-    return list;
-  }, [invoices, q, statutFilter, clientFilter, period, sortField, sortDir]);
 
   function resetFilters() {
     setQ(""); setStatutFilter("all"); setPeriod("all"); setClientFilter("all");
@@ -199,7 +200,7 @@ function FacturesPage() {
           >
             {f.label}
             <span className="ml-1.5 opacity-70">
-              {f.value === "all" ? invoices.length : invoices.filter((i) => i.statut === f.value).length}
+              {statutCounts?.[f.value] ?? 0}
             </span>
           </button>
         ))}
@@ -261,11 +262,11 @@ function FacturesPage() {
         <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
       ) : filtered.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          {invoices.length === 0 ? "Aucune facture. Commencez par en créer une." : "Aucune facture pour ces filtres."}
+          {(statutCounts?.all ?? 0) === 0 ? "Aucune facture. Commencez par en créer une." : "Aucune facture pour ces filtres."}
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">{filtered.length} facture{filtered.length > 1 ? "s" : ""}</div>
+          <div className="text-xs text-muted-foreground">{total} facture{total > 1 ? "s" : ""}</div>
           {filtered.map((inv) => (
             <Card key={inv.id} className="overflow-hidden">
               <CardContent className="p-4 space-y-2">
@@ -309,6 +310,7 @@ function FacturesPage() {
               </CardContent>
             </Card>
           ))}
+          <Pager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         </div>
       )}
     </div>

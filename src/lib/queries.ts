@@ -573,6 +573,25 @@ export function useClients(opts?: {
   });
 }
 
+// Types de nuisible distincts across tous les clients — pour construire les
+// puces de filtre indépendamment de la page courante affichée par useClients.
+export function useClientNuisibleTypes() {
+  return useQuery({
+    queryKey: ["client_nuisible_types"],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await db
+        .from("clients")
+        .select("type_nuisible")
+        .not("type_nuisible", "is", null)
+        .neq("type_nuisible", "")
+        .limit(1000);
+      if (error) throw error;
+      const s = new Set<string>((data ?? []).map((c: any) => c.type_nuisible).filter(Boolean));
+      return [...s].sort();
+    },
+  });
+}
+
 export function useClient(id: string | undefined) {
   return useQuery({
     queryKey: ["client", id],
@@ -590,9 +609,11 @@ export function useInterventions(filters?: {
   statut?: string;
   contract_id?: string;
   technicien_id?: string;
+  type_nuisible?: string;
   search?: string;
   dateFrom?: string;
   dateTo?: string;
+  sortDir?: "asc" | "desc";
   page?: number;
   pageSize?: number;
 }) {
@@ -600,11 +621,12 @@ export function useInterventions(filters?: {
   return useQuery({
     queryKey: ["interventions", filters ?? null],
     queryFn: async (): Promise<Intervention[] | PaginatedResult<Intervention>> => {
-      let q = db.from("interventions").select("*, client:clients(*)", paginated ? { count: "exact" } : undefined).order("date", { ascending: false });
+      let q = db.from("interventions").select("*, client:clients(*)", paginated ? { count: "exact" } : undefined).order("date", { ascending: filters?.sortDir === "asc" });
       if (filters?.client_id) q = q.eq("client_id", filters.client_id);
       if (filters?.statut) q = q.eq("statut", filters.statut);
       if (filters?.contract_id) q = q.eq("contract_id", filters.contract_id);
       if (filters?.technicien_id) q = q.eq("technicien_id", filters.technicien_id);
+      if (filters?.type_nuisible) q = q.eq("type_nuisible", filters.type_nuisible);
       if (filters?.dateFrom) q = q.gte("date", filters.dateFrom);
       if (filters?.dateTo) q = q.lte("date", filters.dateTo);
       // Recherche poussée côté serveur uniquement sur les colonnes de la table
@@ -625,6 +647,38 @@ export function useInterventions(filters?: {
       if (error) throw error;
       if (paginated) return { rows: data ?? [], total: count ?? 0 };
       return data ?? [];
+    },
+  });
+}
+
+// Compte d'interventions par statut — pour les badges/files d'attente qui ne
+// doivent pas dépendre de la page courante d'une liste paginée.
+export function useInterventionsCountByStatut(statut: string) {
+  return useQuery({
+    queryKey: ["interventions_count", statut],
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await db.from("interventions").select("*", { count: "exact", head: true }).eq("statut", statut);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
+// Types de nuisible distincts across toutes les interventions — pour les
+// puces de filtre, indépendamment de la page courante affichée.
+export function useInterventionNuisibleTypes() {
+  return useQuery({
+    queryKey: ["intervention_nuisible_types"],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await db
+        .from("interventions")
+        .select("type_nuisible")
+        .not("type_nuisible", "is", null)
+        .neq("type_nuisible", "")
+        .limit(1000);
+      if (error) throw error;
+      const s = new Set<string>((data ?? []).map((i: any) => i.type_nuisible).filter(Boolean));
+      return [...s].sort();
     },
   });
 }
@@ -795,6 +849,25 @@ export function useInvoices(opts?: {
       if (error) throw error;
       if (paginated) return { rows: data ?? [], total: count ?? 0 };
       return data ?? [];
+    },
+  });
+}
+
+// Compte de factures par statut — pour les puces "Toutes / Brouillon / …",
+// indépendamment de la page courante d'une liste paginée. count:"exact" sur
+// une requête head:true est calculé côté base, jamais tronqué à 1000 lignes.
+export function useInvoicesStatutCounts() {
+  return useQuery({
+    queryKey: ["invoices_statut_counts"],
+    queryFn: async (): Promise<Record<string, number>> => {
+      const statuts = ["brouillon", "envoyee", "payee", "retard"];
+      const [totalRes, ...perStatutRes] = await Promise.all([
+        db.from("invoices").select("*", { count: "exact", head: true }),
+        ...statuts.map((s) => db.from("invoices").select("*", { count: "exact", head: true }).eq("statut", s)),
+      ]);
+      const counts: Record<string, number> = { all: totalRes.count ?? 0 };
+      statuts.forEach((s, i) => { counts[s] = perStatutRes[i].count ?? 0; });
+      return counts;
     },
   });
 }

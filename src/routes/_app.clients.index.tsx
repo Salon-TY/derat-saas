@@ -1,13 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useClients } from "@/lib/queries";
+import { useClients, useClientNuisibleTypes } from "@/lib/queries";
 import { Plus, Search, Phone, MapPin, ChevronRight, Filter, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, useDebouncedValue } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
+import { Pager } from "@/components/pager";
+
+const PAGE_SIZE = 50;
 
 export const Route = createFileRoute("/_app/clients/")({
   head: () => ({ meta: [{ title: `Clients — ${APP_NAME}` }] }),
@@ -19,31 +22,27 @@ export const Route = createFileRoute("/_app/clients/")({
 });
 
 function ClientsList() {
-  const { data: clients = [], isLoading } = useClients();
   const [q, setQ] = useState("");
+  const debouncedQ = useDebouncedValue(q, 300);
   const [nuisibleFilter, setNuisibleFilter] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [page, setPage] = useState(0);
 
-  const nuisibleTypes = useMemo(() => {
-    const s = new Set(clients.map((c) => c.type_nuisible).filter(Boolean));
-    return [...s].sort();
-  }, [clients]);
+  useEffect(() => { setPage(0); }, [debouncedQ, nuisibleFilter]);
+
+  const { data, isLoading } = useClients({
+    search: debouncedQ.trim() || undefined,
+    type_nuisible: nuisibleFilter !== "all" ? nuisibleFilter : undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const result = data as { rows: any[]; total: number } | undefined;
+  const filtered = result?.rows ?? [];
+  const total = result?.total ?? 0;
+
+  const { data: nuisibleTypes = [] } = useClientNuisibleTypes();
 
   const activeFiltersCount = [nuisibleFilter !== "all" ? 1 : 0].reduce((a, b) => a + b, 0);
-
-  const filtered = useMemo(() => {
-    let list = [...clients];
-    const s = q.trim().toLowerCase();
-    if (s) {
-      list = list.filter((c) =>
-        [c.raison_sociale, c.adresse_site, c.telephone, c.email, c.type_nuisible]
-          .filter(Boolean)
-          .some((v) => v.toLowerCase().includes(s))
-      );
-    }
-    if (nuisibleFilter !== "all") list = list.filter((c) => c.type_nuisible === nuisibleFilter);
-    return list;
-  }, [clients, q, nuisibleFilter]);
 
   return (
     <div className="space-y-4">
@@ -111,11 +110,11 @@ function ClientsList() {
         <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
       ) : filtered.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          {clients.length === 0 ? "Aucun client. Commencez par en ajouter un." : "Aucun résultat."}
+          {total === 0 && !debouncedQ.trim() && nuisibleFilter === "all" ? "Aucun client. Commencez par en ajouter un." : "Aucun résultat."}
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">{filtered.length} client{filtered.length > 1 ? "s" : ""}</div>
+          <div className="text-xs text-muted-foreground">{total} client{total > 1 ? "s" : ""}</div>
           {filtered.map((c) => (
             <Link key={c.id} to="/clients/$id" params={{ id: c.id }} className="block">
               <Card className="hover:border-primary/50 transition-colors">
@@ -139,6 +138,7 @@ function ClientsList() {
               </Card>
             </Link>
           ))}
+          <Pager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         </div>
       )}
     </div>

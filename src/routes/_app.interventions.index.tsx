@@ -8,13 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useInterventions, useAssignableMembers, type Intervention } from "@/lib/queries";
+import {
+  useInterventions, useAssignableMembers, useInterventionsCountByStatut,
+  useInterventionNuisibleTypes, type Intervention,
+} from "@/lib/queries";
 import { STATUTS_INTERVENTION, formatDateFR } from "@/lib/schemas";
 import {
   Plus, Search, Filter, X, List as ListIcon, Sun, CalendarDays,
   ChevronLeft, ChevronRight, MapPin, Phone, UserRound, ClipboardCheck
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, useDebouncedValue } from "@/lib/utils";
+import { Pager } from "@/components/pager";
+
+const PAGE_SIZE = 50;
 
 export const Route = createFileRoute("/_app/interventions/")({
   head: () => ({ meta: [{ title: `Interventions — ${APP_NAME}` }] }),
@@ -95,20 +101,46 @@ function InterventionsPage() {
 
   // List filters
   const [q, setQ] = useState("");
+  const debouncedQ = useDebouncedValue(q, 300);
   const [statutFilter, setStatutFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("all");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [technicienFilter, setTechnicienFilter] = useState("all");
+  const [page, setPage] = useState(0);
 
-  const { data: allInterventions = [], isLoading } = useInterventions();
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedQ, statutFilter, typeFilter, periodFilter, technicienFilter, sortDir]);
+
+  const periodDates = useMemo(() => {
+    if (periodFilter === "all") return null;
+    const now = new Date();
+    const todayStr = toISO(now);
+    if (periodFilter === "today") return { from: todayStr, to: todayStr };
+    if (periodFilter === "week") return { from: toISO(weekStart(now)), to: toISO(addDays(weekStart(now), 6)) };
+    if (periodFilter === "month") return { from: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: todayStr };
+    return null;
+  }, [periodFilter]);
+
+  const { data: listResult, isLoading } = useInterventions({
+    statut: statutFilter !== "all" ? statutFilter : undefined,
+    technicien_id: technicienFilter !== "all" ? technicienFilter : undefined,
+    type_nuisible: typeFilter !== "all" ? typeFilter : undefined,
+    search: debouncedQ.trim() || undefined,
+    dateFrom: periodDates?.from,
+    dateTo: periodDates?.to,
+    sortDir,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const listData = (listResult as { rows: Intervention[]; total: number } | undefined) ?? { rows: [], total: 0 };
+  const filteredList = listData.rows;
+  const total = listData.total;
+
   const { data: assignableMembers = [] } = useAssignableMembers();
-
-  const aVerifierCount = useMemo(
-    () => allInterventions.filter((i) => i.statut === "realisee").length,
-    [allInterventions]
-  );
+  const { data: aVerifierCount = 0 } = useInterventionsCountByStatut("realisee");
 
   const activeFiltersCount = [
     q.trim() ? 1 : 0,
@@ -118,40 +150,7 @@ function InterventionsPage() {
     technicienFilter !== "all" ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
-  const filteredList = useMemo(() => {
-    let list = [...allInterventions];
-    const s = q.trim().toLowerCase();
-    if (s) {
-      list = list.filter((i) =>
-        [i.client ? (i.client as any).raison_sociale : "", i.adresse_site, i.type_nuisible, i.produits]
-          .filter(Boolean)
-          .some((v) => v.toLowerCase().includes(s))
-      );
-    }
-    if (statutFilter !== "all") list = list.filter((i) => i.statut === statutFilter);
-    if (typeFilter !== "all") list = list.filter((i) => i.type_nuisible === typeFilter);
-    if (technicienFilter !== "all") list = list.filter((i) => i.technicien_id === technicienFilter);
-    if (periodFilter !== "all") {
-      const now = new Date();
-      const todayStr = toISO(now);
-      if (periodFilter === "today") list = list.filter((i) => i.date === todayStr);
-      else if (periodFilter === "week") {
-        const ws = toISO(weekStart(now));
-        const we = toISO(addDays(weekStart(now), 6));
-        list = list.filter((i) => i.date >= ws && i.date <= we);
-      } else if (periodFilter === "month") {
-        const ms = toISO(new Date(now.getFullYear(), now.getMonth(), 1));
-        list = list.filter((i) => i.date >= ms && i.date <= todayStr);
-      }
-    }
-    list.sort((a, b) => (a.date < b.date ? 1 : -1) * (sortDir === "desc" ? 1 : -1));
-    return list;
-  }, [allInterventions, q, statutFilter, typeFilter, periodFilter, sortDir, technicienFilter]);
-
-  const nuisibleTypes = useMemo(() => {
-    const s = new Set(allInterventions.map((i) => i.type_nuisible).filter(Boolean));
-    return [...s].sort();
-  }, [allInterventions]);
+  const { data: nuisibleTypes = [] } = useInterventionNuisibleTypes();
 
   // Day/Week navigation
   const wStart = weekStart(selectedDate);
@@ -343,12 +342,13 @@ function InterventionsPage() {
             <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
           ) : filteredList.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-              {allInterventions.length === 0 ? "Aucune intervention. Commencez par en créer une." : "Aucun résultat pour ces filtres."}
+              {total === 0 && activeFiltersCount === 0 ? "Aucune intervention. Commencez par en créer une." : "Aucun résultat pour ces filtres."}
             </CardContent></Card>
           ) : (
             <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">{filteredList.length} intervention{filteredList.length > 1 ? "s" : ""}</div>
+              <div className="text-xs text-muted-foreground">{total} intervention{total > 1 ? "s" : ""}</div>
               {filteredList.map((i) => <InterventionListCard key={i.id} item={i} />)}
+              <Pager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
             </div>
           )}
         </>
