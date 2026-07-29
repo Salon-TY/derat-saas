@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, ClipboardList, FileText, FileSignature,
-  Settings, LogOut, Bug, Plus, Package, Search, X, TrendingUp, FileCheck,
+  Settings, Plus, Package, Search, X, TrendingUp, FileCheck,
   MoreHorizontal, BarChart2, UserCog, PackagePlus, CalendarClock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,10 @@ import { db } from "@/lib/db";
 import { formatEUR, formatDateFR, TYPES_INTERVENTION } from "@/lib/schemas";
 import { useClients, useSettings, useMyAccess, useCurrentRole, useMyPoste, useMyTodoCount } from "@/lib/queries";
 import type { PermissionKey } from "@/lib/permissions";
-import { APP_NAME } from "@/lib/brand";
+import { Header } from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
+import { BottomNav } from "@/components/bottom-nav";
+import { Button } from "@/components/ui/button";
 
 const mainNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; perm?: PermissionKey }[] = [
   { to: "/", label: "Accueil", icon: LayoutDashboard, exact: true, perm: "accueil" },
@@ -395,178 +398,120 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/auth", replace: true });
   }
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
+  const mobileMoreActive = moreItems.some(
+    (item) => location.pathname === item.to || location.pathname.startsWith(item.to + "/")
+  );
+  const bottomNavItems = mainItems.map((item) => ({
+    ...item,
+    badgeCount: item.to === "/interventions" && isTechnician ? myTodoCount : undefined,
+  }));
 
+  return (
+    <div className="flex min-h-screen bg-background">
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
       {fabOpen && <QuickInterventionModal onClose={() => setFabOpen(false)} />}
 
-      {/* Header premium */}
-      <header
-        className="sticky top-0 z-30 header-gradient text-primary-foreground"
-        style={{ paddingTop: "env(safe-area-inset-top)" }}
-      >
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-3 min-w-0">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-accent shadow-lg shadow-accent/30 overflow-hidden">
-              {settings?.logo_url
-                ? <img src={settings.logo_url} alt="Logo" className="h-full w-full object-contain" />
-                : <Bug className="h-5 w-5 text-white" />}
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-base font-bold tracking-tight leading-none">{settings?.nom ?? APP_NAME}</div>
-              <div className="truncate text-[10px] uppercase tracking-widest text-primary-foreground/60 mt-0.5">
-                Dératisation · Désinsectisation
+      {/* Sidebar — desktop uniquement (≥ lg). Toutes les entrées sont visibles
+          directement : contrairement à la bottom nav mobile, l'espace vertical
+          ne nécessite pas de menu "Plus". */}
+      <Sidebar primaryItems={mainItems} secondaryItems={moreItems} />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header
+          settings={settings}
+          tagline="Dératisation · Désinsectisation"
+          brandHref="/"
+          onSearchClick={searchAllowed ? () => setSearchOpen(true) : undefined}
+          showSettingsLink
+          onSignOut={handleSignOut}
+          actions={
+            <Button size="sm" onClick={() => setFabOpen(true)} className="hidden lg:inline-flex">
+              <Plus className="h-4 w-4" /> Nouveau
+            </Button>
+          }
+        />
+
+        {/* Contenu de la page */}
+        <main className="flex-1 pb-28 lg:pb-12">
+          <div className="mx-auto max-w-3xl px-4 py-6 animate-in-up lg:max-w-6xl lg:px-8 lg:py-8">
+            {children}
+          </div>
+        </main>
+
+        {/* FAB — intervention rapide (mobile uniquement ; équivalent desktop : bouton "Nouveau" du Header) */}
+        <div className="fixed bottom-20 right-4 z-40 lg:hidden">
+          <button
+            onClick={() => setFabOpen(true)}
+            className="fab"
+            aria-label="Intervention rapide"
+            style={{ position: "relative", bottom: "auto", right: "auto" }}
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* Menu "Plus" — drawer depuis le bas, mobile uniquement (rendu seulement s'il reste des onglets en trop) */}
+        {hasMore && moreOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+            onClick={() => setMoreOpen(false)}
+          >
+            <div
+              className="absolute inset-x-0 bottom-0 overflow-hidden rounded-t-2xl bg-card shadow-elevated"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b px-6 py-4">
+                <span className="text-sm font-semibold">Plus</span>
+                <button onClick={() => setMoreOpen(false)} className="grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 hover:bg-muted">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-0 p-2">
+                {moreItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to as any}
+                      onClick={() => setMoreOpen(false)}
+                      className={`flex flex-col items-center gap-2 rounded-xl px-3 py-4 transition-all duration-200 ${
+                        active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-accent/15" : "bg-muted"}`}>
+                        <Icon className={`h-5 w-5 ${active ? "stroke-[2.2]" : "stroke-[1.8]"}`} />
+                      </div>
+                      <span className={`text-xs font-medium ${active ? "font-bold" : ""}`}>{item.label}</span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
-          </Link>
-          <div className="flex items-center gap-1 shrink-0">
-            {searchAllowed && (
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="grid h-9 w-9 place-items-center rounded-xl hover:bg-white/10 transition-colors"
-                aria-label="Recherche"
-              >
-                <Search className="h-5 w-5" />
-              </button>
-            )}
-            <Link
-              to="/parametres"
-              className="grid h-9 w-9 place-items-center rounded-xl hover:bg-white/10 transition-colors"
-              aria-label="Paramètres"
-            >
-              <Settings className="h-5 w-5" />
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="grid h-9 w-9 place-items-center rounded-xl hover:bg-white/10 transition-colors"
-              aria-label="Déconnexion"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
           </div>
-        </div>
-      </header>
+        )}
 
-      {/* Main content */}
-      <main className="flex-1 pb-28">
-        <div className="mx-auto max-w-3xl px-4 py-5 animate-in-up">
-          {children}
-        </div>
-      </main>
-
-      {/* FAB — intervention rapide */}
-      <div className="fixed bottom-20 right-4 z-40">
-        <button
-          onClick={() => setFabOpen(true)}
-          className="fab"
-          aria-label="Intervention rapide"
-          style={{ position: "relative", bottom: "auto", right: "auto" }}
-        >
-          <Plus className="h-6 w-6" />
-        </button>
-      </div>
-
-      {/* Menu "Plus" — drawer depuis le bas (rendu uniquement s'il reste des onglets en trop) */}
-      {hasMore && moreOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={() => setMoreOpen(false)}
-        >
-          <div
-            className="absolute bottom-0 inset-x-0 bg-card rounded-t-2xl shadow-2xl overflow-hidden"
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-3 border-b">
-              <span className="text-sm font-semibold">Plus</span>
-              <button onClick={() => setMoreOpen(false)} className="grid h-8 w-8 place-items-center rounded-xl hover:bg-muted">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-0 p-2">
-              {moreItems.map((item) => {
-                const Icon = item.icon;
-                const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to as any}
-                    onClick={() => setMoreOpen(false)}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl px-3 py-4 transition-colors ${
-                      active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <div className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-accent/15" : "bg-muted"}`}>
-                      <Icon className={`h-5 w-5 ${active ? "stroke-[2.2]" : "stroke-[1.8]"}`} />
-                    </div>
-                    <span className={`text-xs font-medium ${active ? "font-bold" : ""}`}>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom navigation — onglets principaux + Plus (si des onglets débordent) */}
-      <nav
-        className="fixed bottom-0 inset-x-0 z-30 bg-card border-t border-border"
-        style={{
-          paddingBottom: "env(safe-area-inset-bottom)",
-          boxShadow: "0 -4px 24px rgba(0,0,0,0.08), 0 -1px 4px rgba(0,0,0,0.04)",
-        }}
-      >
-        <div
-          className="mx-auto grid max-w-3xl"
-          style={{ gridTemplateColumns: `repeat(${mainItems.length + (hasMore ? 1 : 0)}, minmax(0, 1fr))` }}
-        >
-          {mainItems.map((item) => {
-            const Icon = item.icon;
-            const active = item.exact
-              ? location.pathname === item.to
-              : location.pathname === item.to || location.pathname.startsWith(item.to + "/");
-            return (
-              <Link
-                key={item.to}
-                to={item.to as any}
-                className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 text-[9px] font-medium transition-all ${
-                  active ? "text-accent nav-active" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <div className={`relative grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 ${active ? "bg-accent/12 scale-105" : ""}`}>
-                  <Icon className={`h-[18px] w-[18px] transition-all ${active ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
-                  {item.to === "/interventions" && isTechnician && myTodoCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
-                      {myTodoCount}
-                    </span>
-                  )}
-                </div>
-                <span className={active ? "font-bold" : ""}>{item.label}</span>
-              </Link>
-            );
-          })}
-          {/* Bouton Plus — absent quand aucun onglet ne déborde */}
-          {hasMore && (() => {
-            const moreActive = moreItems.some(
-              (item) => location.pathname === item.to || location.pathname.startsWith(item.to + "/")
-            );
-            return (
+        {/* Bottom navigation — mobile uniquement ; onglets principaux + Plus (si des onglets débordent) */}
+        <div className="lg:hidden">
+          <BottomNav
+            items={bottomNavItems}
+            trailing={hasMore ? (
               <button
                 onClick={() => setMoreOpen((v) => !v)}
-                className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 text-[9px] font-medium transition-all ${
-                  moreActive || moreOpen ? "text-accent" : "text-muted-foreground hover:text-foreground"
+                className={`relative flex flex-col items-center justify-center gap-2 py-3 text-[9px] font-medium transition-all duration-200 ${
+                  mobileMoreActive || moreOpen ? "text-accent" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <div className={`grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 ${(moreActive || moreOpen) ? "bg-accent/12 scale-105" : ""}`}>
-                  <MoreHorizontal className={`h-[18px] w-[18px] transition-all ${(moreActive || moreOpen) ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+                <div className={`grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 ${(mobileMoreActive || moreOpen) ? "scale-105 bg-accent/12" : ""}`}>
+                  <MoreHorizontal className={`h-[18px] w-[18px] transition-all duration-200 ${(mobileMoreActive || moreOpen) ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
                 </div>
-                <span className={(moreActive || moreOpen) ? "font-bold" : ""}>Plus</span>
+                <span className={(mobileMoreActive || moreOpen) ? "font-bold" : ""}>Plus</span>
               </button>
-            );
-          })()}
+            ) : undefined}
+          />
         </div>
-      </nav>
+      </div>
     </div>
   );
 }
