@@ -46,6 +46,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --shadow-soft: var(--shadow-soft-value);
+  --shadow-elevated: var(--shadow-elevated-value);
 }
 
 :root {
@@ -73,6 +75,9 @@
   --border: oklch(0.91 0.015 150);
   --input: oklch(0.93 0.012 150);
   --ring: oklch(0.28 0.07 155);
+  --focus-ring: oklch(0.28 0.07 155 / 18%);
+  --shadow-soft-value: 0 1px 2px oklch(0.15 0.03 155 / 4%), 0 4px 16px oklch(0.15 0.03 155 / 6%);
+  --shadow-elevated-value: 0 2px 4px oklch(0.15 0.03 155 / 6%), 0 12px 28px oklch(0.15 0.03 155 / 10%);
   --chart-1: oklch(0.28 0.07 155);
   --chart-2: oklch(0.7 0.19 48);
   --chart-3: oklch(0.6 0.15 155);
@@ -112,6 +117,9 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.7 0.19 48);
+  --focus-ring: oklch(0.7 0.19 48 / 22%);
+  --shadow-soft-value: 0 1px 2px oklch(0 0 0 / 20%), 0 4px 16px oklch(0 0 0 / 24%);
+  --shadow-elevated-value: 0 2px 4px oklch(0 0 0 / 24%), 0 12px 28px oklch(0 0 0 / 32%);
   --sidebar: oklch(0.20 0.04 155);
   --sidebar-foreground: oklch(0.97 0.005 145);
   --sidebar-primary: oklch(0.7 0.19 48);
@@ -158,16 +166,10 @@
 
   /* Cards premium — appliqué globalement */
   .card-premium {
-    background: white;
+    background: var(--color-card);
     border-radius: 1.25rem;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-    border: 1px solid oklch(0.93 0.012 150);
-  }
-
-  /* Override shadow sur tous les composants Card shadcn */
-  .rounded-xl.border.bg-card {
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
-    border-radius: 1rem !important;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--color-border);
   }
 
   /* Gradient header */
@@ -216,10 +218,12 @@
     box-shadow: 0 3px 12px rgba(232,128,10,0.35);
   }
 
-  /* Input focus ring */
-  input:focus, textarea:focus, select:focus {
+  /* Input focus ring — les <input> shadcn gèrent désormais leur propre focus
+     (cf. input.tsx) ; cette règle ne couvre plus que les <textarea>/<select>
+     natifs, non retouchés dans cette phase A (composants partagés uniquement). */
+  textarea:focus, select:focus {
     outline: none;
-    box-shadow: 0 0 0 3px oklch(0.28 0.07 155 / 15%);
+    box-shadow: 0 0 0 3px var(--focus-ring);
   }
 
   /* Smooth tap feedback */
