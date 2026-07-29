@@ -15,5 +15,6 @@ export default defineConfig({
   },
   vite: {
     plugins: [netlify()],
+    server: { port: 4321 },
   },
 });
