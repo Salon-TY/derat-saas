@@ -25,6 +25,19 @@ export const STATUTS_INTERVENTION = [
   { value: "annulee", label: "Annulée" },
 ] as const;
 
+/** Couleurs badge par statut d'intervention — partagées entre la liste des interventions et le dashboard. */
+export const STATUT_INTERVENTION_COLORS: Record<string, string> = {
+  planifiee: "bg-accent/20 text-accent",
+  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  realisee: "bg-primary/20 text-primary",
+  rapport_transmis: "bg-success/15 text-success",
+  annulee: "bg-muted text-muted-foreground",
+};
+
+export function statutInterventionLabel(v: string) {
+  return STATUTS_INTERVENTION.find((s) => s.value === v)?.label ?? v;
+}
+
 export const STATUTS_CONTRAT = [
   { value: "actif", label: "Actif" },
   { value: "termine", label: "Terminé" },

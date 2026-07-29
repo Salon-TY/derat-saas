@@ -65,6 +65,16 @@ function Dashboard() {
   const urgentContracts = (stats?.expiringContracts ?? []).filter((c: any) => c.urgent);
   const soonContracts = (stats?.expiringContracts ?? []).filter((c: any) => !c.urgent);
 
+  const hasAlerts =
+    !isLoading &&
+    !accessLoading &&
+    ((can("factures") && (miseEnDemeure.length > 0 || (stats?.overdueInvoices?.length ?? 0) > 0)) ||
+      (can("devis") && devisEnAttente > 0) ||
+      (can("contrats") && (urgentContracts.length > 0 || soonContracts.length > 0)) ||
+      (can("stock") && (stats?.stockAlerts?.length ?? 0) > 0) ||
+      (can("reappro") && pendingReapproCount > 0) ||
+      (can("programmation") && passagesAProgrammerCount > 0));
+
   return (
     <PageContainer>
       <PageHeader title="Tableau de bord" subtitle="Aperçu de votre activité." />
@@ -134,6 +144,7 @@ function Dashboard() {
                 subtitle={inv.type_intervention}
                 address={inv.adresse_site}
                 phone={inv.client?.telephone}
+                status={inv.statut}
               />
             ))}
           </div>
@@ -141,6 +152,8 @@ function Dashboard() {
       )}
 
       {/* 3. Y a-t-il un problème ? */}
+      {hasAlerts && (
+      <PageSection title="Alertes">
       <div className="space-y-3">
         {!isLoading && !accessLoading && can("factures") && miseEnDemeure.length > 0 && (
           <AlertCard icon={Bell} tone="destructive">
@@ -257,16 +270,33 @@ function Dashboard() {
           </AlertCard>
         )}
       </div>
+      </PageSection>
+      )}
 
       {/* 4. Quels raccourcis utiliser ? */}
       <PageSection title="Actions rapides">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <QuickActionCard icon={Plus} label="Nouvelle intervention rapide" href="/interventions/new" />
+        <div className="grid grid-cols-2 gap-3">
+          <QuickActionCard
+            icon={Plus}
+            label="Nouvelle intervention rapide"
+            description="Planifier une intervention sur le terrain"
+            href="/interventions/new"
+          />
           {!accessLoading && can("clients") && (
-            <QuickActionCard icon={UserPlus} label="Nouveau client" href="/clients/new" />
+            <QuickActionCard
+              icon={UserPlus}
+              label="Nouveau client"
+              description="Ajouter une fiche client"
+              href="/clients/new"
+            />
           )}
           {!accessLoading && can("factures") && (
-            <QuickActionCard icon={FileText} label="Nouvelle facture" href="/factures/new" />
+            <QuickActionCard
+              icon={FileText}
+              label="Nouvelle facture"
+              description="Générer une facture"
+              href="/factures/new"
+            />
           )}
         </div>
       </PageSection>

@@ -4,6 +4,7 @@
 // Prêt à être adopté par les écrans (dashboard, stats…) dans une phase
 // suivante ; non câblé dans une route cette phase-ci.
 import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ export function StatCard({ icon: Icon, label, value, trend, href, search, classN
             </div>
           )}
         </div>
+        {href && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
       </CardContent>
     </Card>
   );
