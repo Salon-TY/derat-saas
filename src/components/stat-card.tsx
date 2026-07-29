@@ -4,18 +4,23 @@
 // Prêt à être adopté par les écrans (dashboard, stats…) dans une phase
 // suivante ; non câblé dans une route cette phase-ci.
 import type { LucideIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-export function StatCard({ icon: Icon, label, value, trend, className }: {
+export function StatCard({ icon: Icon, label, value, trend, href, search, className }: {
   icon?: LucideIcon;
   label: React.ReactNode;
   value: React.ReactNode;
   trend?: { direction: "up" | "down" | "flat"; label: React.ReactNode };
+  /** Rend la carte cliquable (ex. vers /interventions, /factures…). */
+  href?: string;
+  /** Search params optionnels transmis au Link (ex. { statut: "retard" }). */
+  search?: Record<string, unknown>;
   className?: string;
 }) {
-  return (
-    <Card className={className}>
+  const card = (
+    <Card className={cn(href && "transition-all duration-200 hover:border-primary/40", className)}>
       <CardContent className="flex items-center gap-4 p-4 md:p-6">
         {Icon && (
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -41,4 +46,5 @@ export function StatCard({ icon: Icon, label, value, trend, className }: {
       </CardContent>
     </Card>
   );
+  return href ? <Link to={href as any} search={search as any} className="block">{card}</Link> : card;
 }

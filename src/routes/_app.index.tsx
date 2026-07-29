@@ -1,16 +1,22 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useDashboardStats, useSettings, useRelances, useCurrentRole, useMyPoste, useMyAccess, useMyTodoCount, usePendingStockRequestsCount, usePassagesAProgrammer } from "@/lib/queries";
+import {
+  useDashboardStats, useSettings, useRelances, useCurrentRole, useMyPoste, useMyAccess,
+  useMyTodoCount, usePendingStockRequestsCount, usePassagesAProgrammer, useQuotes,
+} from "@/lib/queries";
 import { formatEUR, formatDateFR } from "@/lib/schemas";
 import {
-  ClipboardList, Euro, AlertCircle, Plus, UserPlus, FileText,
-  TrendingUp, TrendingDown, Minus, Phone, AlertTriangle, Package, MapPin, FileCheck, Bell, ClipboardCheck, PackagePlus, CalendarClock,
+  ClipboardList, AlertCircle, Plus, UserPlus, FileText,
+  AlertTriangle, Package, FileCheck, Bell, ClipboardCheck, PackagePlus, CalendarClock,
 } from "lucide-react";
-import { useQuotes } from "@/lib/queries";
 import { useMemo } from "react";
 import { PermissionGate } from "@/components/permission-gate";
+import { PageContainer, PageHeader, PageSection } from "@/components/page-layout";
+import { DashboardHero } from "@/components/dashboard-hero";
+import { StatCard } from "@/components/stat-card";
+import { AlertCard } from "@/components/alert-card";
+import { TaskCard } from "@/components/task-card";
+import { QuickActionCard } from "@/components/quick-action-card";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: `Tableau de bord — ${APP_NAME}` }] }),
@@ -34,7 +40,6 @@ function Dashboard() {
   const { data: pendingReapproCount = 0 } = usePendingStockRequestsCount();
   const { data: contratsAProgrammer = [] } = usePassagesAProgrammer();
   const passagesAProgrammerCount = contratsAProgrammer.reduce((s, c) => s + c.restant, 0);
-  const navigate = useNavigate();
   const devisEnAttente = devis.filter((d) => d.statut === "brouillon" || d.statut === "envoye").length;
 
   const delaiN3 = settings?.relance_delai_n3 ?? 31;
@@ -55,370 +60,216 @@ function Dashboard() {
   const caProgress = objectif > 0 ? Math.min(100, (caMonth / objectif) * 100) : 0;
 
   const caDiff = caMonth - (stats?.caPrevMonth ?? 0);
-  const caTrend = caDiff > 0 ? "up" : caDiff < 0 ? "down" : "flat";
+  const caTrend: "up" | "down" | "flat" = caDiff > 0 ? "up" : caDiff < 0 ? "down" : "flat";
+
+  const urgentContracts = (stats?.expiringContracts ?? []).filter((c: any) => c.urgent);
+  const soonContracts = (stats?.expiringContracts ?? []).filter((c: any) => !c.urgent);
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
-        <p className="text-sm text-muted-foreground">Aperçu de votre activité.</p>
-      </div>
+    <PageContainer>
+      <PageHeader title="Tableau de bord" subtitle="Aperçu de votre activité." />
 
-      {/* Chantiers à faire — technicien uniquement */}
+      {/* Chantiers à faire — technicien uniquement. En pratique, un technicien
+          n'atteint jamais cette page (_app.tsx le redirige vers /tech avant de
+          monter quoi que ce soit ici) : condition conservée telle quelle. */}
       {isTechnician && myTodoCount > 0 && (
-        <Link to="/interventions" className="block">
-          <Card className="border-primary/40 bg-primary/5 hover:border-primary/60 transition-colors">
-            <CardContent className="p-3 flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm font-semibold text-primary">
-                {myTodoCount} chantier{myTodoCount > 1 ? "s" : ""} à faire
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
+        <AlertCard icon={ClipboardList} tone="primary" href="/interventions">
+          <span className="font-semibold text-primary">
+            {myTodoCount} chantier{myTodoCount > 1 ? "s" : ""} à faire
+          </span>
+        </AlertCard>
       )}
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-1 md:gap-3">
+      {/* 1. Comment va mon entreprise ? */}
+      {!accessLoading && can("tresorerie") && (
+        <DashboardHero
+          label="CA du mois"
+          value={isLoading ? "…" : formatEUR(caMonth)}
+          href="/tresorerie"
+          trend={
+            !isLoading && stats?.caPrevMonth !== undefined
+              ? { direction: caTrend, label: `vs mois dernier : ${formatEUR(stats.caPrevMonth)}` }
+              : undefined
+          }
+          objectiveLabel={!isLoading && objectif > 0 ? `${Math.round(caProgress)}% — ${formatEUR(objectif)}` : undefined}
+          objectiveProgress={!isLoading && objectif > 0 ? caProgress : undefined}
+        />
+      )}
 
-        {/* CA du mois — cliquable vers trésorerie */}
-        {!accessLoading && can("tresorerie") && (
-          <Link to="/tresorerie" className="col-span-2 order-1 md:order-2 block">
-            <Card className="overflow-hidden hover:border-accent/50 transition-colors">
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-foreground md:h-12 md:w-12">
-                    <Euro className="h-4 w-4 md:h-6 md:w-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide">CA du mois</div>
-                    <div className="mt-0.5 text-xl font-bold tabular-nums md:text-2xl">
-                      {isLoading ? "…" : formatEUR(caMonth)}
-                    </div>
-                    {!isLoading && stats?.caPrevMonth !== undefined && (
-                      <div className={`flex items-center gap-1 text-xs mt-0.5 ${caTrend === "up" ? "text-green-600" : caTrend === "down" ? "text-destructive" : "text-muted-foreground"}`}>
-                        {caTrend === "up" ? <TrendingUp className="h-3 w-3" /> : caTrend === "down" ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                        <span>vs mois dernier : {formatEUR(stats.caPrevMonth)}</span>
-                      </div>
-                    )}
-                    {!isLoading && objectif > 0 && (
-                      <div className="mt-2">
-                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                          <span>Objectif mensuel</span>
-                          <span>{Math.round(caProgress)}% — {formatEUR(objectif)}</span>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${caProgress >= 100 ? "bg-green-500" : caProgress >= 50 ? "bg-accent" : "bg-orange-400"}`}
-                            style={{ width: `${caProgress}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+      {/* 2. Que dois-je faire aujourd'hui ? */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          icon={ClipboardList}
+          label="Interventions du jour"
+          value={isLoading ? "…" : stats?.interventionsToday ?? 0}
+          href="/interventions"
+        />
+        {!isLoading && !isTechnician && (
+          <StatCard
+            icon={ClipboardCheck}
+            label="Rapports à vérifier"
+            value={stats?.toVerifyCount ?? 0}
+            href="/interventions"
+          />
         )}
-
-        {/* Interventions du jour — cliquable vers interventions */}
-        <Link to="/interventions" className="overflow-hidden order-2 md:order-1 block">
-          <Card className="hover:border-primary/40 transition-colors h-full">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center gap-2 md:gap-4">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground md:h-12 md:w-12">
-                  <ClipboardList className="h-4 w-4 md:h-6 md:w-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wide md:text-xs">Interventions du jour</div>
-                  <div className="mt-0.5 text-xl font-bold tabular-nums md:text-2xl">
-                    {isLoading ? "…" : stats?.interventionsToday ?? 0}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        {/* Devis en attente */}
-        {!accessLoading && can("devis") && devisEnAttente > 0 && (
-          <Link to="/devis" className="overflow-hidden order-3 block">
-            <Card className="hover:border-accent/40 transition-colors h-full">
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-2 md:gap-4">
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent md:h-12 md:w-12">
-                    <FileCheck className="h-4 w-4 md:h-6 md:w-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wide md:text-xs">Devis en attente</div>
-                    <div className="mt-0.5 text-xl font-bold tabular-nums md:text-2xl">{devisEnAttente}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )}
-
-        {/* Factures impayées — cliquable vers factures */}
         {!accessLoading && can("factures") && (
-          <Link to="/factures" search={{ statut: "retard" }} className="overflow-hidden order-3 block">
-            <Card className="hover:border-destructive/40 transition-colors h-full">
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-2 md:gap-4">
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-destructive text-destructive-foreground md:h-12 md:w-12">
-                    <AlertCircle className="h-4 w-4 md:h-6 md:w-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wide md:text-xs">
-                      Impayées ({stats?.unpaidCount ?? 0})
-                    </div>
-                    <div className="mt-0.5 text-xl font-bold tabular-nums md:text-2xl">
-                      {isLoading ? "…" : formatEUR(stats?.unpaidTotal)}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          <StatCard
+            icon={AlertCircle}
+            label={`Impayées (${stats?.unpaidCount ?? 0})`}
+            value={isLoading ? "…" : formatEUR(stats?.unpaidTotal)}
+            href="/factures"
+            search={{ statut: "retard" }}
+          />
         )}
       </div>
 
-      {/* Interventions du jour avec téléphone — cliquables */}
       {!isLoading && (stats?.todayInterventions?.length ?? 0) > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Mes interventions aujourd'hui
-          </h2>
-          <div className="space-y-2">
+        <PageSection title="Mes interventions aujourd'hui">
+          <div className="space-y-3">
             {stats!.todayInterventions.map((inv: any) => (
-              <Link key={inv.id} to="/interventions/$id" params={{ id: inv.id }} className="block">
-                <Card className="hover:border-primary/40 transition-colors">
-                  <CardContent className="p-3 flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm truncate">{inv.client?.raison_sociale ?? "—"}</div>
-                      <div className="text-xs text-muted-foreground">{inv.type_intervention}</div>
-                      {inv.adresse_site && (
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(inv.adresse_site)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{inv.adresse_site}</span>
-                        </a>
-                      )}
-                    </div>
-                    {inv.client?.telephone && (
-                      <a
-                        href={`tel:${inv.client.telephone}`}
-                        className="flex items-center gap-1.5 shrink-0 rounded-lg bg-primary/10 px-3 py-2 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Phone className="h-4 w-4" />
-                        Appeler
-                      </a>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
+              <TaskCard
+                key={inv.id}
+                href={`/interventions/${inv.id}`}
+                title={inv.client?.raison_sociale ?? "—"}
+                subtitle={inv.type_intervention}
+                address={inv.adresse_site}
+                phone={inv.client?.telephone}
+              />
             ))}
           </div>
-        </section>
+        </PageSection>
       )}
 
-      {/* Alerte mise en demeure : factures ≥ N3 jours sans relance niveau 3 */}
-      {!isLoading && !accessLoading && can("factures") && miseEnDemeure.length > 0 && (
-        <Card className="border-destructive bg-destructive/10">
-          <CardContent className="p-3 flex items-start gap-2">
-            <Bell className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-            <div className="text-sm flex-1">
-              <span className="font-semibold text-destructive">
-                {miseEnDemeure.length} facture{miseEnDemeure.length > 1 ? "s" : ""} nécessite{miseEnDemeure.length > 1 ? "nt" : ""} une mise en demeure
-              </span>
-              <p className="text-xs text-destructive/80 mt-0.5">Plus de {delaiN3} jours de retard sans relance niveau 3.</p>
-              <ul className="mt-1 space-y-1">
-                {miseEnDemeure.map((inv: any) => (
-                  <li key={inv.id} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-destructive/80 truncate">
-                      {(inv.client as any)?.raison_sociale ?? "—"} — {formatEUR(inv.total_ttc)} ({inv.daysLate}j)
-                    </span>
-                    <Link to="/factures/$id" params={{ id: inv.id }}
-                      className="shrink-0 text-[10px] font-semibold text-destructive underline">
-                      Envoyer maintenant
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* 3. Y a-t-il un problème ? */}
+      <div className="space-y-3">
+        {!isLoading && !accessLoading && can("factures") && miseEnDemeure.length > 0 && (
+          <AlertCard icon={Bell} tone="destructive">
+            <span className="font-semibold text-destructive">
+              {miseEnDemeure.length} facture{miseEnDemeure.length > 1 ? "s" : ""} nécessite{miseEnDemeure.length > 1 ? "nt" : ""} une mise en demeure
+            </span>
+            <p className="mt-2 text-xs text-destructive/80">Plus de {delaiN3} jours de retard sans relance niveau 3.</p>
+            <ul className="mt-2 space-y-2">
+              {miseEnDemeure.map((inv: any) => (
+                <li key={inv.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-destructive/80">
+                    {(inv.client as any)?.raison_sociale ?? "—"} — {formatEUR(inv.total_ttc)} ({inv.daysLate}j)
+                  </span>
+                  <Link to="/factures/$id" params={{ id: inv.id }} className="shrink-0 text-[10px] font-semibold text-destructive underline">
+                    Envoyer maintenant
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </AlertCard>
+        )}
 
-      {/* Alertes factures en retard > 7 jours (rouge) */}
-      {!isLoading && !accessLoading && can("factures") && (stats?.overdueInvoices?.length ?? 0) > 0 && (
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="p-3 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-            <div className="text-sm flex-1">
-              <span className="font-semibold text-destructive">
-                {stats!.overdueInvoices.length} facture{stats!.overdueInvoices.length > 1 ? "s" : ""} en retard depuis plus de 7 jours
-              </span>
-              <p className="text-xs text-destructive/80 mt-0.5">
-                {stats!.overdueInvoices.length} affichée{stats!.overdueInvoices.length > 1 ? "s" : ""} sur {stats?.unpaidCount ?? 0} facture{(stats?.unpaidCount ?? 0) > 1 ? "s" : ""} impayée{(stats?.unpaidCount ?? 0) > 1 ? "s" : ""} au total
-              </p>
-              <ul className="mt-1 space-y-1">
-                {stats!.overdueInvoices.map((inv: any) => (
-                  <li key={inv.id} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-destructive/80 truncate">
-                      {(inv.client as any)?.raison_sociale ?? "—"} — {formatEUR(inv.total_ttc)} ({inv.daysLate}j de retard)
-                    </span>
-                    <Link
-                      to="/factures/$id"
-                      params={{ id: inv.id }}
-                      className="shrink-0 text-[10px] font-medium text-destructive underline"
-                    >
-                      Voir
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        {!isLoading && !accessLoading && can("factures") && (stats?.overdueInvoices?.length ?? 0) > 0 && (
+          <AlertCard icon={AlertTriangle} tone="destructive">
+            <span className="font-semibold text-destructive">
+              {stats!.overdueInvoices.length} facture{stats!.overdueInvoices.length > 1 ? "s" : ""} en retard depuis plus de 7 jours
+            </span>
+            <p className="mt-2 text-xs text-destructive/80">
+              {stats!.overdueInvoices.length} affichée{stats!.overdueInvoices.length > 1 ? "s" : ""} sur {stats?.unpaidCount ?? 0} facture{(stats?.unpaidCount ?? 0) > 1 ? "s" : ""} impayée{(stats?.unpaidCount ?? 0) > 1 ? "s" : ""} au total
+            </p>
+            <ul className="mt-2 space-y-2">
+              {stats!.overdueInvoices.map((inv: any) => (
+                <li key={inv.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-destructive/80">
+                    {(inv.client as any)?.raison_sociale ?? "—"} — {formatEUR(inv.total_ttc)} ({inv.daysLate}j de retard)
+                  </span>
+                  <Link to="/factures/$id" params={{ id: inv.id }} className="shrink-0 text-[10px] font-medium text-destructive underline">
+                    Voir
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </AlertCard>
+        )}
 
-      {/* Alertes contrats urgents (< 7 jours) — cliquable vers contrats */}
-      {!isLoading && !accessLoading && can("contrats") && (stats?.expiringContracts?.filter((c: any) => c.urgent).length ?? 0) > 0 && (
-        <Link to="/contrats" className="block">
-          <Card className="border-destructive/50 bg-destructive/5 hover:border-destructive/70 transition-colors">
-            <CardContent className="p-3 flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <span className="font-semibold text-destructive">
-                  {stats!.expiringContracts.filter((c: any) => c.urgent).length} contrat{stats!.expiringContracts.filter((c: any) => c.urgent).length > 1 ? "s" : ""} expirent dans moins de 7 jours !
-                </span>
-                <ul className="mt-1 space-y-0.5">
-                  {stats!.expiringContracts.filter((c: any) => c.urgent).map((c: any) => (
-                    <li key={c.id} className="text-xs text-destructive/80">
-                      {c.client?.raison_sociale ?? "—"} — expire le {formatDateFR(c.date_fin)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        {/* Devis en attente — relocalisé ici (déjà conditionné à > 0 dans
+            l'original, comme les autres alertes, plutôt qu'un vrai KPI permanent). */}
+        {!accessLoading && can("devis") && devisEnAttente > 0 && (
+          <AlertCard icon={FileCheck} tone="warning" href="/devis">
+            <span className="font-semibold">
+              {devisEnAttente} devis en attente
+            </span>
+          </AlertCard>
+        )}
 
-      {/* Alertes contrats bientôt (7–30 jours) — cliquable vers contrats */}
-      {!isLoading && !accessLoading && can("contrats") && (stats?.expiringContracts?.filter((c: any) => !c.urgent).length ?? 0) > 0 && (
-        <Link to="/contrats" className="block">
-          <Card className="border-orange-300 bg-orange-50 dark:bg-orange-950/20 hover:border-orange-400 transition-colors">
-            <CardContent className="p-3 flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <span className="font-semibold text-orange-700 dark:text-orange-400">
-                  {stats!.expiringContracts.filter((c: any) => !c.urgent).length} contrat{stats!.expiringContracts.filter((c: any) => !c.urgent).length > 1 ? "s" : ""} expirant bientôt
-                </span>
-                <ul className="mt-1 space-y-0.5">
-                  {stats!.expiringContracts.filter((c: any) => !c.urgent).map((c: any) => (
-                    <li key={c.id} className="text-xs text-orange-600 dark:text-orange-300">
-                      {c.client?.raison_sociale ?? "—"} — expire le {formatDateFR(c.date_fin)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        {!isLoading && !accessLoading && can("contrats") && urgentContracts.length > 0 && (
+          <AlertCard icon={AlertTriangle} tone="destructive" href="/contrats">
+            <span className="font-semibold text-destructive">
+              {urgentContracts.length} contrat{urgentContracts.length > 1 ? "s" : ""} expirent dans moins de 7 jours !
+            </span>
+            <ul className="mt-2 space-y-1">
+              {urgentContracts.map((c: any) => (
+                <li key={c.id} className="text-xs text-destructive/80">
+                  {c.client?.raison_sociale ?? "—"} — expire le {formatDateFR(c.date_fin)}
+                </li>
+              ))}
+            </ul>
+          </AlertCard>
+        )}
 
-      {/* Alertes stock (par emplacement : garage / camion) */}
-      {!isLoading && !accessLoading && can("stock") && (stats?.stockAlerts?.length ?? 0) > 0 && (
-        <Link to="/stock" className="block">
-          <Card className="border-red-300 bg-red-50 dark:bg-red-950/20 hover:border-red-400 transition-colors">
-            <CardContent className="p-3 flex items-start gap-2">
-              <Package className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <span className="font-semibold text-red-700 dark:text-red-400">
-                  {stats!.stockAlerts.length} emplacement{stats!.stockAlerts.length > 1 ? "s" : ""} en stock bas
-                </span>
-                <ul className="mt-1 space-y-0.5">
-                  {stats!.stockAlerts.map((a: any) => (
-                    <li key={`${a.product_id}-${a.technicien_id ?? "garage"}`} className="text-xs text-red-600 dark:text-red-300">
-                      {a.label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        {!isLoading && !accessLoading && can("contrats") && soonContracts.length > 0 && (
+          <AlertCard icon={AlertTriangle} tone="warning" href="/contrats">
+            <span className="font-semibold">
+              {soonContracts.length} contrat{soonContracts.length > 1 ? "s" : ""} expirant bientôt
+            </span>
+            <ul className="mt-2 space-y-1">
+              {soonContracts.map((c: any) => (
+                <li key={c.id} className="text-xs text-muted-foreground">
+                  {c.client?.raison_sociale ?? "—"} — expire le {formatDateFR(c.date_fin)}
+                </li>
+              ))}
+            </ul>
+          </AlertCard>
+        )}
 
-      {/* Demandes de réappro en attente */}
-      {!isLoading && !accessLoading && can("reappro") && pendingReapproCount > 0 && (
-        <Link to="/reappro" className="block">
-          <Card className="border-orange-300 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20 hover:border-orange-400 transition-colors">
-            <CardContent className="p-3 flex items-center gap-2">
-              <PackagePlus className="h-4 w-4 text-orange-500 shrink-0" />
-              <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">
-                {pendingReapproCount} demande{pendingReapproCount > 1 ? "s" : ""} de réappro en attente
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        {!isLoading && !accessLoading && can("stock") && (stats?.stockAlerts?.length ?? 0) > 0 && (
+          <AlertCard icon={Package} tone="destructive" href="/stock">
+            <span className="font-semibold text-destructive">
+              {stats!.stockAlerts.length} emplacement{stats!.stockAlerts.length > 1 ? "s" : ""} en stock bas
+            </span>
+            <ul className="mt-2 space-y-1">
+              {stats!.stockAlerts.map((a: any) => (
+                <li key={`${a.product_id}-${a.technicien_id ?? "garage"}`} className="text-xs text-destructive/80">
+                  {a.label}
+                </li>
+              ))}
+            </ul>
+          </AlertCard>
+        )}
 
-      {/* Passages de contrat à programmer */}
-      {!isLoading && !accessLoading && can("programmation") && passagesAProgrammerCount > 0 && (
-        <Link to="/programmation" search={{ contract_id: undefined }} className="block">
-          <Card className="border-orange-300 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20 hover:border-orange-400 transition-colors">
-            <CardContent className="p-3 flex items-center gap-2">
-              <CalendarClock className="h-4 w-4 text-orange-500 shrink-0" />
-              <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">
-                {passagesAProgrammerCount} passage{passagesAProgrammerCount > 1 ? "s" : ""} de contrat à programmer
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        {!isLoading && !accessLoading && can("reappro") && pendingReapproCount > 0 && (
+          <AlertCard icon={PackagePlus} tone="warning" href="/reappro">
+            <span className="font-semibold">
+              {pendingReapproCount} demande{pendingReapproCount > 1 ? "s" : ""} de réappro en attente
+            </span>
+          </AlertCard>
+        )}
 
-      {/* Rapports terminés en attente de vérification (owner/bureau) */}
-      {!isLoading && !isTechnician && (stats?.toVerifyCount ?? 0) > 0 && (
-        <Link to="/interventions" className="block">
-          <Card className="border-orange-300 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20 hover:border-orange-400 transition-colors">
-            <CardContent className="p-3 flex items-center gap-2">
-              <ClipboardCheck className="h-4 w-4 text-orange-500 shrink-0" />
-              <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">
-                {stats!.toVerifyCount} rapport{stats!.toVerifyCount > 1 ? "s" : ""} à vérifier
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        {!isLoading && !accessLoading && can("programmation") && passagesAProgrammerCount > 0 && (
+          <AlertCard icon={CalendarClock} tone="warning" href="/programmation">
+            <span className="font-semibold">
+              {passagesAProgrammerCount} passage{passagesAProgrammerCount > 1 ? "s" : ""} de contrat à programmer
+            </span>
+          </AlertCard>
+        )}
+      </div>
 
-      {/* Actions rapides */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Actions rapides</h2>
-        <div className="grid grid-cols-1 gap-2">
-          <Button asChild size="lg" className="h-14 justify-start bg-green-700 hover:bg-green-800 text-white">
-            <Link to="/interventions/new"><Plus className="mr-2 h-5 w-5" /> Nouvelle intervention rapide</Link>
-          </Button>
+      {/* 4. Quels raccourcis utiliser ? */}
+      <PageSection title="Actions rapides">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <QuickActionCard icon={Plus} label="Nouvelle intervention rapide" href="/interventions/new" />
           {!accessLoading && can("clients") && (
-            <Button asChild size="lg" variant="secondary" className="h-14 justify-start">
-              <Link to="/clients/new"><UserPlus className="mr-2 h-5 w-5" /> Nouveau client</Link>
-            </Button>
+            <QuickActionCard icon={UserPlus} label="Nouveau client" href="/clients/new" />
           )}
           {!accessLoading && can("factures") && (
-            <Button asChild size="lg" className="h-14 justify-start bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link to="/factures/new"><FileText className="mr-2 h-5 w-5" /> Nouvelle facture</Link>
-            </Button>
+            <QuickActionCard icon={FileText} label="Nouvelle facture" href="/factures/new" />
           )}
         </div>
-      </div>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 }

@@ -1,14 +1,63 @@
-# CLAUDE.md — city-derat-pro (état du projet & conventions)
+# CLAUDE.md — derat-saas (état du projet & conventions)
 
 > Document de contexte pour Claude Code. À la racine du repo, il est lu automatiquement à chaque session. Tenir à jour au fil des évolutions.
+>
+> ⚠️ Ce repo est un **fork de `city-derat-pro`** (l'app mono-société du client Warren), en cours de transformation en **SaaS multi-tenant**. Beaucoup de sections ci-dessous (architecture DB, règles techniques, historique des fonctionnalités) datent du fork initial et restent vraies pour le code hérité, mais **ne jamais confondre les deux repos** : `city-derat-pro` = app du client, ne jamais y toucher depuis une session derat-saas. Voir les deux sections dédiées plus bas pour l'état spécifique à la transformation SaaS et à la refonte visuelle en cours.
 
 ## Le projet
 
-App de gestion pour un dératiseur indépendant (CITY DERAT). Déjà en production.
-- **Repo GitHub** : github.com/Salon-TY/city-derat-pro — push sur `main` → **Netlify redéploie automatiquement**.
-- **Netlify** : derat-pro.netlify.app
-- **Supabase** : projet `dawwepdqqzrdyyadhmtw`
+SaaS de gestion pour dératiseurs indépendants (multi-société, chaque compte isolé par RLS `account_owner()`). Pas encore en production commerciale — transformation en cours à partir de la base `city-derat-pro`.
+- **Repo GitHub** : github.com/Salon-TY/derat-saas — push sur `main` → **Netlify redéploie automatiquement**.
+- **Supabase** : projet `ysmkhdwjvlgmduipuaqs` (⚠️ corrigé en 2026 — `.env` pointait par erreur vers le projet Supabase du client `city-derat-pro`, `dawwepdqqzrdyyadhmtw` ; toujours vérifier que `.env` pointe bien sur `ysmkhdwjvlgmduipuaqs` avant tout test).
+- **Identité Git locale de ce repo** : `Robbie <salonty91310@gmail.com>` (configurée en local sur ce dépôt uniquement, ne pas confondre avec l'identité utilisée sur `city-derat-pro`).
 - **Stack** : TanStack Start + React + shadcn/ui + Supabase + Netlify.
+
+## Transformation SaaS multi-tenant (2026) — état des lieux
+
+Chantier en cours pour ouvrir l'app à plusieurs sociétés clientes (au lieu d'une seule, CITY DERAT). Travaux déjà livrés (commités et pushés sur `main`), dans l'ordre :
+
+1. **Inscription + onboarding société** : `src/routes/auth.tsx` a un mode inscription (email/mot de passe) en plus de la connexion par identifiant (inchangée pour les employés). Nouvel écran `src/routes/_app.onboarding.tsx` (plein écran, route enregistrée à la main dans `routeTree.gen.ts`) pour saisir nom/SIRET/TVA/téléphone/adresse/email à la première connexion. Portillon dans `src/routes/_app.tsx` : redirige un **owner** dont `company_settings.nom` est vide vers `/onboarding` — mais seulement une fois session + rôle + settings **totalement résolus** (sinon flash de redirection à tort pendant le chargement ; voir le correctif ci-dessous).
+   - **Bug corrigé** : le portillon redirigeait parfois vers l'onboarding à la reconnexion alors que la société était déjà configurée (race condition : une requête déclenchée avant l'attachement de la session peut se résoudre "avec succès" sur un résultat vide au lieu d'attendre). Le portillon attend maintenant un refetch explicite confirmé après résolution de la session avant de décider quoi que ce soit.
+2. **Nettoyage des valeurs codées en dur héritées de CITY DERAT** : plus aucun repli sur les vraies coordonnées du client d'origine dans les documents générés (devis/factures/rapports/certificats/contrats) — SIRET, TVA, adresse, téléphone, IBAN/BIC. Un champ vide → le segment est **omis proprement** (jamais de libellé vide ni de séparateur `·` orphelin), jamais une valeur inventée. Seule exception légitime conservée : les replis sur des données **client** (`client?.raison_sociale ?? "—"`), qui indiquent une absence et ne fabriquent pas de fausse identité.
+3. **Nom du produit centralisé** : `src/lib/brand.ts` exporte `APP_NAME` (nom provisoire, à changer à un seul endroit). Utilisé pour tous les titres d'onglet, la page de connexion, `__root.tsx`, le repli du nom de société dans les shells — **jamais** dans un contexte d'identité légale de l'entreprise cliente (documents), qui reste sur `""` si `company_settings.nom` est vide.
+4. **Domaine des identifiants employés** : `EMPLOYEE_EMAIL_DOMAIN` (`src/lib/team.ts`) est maintenant `team.app.local` (plus `team.cityderat.local`). ⚠️ Aucun employé réel n'existait sur derat-saas au moment du changement — si des comptes de test avaient déjà été créés avec l'ancien domaine, ils doivent être recréés (changer la valeur casse leur connexion, l'email étant déjà stocké dans `auth.users`).
+5. **Fiabilité des chiffres + pagination** : `useDashboardStats` (`src/lib/queries.ts`) calcule désormais CA du mois/mois précédent/total impayés via une fonction SQL dédiée (`dashboard_money_stats`, RPC) plutôt qu'en sommant côté client une liste plafonnée à 1000 lignes par PostgREST (bug silencieux au-delà). Toutes les autres requêtes de liste du fichier ont désormais un `.order()+.limit()` explicite, **sauf** `useMonthlyStats` et le `rawQuery` de `useTechnicianStats` : volontairement non bornés (commentaire dans le code) car ils alimentent des sommes financières — un `.limit()` y fausserait silencieusement les totaux, exactement le bug qu'on corrige ailleurs. `useInterventions`/`useInvoices`/`useClients`/`useStockMovements` acceptent en plus une pagination optionnelle (`{page, pageSize}` → `.range()` + `{count:"exact"}`, retourne `{rows, total}`) ; sans ces options, comportement inchangé (tableau simple) pour tous les autres appelants.
+   - Recherche serveur sur les pages Interventions/Factures : ne couvre que les colonnes de la table elle-même (adresse, nuisible, produits pour interventions ; N° de facture exact si numérique) — **pas** le nom du client joint (limite connue de PostgREST sur l'embed par défaut, documentée dans `queries.ts`).
+
+**À vérifier avant tout test manuel** : confirmer que `dashboard_money_stats` existe bien sur le projet Supabase `ysmkhdwjvlgmduipuaqs` (vérifié une fois via un appel REST direct, fonctionne).
+
+## Refonte UI premium (2026) — état des phases
+
+Objectif : langage visuel "SaaS premium 2026" (inspiration Linear/Stripe/Notion/Fady), **sans jamais toucher** aux routes/hooks/`queries.ts`/permissions/calculs métier — uniquement présentation (JSX, Tailwind, composants partagés). Travail découpé en phases séquentielles, chacune validée visuellement par l'utilisateur (Claude Code ne peut pas rendre l'app en live dans cet environnement — voir "Méthode de travail" plus bas) avant commit.
+
+**Règles transverses à toutes les phases** :
+- Échelle d'espacement stricte : `8/12/16/24/32/40/48` (Tailwind `2/3/4/6/8/10/12`) — pas de valeur arbitraire sauf nécessité justifiée (ex. `mt-0.5` pour un alignement optique icône/texte).
+- Aucune couleur en dur : uniquement les tokens OKLCH existants (`--primary`, `--success`, `--warning`, `--destructive`, etc., définis dans `src/styles.css`). Plusieurs couleurs Tailwind littérales héritées (`orange-300`, `red-50`, `green-600`…) ont été progressivement remplacées par les tokens sémantiques au fil des phases — probablement encore présentes sur les écrans pas encore traités (Clients, Stock, Contrats…).
+- Zéro donnée inventée / fonctionnalité simulée : pas de notifications (n'existe pas dans l'app), pas de sélecteur de mois interactif (pas de navigation multi-mois), pas d'avatar-photo (initiales uniquement si un nom existe, sinon icône), pas de graphique basé sur des données absentes (seuls CA du mois + mois précédent existent, pas d'historique).
+- Avant de créer un composant : vérifier qu'aucun composant de phase précédente (ou shadcn natif) ne joue déjà ce rôle. Enrichir l'existant plutôt que dupliquer (jamais de `XxxV2`/`PremiumXxx`).
+- Ne jamais commiter/pusher sans validation visuelle explicite de l'utilisateur (l'environnement Claude Code ne peut pas prendre de vraies captures d'écran ici — l'utilisateur lance `bun run dev` en local et valide lui-même).
+
+**État par phase** :
+
+| Phase | Contenu | Statut |
+|---|---|---|
+| A — Design System | Rayons/ombres/tailles/transitions sur les 11 primitives `src/components/ui/*` (Card, Button, Input, Badge, Table, Dialog, Sheet, Tabs, Select, Dropdown-menu, Avatar). Nouveaux tokens `--shadow-soft`, `--shadow-elevated`, `--focus-ring`. | ✅ Commité + pushé |
+| B — AppShell adaptatif | Sidebar desktop (`src/components/sidebar.tsx`, nouveau — volontairement pas une adoption du `ui/sidebar.tsx` shadcn vendu par défaut, qui bascule en tiroir sur mobile et contredit la règle "pas de tiroir pour la nav principale"). Bottom nav mobile inchangée dans son comportement, juste réhabillée. `Header` et `BottomNav` désormais partagés entre `AppShell` et `TechShell` (qui reste 100% bottom-nav, jamais de sidebar — outil de terrain dédié). Nouveaux composants prêts pour adoption future, non câblés dans les routes : `PageContainer`, `PageHeader`, `PageActions`, `PageSection`, `SectionTitle`, `StatCard`. Nouveau token `--shadow-nav`. | ✅ Commité + pushé |
+| C — Dashboard (recomposition) | `src/routes/_app.index.tsx` restructuré autour d'une narration (CA → à faire aujourd'hui → problèmes → raccourcis), en adoptant les composants de Phase B. Nouveaux composants : `DashboardHero`, `AlertCard`, `TaskCard`, `QuickActionCard` (+ `StatCard` étendu avec `href`/`search`). Deux relocalisations actées avec l'utilisateur : "Devis en attente" déplacé des KPI vers la liste d'alertes (déjà conditionné à `>0` comme les autres alertes) ; "Rapports à vérifier" promu en KPI permanent (n'est plus masqué à 0). | ⚠️ Implémenté, **build vert, non commité** — en attente de validation visuelle |
+| C.1 — Premium Polish | Enrichissement visuel du Dashboard de Phase C (jugé "propre mais pas premium") : Hero à 2 colonnes avec dégradé/décor SVG, StatCard à 3 zones fixes, QuickActionCard en grille 2×2 compacte, TaskCard avec badges de statut réels + avatar-initiales, section Alertes regroupée avec titre dédié. Toujours zéro donnée inventée. | 🚧 **Interrompue avant l'étape de plan** (l'utilisateur a demandé cette mise à jour de CLAUDE.md en premier) — reprendre par l'inventaire du rendu actuel de `_app.index.tsx` + des 5 composants Phase C, présenter le plan, attendre validation avant de coder (méthode imposée par le prompt de cette phase). |
+
+**Composants créés pendant la refonte** (tous dans `src/components/`, présentation pure — aucun n'appelle Supabase ni ne contient de logique métier) :
+- `header.tsx` (`Header`) — barre supérieure partagée AppShell/TechShell.
+- `sidebar.tsx` (`Sidebar`) — nav desktop uniquement (`lg:` et plus).
+- `bottom-nav.tsx` (`BottomNav`) — nav mobile partagée.
+- `page-layout.tsx` — `PageContainer`, `PageHeader`, `PageActions`, `PageSection`, `SectionTitle`.
+- `stat-card.tsx` (`StatCard`) — tuile métrique générique, cliquable (`href`/`search` optionnels).
+- `dashboard-hero.tsx` (`DashboardHero`) — carte CA du mois dominante (valeur, tendance, barre d'objectif).
+- `alert-card.tsx` (`AlertCard`) — bannière d'alerte à tonalité (`primary`/`warning`/`destructive`), consolide ~8 blocs auparavant dupliqués avec des couleurs en dur.
+- `task-card.tsx` (`TaskCard`) — ligne "intervention du jour" (client, adresse cliquable, appel direct).
+- `quick-action-card.tsx` (`QuickActionCard`) — tuile d'action rapide pour grille.
+
+**Pistes repérées mais non traitées** (à reprendre phase par phase, écran par écran) : `_app.stats.tsx` a son propre `TechnicianStatCard` local, candidat à une consolidation vers `StatCard` ; plusieurs pages utilisent encore des `<select>` natifs au lieu du composant `Select` de Phase A ; les couleurs Tailwind littérales (orange/red) probablement encore présentes sur Clients/Stock/Contrats/Factures.
 
 ## Conventions NON négociables
 
@@ -42,7 +91,7 @@ Le modèle : chaque donnée appartient à un **compte** (le patron), pas à un u
 3. **Module Contrats** : `contracts.numero` = `CT-YYYY-NNN` généré à la création, **éditable en format libre** (unicité garantie par index `(user_id, numero)`, message clair sur violation `23505`) ; champs légaux client (`siren, rcs, forme_juridique`) ; PDF fidèle au modèle ; signature tactile ; email ; lien interventions (`interventions.contract_id`).
 4. **Multi-utilisateurs** :
    - Création de comptes employés via la fonction serveur `createEmployee` (+ `resetEmployeePassword`, `setEmployeeActive`, `deleteEmployee`) dans `src/lib/api/team.functions.ts`.
-   - **Connexion par identifiant** : email interne synthétique `username@team.cityderat.local` (`src/lib/team.ts` : `usernameToEmail`, `USERNAME_RE`). Page `auth.tsx` : champ « identifiant ou email » (si `@` → email sinon suffixe), **inscription publique retirée**.
+   - **Connexion par identifiant** : email interne synthétique `username@team.app.local` (`src/lib/team.ts` : `EMPLOYEE_EMAIL_DOMAIN`, `usernameToEmail`, `USERNAME_RE` — domaine renommé depuis `team.cityderat.local` pendant la transformation SaaS, voir section dédiée plus haut). Page `auth.tsx` : champ « identifiant ou email » (si `@` → email sinon suffixe) **+ mode inscription** (email/mot de passe) pour un nouvel owner.
    - **Permissions par page** (`src/lib/permissions.ts`) : `PermissionKey`, `PERMISSION_LABELS`, preset `PRESET_BUREAU`. Terrain toujours visible ; Équipe owner-only. Défaut : tout bloqué. Ne s'applique qu'au poste **bureau** (le technicien a sa propre interface, cf. règle structurelle).
    - Page **Équipe** (`_app.equipe.index.tsx`, owner-only) : créer/reset/activer-désactiver/supprimer + éditeur d'autorisations (désactivé avec une note explicative si `poste === 'technicien'`) + poste.
    - Garde de route : `src/components/permission-gate.tsx` (redirige vers `/interventions` si non autorisé) — pour le bureau ; pour un technicien qui taperait une URL admin à la main, c'est la garde de `_app.tsx` qui agit en amont (redirection vers `/tech`).
@@ -78,7 +127,9 @@ Le modèle : chaque donnée appartient à un **compte** (le patron), pas à un u
 
 ## Méthode de travail
 
-Un assistant « planificateur » (côté chat) produit : (a) le SQL à exécuter dans Supabase, (b) des prompts précis pour Claude Code. Claude Code applique dans le repo, build avec bun, commit, push → Netlify déploie. Claude Code ne peut pas cliquer dans l'app en live : vérification via `bun run build`, puis test manuel par l'utilisateur.
+Un assistant « planificateur » (côté chat) produit : (a) le SQL à exécuter dans Supabase, (b) des prompts précis pour Claude Code. Claude Code applique dans le repo, build avec bun. Claude Code ne peut pas cliquer dans l'app en live dans cet environnement (l'outil de preview sert un site sans rapport, indépendamment du projet — limitation de l'environnement, pas du code) : vérification via `bun run build`, puis test manuel par l'utilisateur.
+
+**Commit/push** : sur les tâches de fond (SQL, données, permissions), commit+push directement après un build vert reste la norme. **Sur la refonte UI en cours (phases A/B/C/C.1…), ne jamais commiter ni pusher sans validation visuelle explicite de l'utilisateur** — celui-ci lance `bun run dev` en local et confirme avant que quoi que ce soit ne parte sur `main` (Netlify redéploie automatiquement au moindre push). Plusieurs phases peuvent rester non commitées en attente d'une validation groupée (ex. Phase C attendait encore sa validation quand C.1 a démarré).
 
 ## En cours / à venir
 
