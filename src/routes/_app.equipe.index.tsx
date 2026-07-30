@@ -4,27 +4,56 @@ import { useState } from "react";
 import { useCurrentRole, useTeamMembers, type TeamMember } from "@/lib/queries";
 import { USERNAME_RE } from "@/lib/team";
 import {
-  ALL_PERMISSION_KEYS, PERMISSION_LABELS, PRESET_BUREAU,
-  presetToPermissions, type PermissionKey,
+  ALL_PERMISSION_KEYS,
+  PERMISSION_LABELS,
+  PRESET_BUREAU,
+  presetToPermissions,
+  type PermissionKey,
 } from "@/lib/permissions";
-import { createEmployee, resetEmployeePassword, setEmployeeActive, deleteEmployee } from "@/lib/api/team.functions";
+import {
+  createEmployee,
+  resetEmployeePassword,
+  setEmployeeActive,
+  deleteEmployee,
+} from "@/lib/api/team.functions";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, KeyRound, ShieldOff, ShieldCheck, Users, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageContainer, PageHeader } from "@/components/page-layout";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_app/equipe/")({
   head: () => ({ meta: [{ title: `Équipe — ${APP_NAME}` }] }),
@@ -37,7 +66,13 @@ function errMessage(e: unknown): string {
 
 // ─── Ajouter un employé ────────────────────────────────────────────────────────
 
-function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function AddEmployeeDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const qc = useQueryClient();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -55,14 +90,25 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   }
 
   async function handleCreate() {
-    if (!displayName.trim()) { toast.error("Nom affiché requis"); return; }
+    if (!displayName.trim()) {
+      toast.error("Nom affiché requis");
+      return;
+    }
     const u = username.trim().toLowerCase();
-    if (!USERNAME_RE.test(u)) { toast.error("Identifiant invalide (3-30 car. : lettres, chiffres, . _ -)"); return; }
-    if (password.length < 8) { toast.error("Mot de passe : 8 caractères minimum"); return; }
+    if (!USERNAME_RE.test(u)) {
+      toast.error("Identifiant invalide (3-30 car. : lettres, chiffres, . _ -)");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("Mot de passe : 8 caractères minimum");
+      return;
+    }
 
     setSaving(true);
     try {
-      await createEmployee({ data: { displayName: displayName.trim(), username: u, password, poste } });
+      await createEmployee({
+        data: { displayName: displayName.trim(), username: u, password, poste },
+      });
       qc.invalidateQueries({ queryKey: ["team_members"] });
       qc.invalidateQueries({ queryKey: ["assignable_members"] });
       setCreated({ username: u, password });
@@ -75,46 +121,81 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) reset();
+      }}
+    >
       <DialogContent>
-        <DialogHeader><DialogTitle>Ajouter un employé</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Ajouter un employé</DialogTitle>
+        </DialogHeader>
         {created ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Notez ces identifiants et transmettez-les à l'employé — le mot de passe ne sera plus affiché ensuite.
+              Notez ces identifiants et transmettez-les à l'employé — le mot de passe ne sera plus
+              affiché ensuite.
             </p>
             <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5 text-sm">
-              <div><span className="text-muted-foreground">Identifiant : </span><span className="font-mono font-semibold">{created.username}</span></div>
-              <div><span className="text-muted-foreground">Mot de passe : </span><span className="font-mono font-semibold">{created.password}</span></div>
+              <div>
+                <span className="text-muted-foreground">Identifiant : </span>
+                <span className="font-mono font-semibold">{created.username}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Mot de passe : </span>
+                <span className="font-mono font-semibold">{created.password}</span>
+              </div>
             </div>
-            <Button className="w-full" onClick={() => onOpenChange(false)}>Fermer</Button>
+            <Button className="w-full" onClick={() => onOpenChange(false)}>
+              Fermer
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Nom affiché</Label>
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="ex: Marie Dupont" />
+              <Input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="ex: Marie Dupont"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Identifiant</Label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ex: marie" />
-              <p className="text-[11px] text-muted-foreground">3 à 30 caractères : lettres minuscules, chiffres, . _ -</p>
+              <Input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="ex: marie"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                3 à 30 caractères : lettres minuscules, chiffres, . _ -
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Mot de passe</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
               <p className="text-[11px] text-muted-foreground">8 caractères minimum</p>
             </div>
             <div className="space-y-1.5">
               <Label>Poste</Label>
               <Select value={poste} onValueChange={(v) => setPoste(v as "bureau" | "technicien")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="technicien">Technicien — intervient sur le terrain</SelectItem>
                   <SelectItem value="bureau">Bureau — ne fait pas partie du terrain</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">Seuls les techniciens (et vous) apparaissent dans l'assignation des interventions.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Seuls les techniciens (et vous) apparaissent dans l'assignation des interventions.
+              </p>
             </div>
             <Button className="w-full" disabled={saving} onClick={handleCreate}>
               {saving ? "Création…" : "Créer l'employé"}
@@ -128,13 +209,24 @@ function AddEmployeeDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
 // ─── Réinitialiser le mot de passe ─────────────────────────────────────────────
 
-function ResetPasswordDialog({ memberId, open, onOpenChange }: { memberId: string; open: boolean; onOpenChange: (v: boolean) => void }) {
+function ResetPasswordDialog({
+  memberId,
+  open,
+  onOpenChange,
+}: {
+  memberId: string;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<string | null>(null);
 
   async function handleReset() {
-    if (newPassword.length < 8) { toast.error("Mot de passe : 8 caractères minimum"); return; }
+    if (newPassword.length < 8) {
+      toast.error("Mot de passe : 8 caractères minimum");
+      return;
+    }
     setSaving(true);
     try {
       await resetEmployeePassword({ data: { memberId, newPassword } });
@@ -148,20 +240,41 @@ function ResetPasswordDialog({ memberId, open, onOpenChange }: { memberId: strin
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setNewPassword(""); setDone(null); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) {
+          setNewPassword("");
+          setDone(null);
+        }
+      }}
+    >
       <DialogContent>
-        <DialogHeader><DialogTitle>Réinitialiser le mot de passe</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+        </DialogHeader>
         {done ? (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Nouveau mot de passe — ne sera plus affiché ensuite.</p>
-            <div className="rounded-lg border bg-muted/30 p-3 text-sm font-mono font-semibold">{done}</div>
-            <Button className="w-full" onClick={() => onOpenChange(false)}>Fermer</Button>
+            <p className="text-sm text-muted-foreground">
+              Nouveau mot de passe — ne sera plus affiché ensuite.
+            </p>
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm font-mono font-semibold">
+              {done}
+            </div>
+            <Button className="w-full" onClick={() => onOpenChange(false)}>
+              Fermer
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Nouveau mot de passe</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
               <p className="text-[11px] text-muted-foreground">8 caractères minimum</p>
             </div>
             <Button className="w-full" disabled={saving} onClick={handleReset}>
@@ -179,7 +292,9 @@ function ResetPasswordDialog({ memberId, open, onOpenChange }: { memberId: strin
 function PermissionsEditor({ member }: { member: TeamMember }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [perms, setPerms] = useState<Record<string, boolean>>(() => ({ ...(member.permissions ?? {}) }));
+  const [perms, setPerms] = useState<Record<string, boolean>>(() => ({
+    ...(member.permissions ?? {}),
+  }));
   const [saving, setSaving] = useState(false);
   // Les techniciens ont leur propre interface (/tech/*) — ces cases ne
   // s'appliquent qu'aux postes bureau (règle structurelle, voir CLAUDE.md).
@@ -207,7 +322,10 @@ function PermissionsEditor({ member }: { member: TeamMember }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { error } = await db.from("team_members").update({ permissions: perms }).eq("id", member.id);
+      const { error } = await db
+        .from("team_members")
+        .update({ permissions: perms })
+        .eq("id", member.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["team_members"] });
       toast.success("Autorisations enregistrées");
@@ -230,24 +348,46 @@ function PermissionsEditor({ member }: { member: TeamMember }) {
       {open && (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyPreset(PRESET_BUREAU, "bureau")}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => applyPreset(PRESET_BUREAU, "bureau")}
+            >
               Modèle Bureau
             </Button>
           </div>
           {isTechnicien && (
             <p className="text-xs text-muted-foreground italic bg-muted/40 rounded-md px-3 py-2">
-              Les techniciens ont une interface dédiée (Ma journée / Mes chantiers / Mon camion). Les autorisations ci-dessous ne s'appliquent qu'aux postes Bureau.
+              Les techniciens ont une interface dédiée (Ma journée / Mes chantiers / Mon camion).
+              Les autorisations ci-dessous ne s'appliquent qu'aux postes Bureau.
             </p>
           )}
-          <div className={cn("grid grid-cols-2 gap-x-3 gap-y-2", isTechnicien && "opacity-50")}>
+          <div className={cn("grid gap-3 sm:grid-cols-2", isTechnicien && "opacity-50")}>
             {ALL_PERMISSION_KEYS.map((key) => (
-              <label key={key} className={cn("flex items-center gap-2 text-xs", isTechnicien ? "cursor-not-allowed" : "cursor-pointer")}>
-                <Checkbox checked={!!perms[key]} onCheckedChange={() => toggle(key)} disabled={isTechnicien} />
+              <label
+                key={key}
+                className={cn(
+                  "flex items-center gap-2 text-xs",
+                  isTechnicien ? "cursor-not-allowed" : "cursor-pointer",
+                )}
+              >
+                <Checkbox
+                  checked={!!perms[key]}
+                  onCheckedChange={() => toggle(key)}
+                  disabled={isTechnicien}
+                />
                 {PERMISSION_LABELS[key]}
               </label>
             ))}
           </div>
-          <Button size="sm" className="w-full" disabled={saving || isTechnicien} onClick={handleSave}>
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={saving || isTechnicien}
+            onClick={handleSave}
+          >
             {saving ? "Enregistrement…" : "Enregistrer les autorisations"}
           </Button>
         </div>
@@ -303,22 +443,33 @@ function EmployeeRow({ member }: { member: TeamMember }) {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="font-semibold truncate">{member.display_name || member.username}</div>
-            <div className="text-xs text-muted-foreground font-mono">{member.username}</div>
+            <div className="break-words font-semibold">
+              {member.display_name || member.username}
+            </div>
+            <div className="break-all font-mono text-xs text-muted-foreground">
+              {member.username}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase",
-              member.active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-            )}>
+            <Badge
+              className={cn(
+                member.active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+              )}
+            >
               {member.active ? "Actif" : "Désactivé"}
-            </span>
-            <Select value={member.poste ?? "technicien"} onValueChange={handlePosteChange} disabled={posteSaving}>
-              <SelectTrigger className="h-6 w-[7.5rem] px-2 text-[11px]"><SelectValue /></SelectTrigger>
+            </Badge>
+            <Select
+              value={member.poste ?? "technicien"}
+              onValueChange={handlePosteChange}
+              disabled={posteSaving}
+            >
+              <SelectTrigger className="h-6 w-[7.5rem] px-2 text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="technicien">Technicien</SelectItem>
                 <SelectItem value="bureau">Bureau</SelectItem>
@@ -331,13 +482,23 @@ function EmployeeRow({ member }: { member: TeamMember }) {
             <KeyRound className="mr-1.5 h-3.5 w-3.5" /> Réinitialiser le mot de passe
           </Button>
           <Button variant="outline" size="sm" disabled={toggling} onClick={handleToggleActive}>
-            {member.active
-              ? <><ShieldOff className="mr-1.5 h-3.5 w-3.5" /> Désactiver</>
-              : <><ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Activer</>}
+            {member.active ? (
+              <>
+                <ShieldOff className="mr-1.5 h-3.5 w-3.5" /> Désactiver
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Activer
+              </>
+            )}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/30 hover:bg-destructive/5"
+              >
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Supprimer
               </Button>
             </AlertDialogTrigger>
@@ -345,12 +506,15 @@ function EmployeeRow({ member }: { member: TeamMember }) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Supprimer cet employé ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Le compte de {member.display_name || member.username} sera définitivement supprimé. Cette action est irréversible.
+                  Le compte de {member.display_name || member.username} sera définitivement
+                  supprimé. Cette action est irréversible.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive">Supprimer</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+                  Supprimer
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -365,33 +529,59 @@ function EmployeeRow({ member }: { member: TeamMember }) {
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
 function EquipePage() {
-  const { data: role, isLoading: roleLoading } = useCurrentRole();
-  const { data: members = [], isLoading: membersLoading } = useTeamMembers();
+  const { data: role, isLoading: roleLoading, isError: roleError } = useCurrentRole();
+  const { data: members = [], isLoading: membersLoading, isError: membersError } = useTeamMembers();
   const [addOpen, setAddOpen] = useState(false);
 
   if (roleLoading) {
-    return <div className="text-sm text-muted-foreground py-10 text-center">Chargement…</div>;
+    return (
+      <PageContainer>
+        <Skeleton className="h-16 rounded-xl" />
+        <div className="grid gap-3 lg:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => (
+            <Skeleton key={item} className="h-48 rounded-xl" />
+          ))}
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (roleError || membersError) {
+    return (
+      <PageContainer>
+        <Card className="border-destructive/30">
+          <CardContent className="py-10 text-center text-sm text-destructive">
+            Impossible de charger l’équipe.
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
   }
 
   if (role !== "owner") {
     return (
-      <Card>
-        <CardContent className="py-10 text-center space-y-2">
-          <Users className="h-8 w-8 mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Accès réservé au responsable.</p>
-        </CardContent>
-      </Card>
+      <PageContainer>
+        <Card>
+          <CardContent className="py-10 text-center space-y-2">
+            <Users className="h-8 w-8 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Accès réservé au responsable.</p>
+          </CardContent>
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Équipe</h1>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="mr-1 h-4 w-4" /> Ajouter un employé
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Équipe"
+        subtitle="Gérez les accès du bureau et des techniciens."
+        actions={
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Ajouter un employé
+          </Button>
+        }
+      />
 
       <p className="text-xs text-muted-foreground">
         Terrain est toujours visible. L'onglet Équipe reste réservé au responsable.
@@ -400,16 +590,20 @@ function EquipePage() {
       {membersLoading ? (
         <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
       ) : members.length === 0 ? (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Aucun employé. Ajoutez-en un pour partager l'accès à vos données.
-        </CardContent></Card>
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Aucun employé. Ajoutez-en un pour partager l'accès à vos données.
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-2">
-          {members.map((m) => <EmployeeRow key={m.id} member={m} />)}
+        <div className="grid gap-3 lg:grid-cols-2">
+          {members.map((m) => (
+            <EmployeeRow key={m.id} member={m} />
+          ))}
         </div>
       )}
 
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} />
-    </div>
+    </PageContainer>
   );
 }

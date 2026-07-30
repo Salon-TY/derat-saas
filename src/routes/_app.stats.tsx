@@ -1,14 +1,34 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- typage historique de l’authentification, logique inchangée */
 import { createFileRoute } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
-import { useMonthlyStats, useProductStats, useTechnicianStats, useCurrentRole, type TechnicianStatsEntry, type TechnicianStatsPeriod } from "@/lib/queries";
+import {
+  useMonthlyStats,
+  useProductStats,
+  useTechnicianStats,
+  useCurrentRole,
+  type TechnicianStatsEntry,
+  type TechnicianStatsPeriod,
+} from "@/lib/queries";
 import { formatEUR } from "@/lib/schemas";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Minus, UserPlus, ClipboardCheck, Euro, Trophy, Package, HardHat } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  UserPlus,
+  ClipboardCheck,
+  Euro,
+  Trophy,
+  Package,
+  HardHat,
+} from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
+import { PageContainer, PageHeader } from "@/components/page-layout";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_app/stats")({
   head: () => ({ meta: [{ title: `Statistiques — ${APP_NAME}` }] }),
@@ -20,7 +40,7 @@ export const Route = createFileRoute("/_app/stats")({
 });
 
 function StatsPage() {
-  const { data: stats, isLoading } = useMonthlyStats();
+  const { data: stats, isLoading, isError } = useMonthlyStats();
   const { data: productStats = [] } = useProductStats();
 
   const caEvo = stats?.caEvolution;
@@ -32,18 +52,25 @@ function StatsPage() {
   const maxCa = Math.max(...(stats?.months6.map((m) => m.ca) ?? [1]));
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Statistiques</h1>
-        <p className="text-sm text-muted-foreground">Activité du mois en cours.</p>
-      </div>
+    <PageContainer>
+      <PageHeader title="Statistiques" subtitle="Activité du mois en cours." />
 
       {isLoading ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">Chargement…</div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((item) => (
+            <Skeleton key={item} className="h-36 rounded-xl" />
+          ))}
+        </div>
+      ) : isError ? (
+        <Card className="border-destructive/30">
+          <CardContent className="py-10 text-center text-sm text-destructive">
+            Impossible de charger les statistiques.
+          </CardContent>
+        </Card>
       ) : (
         <>
           {/* KPIs */}
-          <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <KpiCard
               icon={<Euro className="h-5 w-5" />}
               label="CA du mois"
@@ -78,7 +105,10 @@ function StatsPage() {
               </h2>
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats?.months6 ?? []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                  <BarChart
+                    data={stats?.months6 ?? []}
+                    margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+                  >
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -89,7 +119,7 @@ function StatsPage() {
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(v) => v === 0 ? "0" : `${(v / 1000).toFixed(0)}k`}
+                      tickFormatter={(v) => (v === 0 ? "0" : `${(v / 1000).toFixed(0)}k`)}
                       width={32}
                     />
                     <Tooltip
@@ -116,7 +146,9 @@ function StatsPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-[10px] text-muted-foreground text-right">Mois en cours en surbrillance</p>
+              <p className="text-[10px] text-muted-foreground text-right">
+                Mois en cours en surbrillance
+              </p>
             </CardContent>
           </Card>
 
@@ -124,15 +156,20 @@ function StatsPage() {
           <Card>
             <CardContent className="p-4 space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-                <Package className="h-4 w-4 text-accent" /> Produits les plus utilisés — 30 derniers jours
+                <Package className="h-4 w-4 text-accent" /> Produits les plus utilisés — 30 derniers
+                jours
               </h2>
               {productStats.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune consommation enregistrée via le sélecteur produits.</p>
+                <p className="text-sm text-muted-foreground">
+                  Aucune consommation enregistrée via le sélecteur produits.
+                </p>
               ) : (
                 <div className="space-y-2">
                   {productStats.slice(0, 8).map((p, i) => (
                     <div key={p.id} className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">#{i + 1}</span>
+                      <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">
+                        #{i + 1}
+                      </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-medium truncate">{p.nom}</span>
@@ -141,8 +178,13 @@ function StatsPage() {
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Coût : <span className="font-medium text-foreground">{formatEUR(p.cout_total)}</span>
-                          <span className="ml-1 opacity-60">({formatEUR(p.prix_achat_ht)} HT / {p.unite})</span>
+                          Coût :{" "}
+                          <span className="font-medium text-foreground">
+                            {formatEUR(p.cout_total)}
+                          </span>
+                          <span className="ml-1 opacity-60">
+                            ({formatEUR(p.prix_achat_ht)} HT / {p.unite})
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -174,19 +216,28 @@ function StatsPage() {
                       <div key={client.id} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
                           <span className="flex items-center gap-1.5 min-w-0">
-                            <span className={cn(
-                              "shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
-                              i === 0 ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
-                            )}>
+                            <span
+                              className={cn(
+                                "shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+                                i === 0
+                                  ? "bg-accent text-accent-foreground"
+                                  : "bg-muted text-muted-foreground",
+                              )}
+                            >
                               {i + 1}
                             </span>
-                            <span className="truncate font-medium">{client.nom}</span>
+                            <span className="break-words font-medium">{client.nom}</span>
                           </span>
-                          <span className="shrink-0 font-semibold text-primary tabular-nums ml-2">{formatEUR(client.ca)}</span>
+                          <span className="shrink-0 font-semibold text-primary tabular-nums ml-2">
+                            {formatEUR(client.ca)}
+                          </span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                           <div
-                            className={cn("h-full rounded-full transition-all", i === 0 ? "bg-accent" : "bg-primary/40")}
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              i === 0 ? "bg-accent" : "bg-primary/40",
+                            )}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -202,7 +253,7 @@ function StatsPage() {
           <TechnicianStatsSection />
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -242,7 +293,9 @@ function TechnicianStatsSection() {
                 onClick={() => setPeriod(p.v)}
                 className={cn(
                   "px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  period === p.v ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
+                  period === p.v
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:text-foreground",
                 )}
               >
                 {p.l}
@@ -254,17 +307,23 @@ function TechnicianStatsSection() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Chargement…</p>
         ) : visibleTechnicians.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Aucune donnée pour cette période.</p>
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            Aucune donnée pour cette période.
+          </p>
         ) : (
-          <div className="space-y-3">
-            {visibleTechnicians.map((t) => <TechnicianStatCard key={t.technicien_id} tech={t} />)}
+          <div className="grid gap-3 lg:grid-cols-2">
+            {visibleTechnicians.map((t) => (
+              <TechnicianStatCard key={t.technicien_id} tech={t} />
+            ))}
           </div>
         )}
 
         {isOwner && !isLoading && (
           <div className="pt-2 border-t text-xs text-muted-foreground flex justify-between gap-2">
             <span>Non attribué — factures sans intervention/technicien lié</span>
-            <span className="font-semibold text-foreground shrink-0">{formatEUR(nonAttribue.caHt)}</span>
+            <span className="font-semibold text-foreground shrink-0">
+              {formatEUR(nonAttribue.caHt)}
+            </span>
           </div>
         )}
       </CardContent>
@@ -273,19 +332,23 @@ function TechnicianStatsSection() {
 }
 
 function TechnicianStatCard({ tech }: { tech: TechnicianStatsEntry }) {
-  const topNuisibles = Object.entries(tech.parNuisible).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const topNuisibles = Object.entries(tech.parNuisible)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
   const maxCount = Math.max(...topNuisibles.map(([, c]) => c), 1);
 
   return (
     <div className="rounded-xl border border-border p-3 space-y-2.5">
-      <div className="font-semibold text-sm">{tech.display_name}</div>
+      <div className="break-words text-sm font-semibold">{tech.display_name}</div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
           <div className="text-base font-bold tabular-nums">{tech.nbInterventions}</div>
           <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Interv.</div>
         </div>
         <div>
-          <div className="text-base font-bold tabular-nums text-primary">{formatEUR(tech.caHt)}</div>
+          <div className="text-base font-bold tabular-nums text-primary">
+            {formatEUR(tech.caHt)}
+          </div>
           <div className="text-[10px] text-muted-foreground uppercase tracking-wide">CA HT</div>
         </div>
         <div>
@@ -295,14 +358,23 @@ function TechnicianStatCard({ tech }: { tech: TechnicianStatsEntry }) {
       </div>
       {topNuisibles.length > 0 && (
         <div className="space-y-1 pt-1">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Répartition par nuisible</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Répartition par nuisible
+          </div>
           {topNuisibles.map(([nuisible, count]) => (
             <div key={nuisible} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-24 truncate shrink-0">{nuisible}</span>
+              <span className="text-xs text-muted-foreground w-24 truncate shrink-0">
+                {nuisible}
+              </span>
               <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-accent" style={{ width: `${(count / maxCount) * 100}%` }} />
+                <div
+                  className="h-full rounded-full bg-accent"
+                  style={{ width: `${(count / maxCount) * 100}%` }}
+                />
               </div>
-              <span className="text-xs font-medium tabular-nums w-5 text-right shrink-0">{count}</span>
+              <span className="text-xs font-medium tabular-nums w-5 text-right shrink-0">
+                {count}
+              </span>
             </div>
           ))}
         </div>
@@ -324,16 +396,28 @@ function KpiCard({
   trend: "up" | "down" | "flat";
   detail?: string;
 }) {
-  const trendColor = trend === "up" ? "text-green-600" : trend === "down" ? "text-destructive" : "text-muted-foreground";
+  const trendColor =
+    trend === "up"
+      ? "text-success"
+      : trend === "down"
+        ? "text-destructive"
+        : "text-muted-foreground";
   const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
   const bgColor = trend === "up" ? "bg-primary" : trend === "down" ? "bg-destructive" : "bg-muted";
-  const textColor = trend === "up" || trend === "down" ? "text-primary-foreground" : "text-muted-foreground";
+  const textColor =
+    trend === "up" || trend === "down" ? "text-primary-foreground" : "text-muted-foreground";
 
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
-          <div className={cn("grid h-12 w-12 shrink-0 place-items-center rounded-xl", bgColor, textColor)}>
+          <div
+            className={cn(
+              "grid h-12 w-12 shrink-0 place-items-center rounded-xl",
+              bgColor,
+              textColor,
+            )}
+          >
             {icon}
           </div>
           <div className="min-w-0 flex-1">
