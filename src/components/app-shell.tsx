@@ -18,6 +18,7 @@ import {
   UserCog,
   PackagePlus,
   CalendarClock,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
+import { AiAssistantPanel } from "@/components/ai-assistant-panel";
 
 const mainNavItems: {
   to: string;
@@ -482,6 +484,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [fabOpen, setFabOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const { data: settings } = useSettings();
   const { can, loading: accessLoading } = useMyAccess();
   const { data: role } = useCurrentRole();
@@ -509,6 +512,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // le Terrain (interventions) est toujours autorisé, donc en pratique elle
   // ne disparaît que si "terrain" venait un jour à ne plus l'être.
   const searchAllowed = !accessLoading && (can("clients") || can("factures") || can("terrain"));
+  const assistantAllowed = !accessLoading && can("assistant_ia");
 
   async function handleSignOut() {
     await qc.cancelQueries();
@@ -530,6 +534,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
       {fabOpen && <QuickInterventionModal onClose={() => setFabOpen(false)} />}
+      {assistantAllowed && (
+        <AiAssistantPanel open={assistantOpen} onOpenChange={setAssistantOpen} />
+      )}
 
       {/* Sidebar — desktop uniquement (≥ lg). Toutes les entrées sont visibles
           directement : contrairement à la bottom nav mobile, l'espace vertical
@@ -550,9 +557,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           showSettingsLink
           onSignOut={handleSignOut}
           actions={
-            <Button size="sm" onClick={() => setFabOpen(true)} className="hidden lg:inline-flex">
-              <Plus className="h-4 w-4" /> Nouveau
-            </Button>
+            <>
+              {assistantAllowed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setAssistantOpen(true)}
+                  aria-label="Ouvrir l’assistant IA"
+                  className="h-11 w-11 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground lg:text-foreground lg:hover:bg-muted lg:hover:text-foreground"
+                >
+                  <Sparkles className="h-5 w-5" />
+                </Button>
+              )}
+              <Button size="sm" onClick={() => setFabOpen(true)} className="hidden lg:inline-flex">
+                <Plus className="h-4 w-4" /> Nouveau
+              </Button>
+            </>
           }
         />
 
