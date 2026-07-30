@@ -8,8 +8,11 @@ import { Link } from "@tanstack/react-router";
 import { Bug, LogOut, Search, Settings, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Settings as CompanySettings } from "@/lib/queries";
 import { APP_NAME } from "@/lib/brand";
@@ -35,14 +38,18 @@ export function Header({
   className?: string;
 }) {
   const brand = (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3 lg:hidden">
       <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-2xl bg-accent shadow-lg shadow-accent/30">
-        {settings?.logo_url
-          ? <img src={settings.logo_url} alt="Logo" className="h-full w-full object-contain" />
-          : <Bug className="h-5 w-5 text-white" />}
+        {settings?.logo_url ? (
+          <img src={settings.logo_url} alt="Logo" className="h-full w-full object-contain" />
+        ) : (
+          <Bug className="h-5 w-5 text-white" />
+        )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-base font-bold leading-none tracking-tight">{settings?.nom || APP_NAME}</div>
+        <div className="truncate text-base font-bold leading-none tracking-tight">
+          {settings?.nom || APP_NAME}
+        </div>
         <div className="mt-2 truncate text-[10px] uppercase tracking-widest text-primary-foreground/60">
           {tagline}
         </div>
@@ -52,18 +59,24 @@ export function Header({
 
   return (
     <header
-      className={`sticky top-0 z-30 header-gradient text-primary-foreground ${className ?? ""}`}
+      className={`sticky top-0 z-30 header-gradient text-primary-foreground lg:border-b lg:border-border/60 lg:bg-none lg:bg-background lg:text-foreground ${className ?? ""}`}
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <div className="mx-auto flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
-        {brandHref ? <Link to={brandHref as any} className="min-w-0">{brand}</Link> : brand}
+      <div className="mx-auto flex min-h-[64px] items-center justify-between gap-4 px-4 py-3 lg:min-h-[72px] lg:px-8">
+        {brandHref ? (
+          <Link to={brandHref as any} className="min-w-0">
+            {brand}
+          </Link>
+        ) : (
+          brand
+        )}
 
         <div className="flex shrink-0 items-center gap-2">
           {actions}
           {onSearchClick && (
             <button
               onClick={onSearchClick}
-              className="grid h-11 w-11 place-items-center rounded-xl transition-all duration-200 hover:bg-white/10"
+              className="grid h-11 w-11 place-items-center rounded-xl transition-all duration-200 hover:bg-white/10 lg:hover:bg-muted"
               aria-label="Recherche"
             >
               <Search className="h-5 w-5" />
@@ -72,10 +85,13 @@ export function Header({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="ml-2 rounded-full transition-all duration-200 hover:opacity-90" aria-label="Compte">
-                <Avatar className="h-9 w-9 ring-2 ring-white/20">
+              <button
+                className="ml-2 rounded-full transition-all duration-200 hover:opacity-90"
+                aria-label="Compte"
+              >
+                <Avatar className="h-9 w-9 ring-2 ring-white/20 lg:ring-border">
                   <AvatarImage src={settings?.logo_url ?? undefined} alt="" />
-                  <AvatarFallback className="bg-white/10 text-primary-foreground">
+                  <AvatarFallback className="bg-white/10 text-primary-foreground lg:bg-primary/10 lg:text-primary">
                     <User className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
@@ -90,7 +106,10 @@ export function Header({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onSignOut} className="cursor-pointer text-destructive focus:text-destructive">
+              <DropdownMenuItem
+                onClick={onSignOut}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
                 <LogOut className="h-4 w-4" /> Déconnexion
               </DropdownMenuItem>
             </DropdownMenuContent>

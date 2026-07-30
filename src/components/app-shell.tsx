@@ -1,8 +1,22 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Users, ClipboardList, FileText, FileSignature,
-  Settings, Plus, Package, Search, X, TrendingUp, FileCheck,
-  MoreHorizontal, BarChart2, UserCog, PackagePlus, CalendarClock
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  FileText,
+  FileSignature,
+  Settings,
+  Plus,
+  Package,
+  Search,
+  X,
+  TrendingUp,
+  FileCheck,
+  MoreHorizontal,
+  BarChart2,
+  UserCog,
+  PackagePlus,
+  CalendarClock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,14 +24,27 @@ import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/db";
 import { formatEUR, formatDateFR, TYPES_INTERVENTION } from "@/lib/schemas";
-import { useClients, useSettings, useMyAccess, useCurrentRole, useMyPoste, useMyTodoCount } from "@/lib/queries";
+import {
+  useClients,
+  useSettings,
+  useMyAccess,
+  useCurrentRole,
+  useMyPoste,
+  useMyTodoCount,
+} from "@/lib/queries";
 import type { PermissionKey } from "@/lib/permissions";
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
 
-const mainNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; perm?: PermissionKey }[] = [
+const mainNavItems: {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+  perm?: PermissionKey;
+}[] = [
   { to: "/", label: "Accueil", icon: LayoutDashboard, exact: true, perm: "accueil" },
   { to: "/clients", label: "Clients", icon: Users, perm: "clients" },
   { to: "/interventions", label: "Terrain", icon: ClipboardList }, // toujours visible
@@ -25,7 +52,12 @@ const mainNavItems: { to: string; label: string; icon: typeof LayoutDashboard; e
   { to: "/stock", label: "Stock", icon: Package, perm: "stock" },
 ];
 
-const moreNavItems: { to: string; label: string; icon: typeof LayoutDashboard; perm?: PermissionKey }[] = [
+const moreNavItems: {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  perm?: PermissionKey;
+}[] = [
   { to: "/devis", label: "Devis", icon: FileCheck, perm: "devis" },
   { to: "/tresorerie", label: "Trésorerie", icon: TrendingUp, perm: "tresorerie" },
   { to: "/contrats", label: "Contrats", icon: FileSignature, perm: "contrats" },
@@ -67,7 +99,10 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (!q.trim()) { setResults([]); return; }
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
     // Tant que le rôle/poste n'est pas résolu (ou, pour un technicien, tant que
     // son id n'est pas connu), on n'interroge rien pour éviter de fuiter des
     // résultats non autorisés le temps que l'accès se résolve.
@@ -86,15 +121,26 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
 
         const [clients, factures, interventions, facturesClient] = await Promise.all([
           canClients
-            ? db.from("clients").select("id, raison_sociale, adresse_site, telephone").ilike("raison_sociale", `%${term}%`).limit(5)
+            ? db
+                .from("clients")
+                .select("id, raison_sociale, adresse_site, telephone")
+                .ilike("raison_sociale", `%${term}%`)
+                .limit(5)
             : Promise.resolve({ data: [] as any[] }),
           canFactures
-            ? db.from("invoices").select("id, numero, total_ttc, statut, client:clients(raison_sociale)").or(`numero.eq.${Number(term) || 0}`).limit(5)
+            ? db
+                .from("invoices")
+                .select("id, numero, total_ttc, statut, client:clients(raison_sociale)")
+                .or(`numero.eq.${Number(term) || 0}`)
+                .limit(5)
             : Promise.resolve({ data: [] as any[] }),
           interventionsQ,
           // Also search factures by client name
           canFactures
-            ? db.from("invoices").select("id, numero, total_ttc, statut, client:clients(raison_sociale)").limit(5)
+            ? db
+                .from("invoices")
+                .select("id, numero, total_ttc, statut, client:clients(raison_sociale)")
+                .limit(5)
             : Promise.resolve({ data: [] as any[] }),
         ]);
 
@@ -114,7 +160,8 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
         for (const f of [...(factures.data ?? []), ...(facturesClient.data ?? [])]) {
           if (seenFac.has(f.id)) continue;
           const clientName = (f.client as any)?.raison_sociale ?? "";
-          if (!clientName.toLowerCase().includes(term) && !String(f.numero).includes(term)) continue;
+          if (!clientName.toLowerCase().includes(term) && !String(f.numero).includes(term))
+            continue;
           seenFac.add(f.id);
           out.push({
             type: "facture",
@@ -163,7 +210,10 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
   const groups = ["client", "facture", "intervention"] as const;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col items-center pt-16 px-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col items-center pt-16 px-4"
+      onClick={onClose}
+    >
       <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="rounded-2xl bg-card shadow-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b">
@@ -177,7 +227,10 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
               onKeyDown={(e) => e.key === "Escape" && onClose()}
             />
             {q && (
-              <button onClick={() => setQ("")} className="text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setQ("")}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -188,10 +241,14 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
               <div className="py-6 text-center text-sm text-muted-foreground">Recherche…</div>
             )}
             {!loading && q.trim() && results.length === 0 && (
-              <div className="py-6 text-center text-sm text-muted-foreground">Aucun résultat pour « {q} »</div>
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Aucun résultat pour « {q} »
+              </div>
             )}
             {!loading && !q.trim() && (
-              <div className="py-6 text-center text-sm text-muted-foreground">Tapez pour chercher…</div>
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Tapez pour chercher…
+              </div>
             )}
             {!loading && results.length > 0 && (
               <div className="py-2">
@@ -212,7 +269,9 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
                           <span className="text-base">{TYPE_ICON[r.type]}</span>
                           <div className="min-w-0">
                             <div className="text-sm font-medium truncate">{r.label}</div>
-                            {r.sub && <div className="text-xs text-muted-foreground truncate">{r.sub}</div>}
+                            {r.sub && (
+                              <div className="text-xs text-muted-foreground truncate">{r.sub}</div>
+                            )}
                           </div>
                         </button>
                       ))}
@@ -247,31 +306,53 @@ function QuickInterventionModal({ onClose }: { onClose: () => void }) {
   // les 3 autres raccourcis dépendent des permissions du compte.
   const hasExtraPermissions = !accessLoading && (can("clients") || can("factures") || can("devis"));
   const extraActions = [
-    { label: "Intervention complète", to: "/interventions/new", color: "bg-primary/10 text-primary" },
-    ...(!accessLoading && can("clients") ? [{ label: "Nouveau client", to: "/clients/new", color: "bg-primary/10 text-primary" }] : []),
-    ...(!accessLoading && can("factures") ? [{ label: "Nouvelle facture", to: "/factures/new", color: "bg-accent/10 text-accent" }] : []),
-    ...(!accessLoading && can("devis") ? [{ label: "Nouveau devis", to: "/devis/new", color: "bg-accent/10 text-accent" }] : []),
+    {
+      label: "Intervention complète",
+      to: "/interventions/new",
+      color: "bg-primary/10 text-primary",
+    },
+    ...(!accessLoading && can("clients")
+      ? [{ label: "Nouveau client", to: "/clients/new", color: "bg-primary/10 text-primary" }]
+      : []),
+    ...(!accessLoading && can("factures")
+      ? [{ label: "Nouvelle facture", to: "/factures/new", color: "bg-accent/10 text-accent" }]
+      : []),
+    ...(!accessLoading && can("devis")
+      ? [{ label: "Nouveau devis", to: "/devis/new", color: "bg-accent/10 text-accent" }]
+      : []),
   ];
 
   async function handleCreate() {
-    if (!clientId) { toast.error("Sélectionnez un client"); return; }
+    if (!clientId) {
+      toast.error("Sélectionnez un client");
+      return;
+    }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
-      const { data, error } = await db.from("interventions").insert({
-        user_id: user.id,
-        client_id: clientId,
-        date,
-        type_intervention: type,
-        statut: "planifiee",
-        adresse_site: "",
-        type_nuisible: "",
-        produits: "",
-        quantite: "",
-        observations: "",
-      }).select().single();
-      if (error) { toast.error(error.message); return; }
+      const { data, error } = await db
+        .from("interventions")
+        .insert({
+          user_id: user.id,
+          client_id: clientId,
+          date,
+          type_intervention: type,
+          statut: "planifiee",
+          adresse_site: "",
+          type_nuisible: "",
+          produits: "",
+          quantite: "",
+          observations: "",
+        })
+        .select()
+        .single();
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success("Intervention créée");
       onClose();
       navigate({ to: "/interventions/$id", params: { id: data.id } });
@@ -281,28 +362,45 @@ function QuickInterventionModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-card shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-card shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="font-bold text-base">Intervention rapide</h2>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-muted transition-colors">
+          <button
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg hover:bg-muted transition-colors"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client *</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Client *
+            </label>
             <select
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="">Sélectionner un client…</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.raison_sociale}</option>)}
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.raison_sociale}
+                </option>
+              ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Type
+            </label>
             <div className="flex gap-2">
               {TYPES_INTERVENTION.map((t) => (
                 <button
@@ -317,7 +415,9 @@ function QuickInterventionModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Date
+            </label>
             <input
               type="date"
               value={date}
@@ -379,11 +479,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Tant que l'accès n'est pas résolu, on masque les onglets à permission
   // (Terrain reste toujours visible) pour éviter un flash "tout est affiché".
   const mainItems = mainNavItems.filter((item) => !item.perm || (!accessLoading && can(item.perm)));
-  const filteredMore = moreNavItems.filter((item) => !item.perm || (!accessLoading && can(item.perm)));
-  const moreItems = !accessLoading && can("equipe")
-    ? [...filteredMore, { to: "/equipe", label: "Équipe", icon: UserCog }]
-    : filteredMore;
-  const hasMore = moreItems.length > 0;
+  const filteredMore = moreNavItems.filter(
+    (item) => !item.perm || (!accessLoading && can(item.perm)),
+  );
+  const moreItems =
+    !accessLoading && can("equipe")
+      ? [...filteredMore, { to: "/equipe", label: "Équipe", icon: UserCog }]
+      : filteredMore;
+  // Sur mobile, quatre accès directs + "Plus" gardent une barre lisible à une
+  // main. Factures reste directement visible dans la sidebar desktop.
+  const mobileMainItems = mainItems.filter((item) => item.to !== "/factures");
+  const mobileMoreItems = [...mainItems.filter((item) => item.to === "/factures"), ...moreItems];
+  const hasMore = mobileMoreItems.length > 0;
 
   // La recherche reste utile tant qu'au moins une catégorie est consultable ;
   // le Terrain (interventions) est toujours autorisé, donc en pratique elle
@@ -398,10 +505,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/auth", replace: true });
   }
 
-  const mobileMoreActive = moreItems.some(
-    (item) => location.pathname === item.to || location.pathname.startsWith(item.to + "/")
+  const mobileMoreActive = mobileMoreItems.some(
+    (item) => location.pathname === item.to || location.pathname.startsWith(item.to + "/"),
   );
-  const bottomNavItems = mainItems.map((item) => ({
+  const bottomNavItems = mobileMainItems.map((item) => ({
     ...item,
     badgeCount: item.to === "/interventions" && isTechnician ? myTodoCount : undefined,
   }));
@@ -414,7 +521,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar — desktop uniquement (≥ lg). Toutes les entrées sont visibles
           directement : contrairement à la bottom nav mobile, l'espace vertical
           ne nécessite pas de menu "Plus". */}
-      <Sidebar primaryItems={mainItems} secondaryItems={moreItems} />
+      <Sidebar
+        primaryItems={mainItems}
+        secondaryItems={moreItems}
+        brandName={settings?.nom}
+        logoUrl={settings?.logo_url}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
@@ -432,8 +544,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
 
         {/* Contenu de la page */}
-        <main className="flex-1 pb-28 lg:pb-12">
-          <div className="mx-auto max-w-3xl px-4 py-6 animate-in-up lg:max-w-6xl lg:px-8 lg:py-8">
+        <main className="flex-1 bg-muted/20 pb-28 lg:pb-12">
+          <div className="mx-auto max-w-3xl px-4 py-5 animate-in-up lg:max-w-7xl lg:px-8 lg:py-6">
             {children}
           </div>
         </main>
@@ -463,27 +575,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center justify-between border-b px-6 py-4">
                 <span className="text-sm font-semibold">Plus</span>
-                <button onClick={() => setMoreOpen(false)} className="grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 hover:bg-muted">
+                <button
+                  onClick={() => setMoreOpen(false)}
+                  className="grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 hover:bg-muted"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-0 p-2">
-                {moreItems.map((item) => {
+                {mobileMoreItems.map((item) => {
                   const Icon = item.icon;
-                  const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+                  const active =
+                    location.pathname === item.to || location.pathname.startsWith(item.to + "/");
                   return (
                     <Link
                       key={item.to}
                       to={item.to as any}
                       onClick={() => setMoreOpen(false)}
                       className={`flex flex-col items-center gap-2 rounded-xl px-3 py-4 transition-all duration-200 ${
-                        active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        active
+                          ? "bg-accent/10 text-accent"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
-                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-accent/15" : "bg-muted"}`}>
+                      <div
+                        className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-accent/15" : "bg-muted"}`}
+                      >
                         <Icon className={`h-5 w-5 ${active ? "stroke-[2.2]" : "stroke-[1.8]"}`} />
                       </div>
-                      <span className={`text-xs font-medium ${active ? "font-bold" : ""}`}>{item.label}</span>
+                      <span className={`text-xs font-medium ${active ? "font-bold" : ""}`}>
+                        {item.label}
+                      </span>
                     </Link>
                   );
                 })}
@@ -496,19 +618,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="lg:hidden">
           <BottomNav
             items={bottomNavItems}
-            trailing={hasMore ? (
-              <button
-                onClick={() => setMoreOpen((v) => !v)}
-                className={`relative flex flex-col items-center justify-center gap-2 py-3 text-[9px] font-medium transition-all duration-200 ${
-                  mobileMoreActive || moreOpen ? "text-accent" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <div className={`grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 ${(mobileMoreActive || moreOpen) ? "scale-105 bg-accent/12" : ""}`}>
-                  <MoreHorizontal className={`h-[18px] w-[18px] transition-all duration-200 ${(mobileMoreActive || moreOpen) ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
-                </div>
-                <span className={(mobileMoreActive || moreOpen) ? "font-bold" : ""}>Plus</span>
-              </button>
-            ) : undefined}
+            trailing={
+              hasMore ? (
+                <button
+                  onClick={() => setMoreOpen((v) => !v)}
+                  className={`relative flex flex-col items-center justify-center gap-2 py-3 text-[9px] font-medium transition-all duration-200 ${
+                    mobileMoreActive || moreOpen
+                      ? "text-accent"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <div
+                    className={`grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 ${mobileMoreActive || moreOpen ? "scale-105 bg-accent/12" : ""}`}
+                  >
+                    <MoreHorizontal
+                      className={`h-[18px] w-[18px] transition-all duration-200 ${mobileMoreActive || moreOpen ? "stroke-[2.5]" : "stroke-[1.8]"}`}
+                    />
+                  </div>
+                  <span className={mobileMoreActive || moreOpen ? "font-bold" : ""}>Plus</span>
+                </button>
+              ) : undefined
+            }
           />
         </div>
       </div>

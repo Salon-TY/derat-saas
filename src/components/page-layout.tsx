@@ -12,20 +12,36 @@
 //   utilisé comme titre de section sur le dashboard, le stock, etc.).
 import { cn } from "@/lib/utils";
 
-export function PageContainer({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("mx-auto w-full max-w-6xl space-y-6", className)}>{children}</div>;
+export function PageContainer({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={cn("mx-auto w-full max-w-7xl space-y-6", className)}>{children}</div>;
 }
 
-export function PageHeader({ title, subtitle, actions, className }: {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  className,
+}: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between", className)}>
+    <div
+      className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+        className,
+      )}
+    >
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <h1 className="text-[22px] font-bold tracking-tight lg:text-2xl">{title}</h1>
         {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {actions && <PageActions>{actions}</PageActions>}
@@ -33,11 +49,22 @@ export function PageHeader({ title, subtitle, actions, className }: {
   );
 }
 
-export function PageActions({ children, className }: { children: React.ReactNode; className?: string }) {
+export function PageActions({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return <div className={cn("flex flex-wrap items-center gap-2", className)}>{children}</div>;
 }
 
-export function PageSection({ title, actions, children, className }: {
+export function PageSection({
+  title,
+  actions,
+  children,
+  className,
+}: {
   title?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
@@ -56,9 +83,15 @@ export function PageSection({ title, actions, children, className }: {
   );
 }
 
-export function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+export function SectionTitle({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <h2 className={cn("text-sm font-semibold uppercase tracking-wide text-muted-foreground", className)}>
+    <h2 className={cn("text-sm font-semibold tracking-tight text-foreground", className)}>
       {children}
     </h2>
   );
