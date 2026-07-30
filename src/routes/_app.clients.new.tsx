@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { ClientForm } from "@/components/client-form";
 import { ArrowLeft } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/page-layout";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,20 +26,38 @@ function NewClient() {
 
   async function handleSubmit(values: ClientFormType) {
     const { data: userRes } = await supabase.auth.getUser();
-    const { data, error } = await db.from("clients").insert({ ...values, user_id: userRes.user?.id }).select().single();
-    if (error) { toast.error(error.message); return; }
+    const { data, error } = await db
+      .from("clients")
+      .insert({ ...values, user_id: userRes.user?.id })
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["clients"] });
     toast.success("Client créé");
     navigate({ to: "/clients/$id", params: { id: data.id } });
   }
 
   return (
-    <div className="space-y-4">
-      <Link to="/clients" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="mr-1 h-4 w-4" /> Retour
+    <PageContainer className="max-w-4xl">
+      <Link
+        to="/clients"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour aux clients
       </Link>
-      <h1 className="text-2xl font-bold tracking-tight">Nouveau client</h1>
-      <ClientForm onSubmit={handleSubmit} />
-    </div>
+      <PageHeader
+        title="Nouveau client"
+        subtitle="Renseignez les informations utiles pour préparer les interventions et les documents."
+      />
+      <Card className="hover:translate-y-0 hover:shadow-soft">
+        <CardContent className="p-4 sm:p-6">
+          <ClientForm onSubmit={handleSubmit} />
+        </CardContent>
+      </Card>
+    </PageContainer>
   );
 }

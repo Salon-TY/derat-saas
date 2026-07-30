@@ -4,11 +4,33 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useClients, useClientNuisibleTypes } from "@/lib/queries";
-import { Plus, Search, Phone, MapPin, ChevronRight, Filter, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useClients, useClientNuisibleTypes, type Client } from "@/lib/queries";
+import {
+  Building2,
+  ChevronRight,
+  Filter,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
 import { cn, useDebouncedValue } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
 import { Pager } from "@/components/pager";
+import { PageContainer, PageHeader } from "@/components/page-layout";
 
 const PAGE_SIZE = 50;
 
@@ -21,6 +43,16 @@ export const Route = createFileRoute("/_app/clients/")({
   ),
 });
 
+function clientInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 function ClientsList() {
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 300);
@@ -28,119 +60,429 @@ function ClientsList() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(0);
 
-  useEffect(() => { setPage(0); }, [debouncedQ, nuisibleFilter]);
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedQ, nuisibleFilter]);
 
-  const { data, isLoading } = useClients({
+  const { data, isLoading, isError } = useClients({
     search: debouncedQ.trim() || undefined,
     type_nuisible: nuisibleFilter !== "all" ? nuisibleFilter : undefined,
     page,
     pageSize: PAGE_SIZE,
   });
-  const result = data as { rows: any[]; total: number } | undefined;
-  const filtered = result?.rows ?? [];
+  const result = data as { rows: Client[]; total: number } | undefined;
+  const clients = result?.rows ?? [];
   const total = result?.total ?? 0;
 
   const { data: nuisibleTypes = [] } = useClientNuisibleTypes();
+  const hasSearch = Boolean(debouncedQ.trim());
+  const hasFilter = nuisibleFilter !== "all";
+  const hasActiveSearch = hasSearch || hasFilter;
 
-  const activeFiltersCount = [nuisibleFilter !== "all" ? 1 : 0].reduce((a, b) => a + b, 0);
+  function resetFilters() {
+    setQ("");
+    setNuisibleFilter("all");
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
-        <Button asChild size="sm" className="shrink-0">
-          <Link to="/clients/new"><Plus className="mr-1 h-4 w-4" /> Ajouter</Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Clients"
+        subtitle="Retrouvez vos contacts, leurs sites et leurs besoins en un coup d’œil."
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link to="/clients/new">
+              <Plus className="h-4 w-4" />
+              Ajouter un client
+            </Link>
+          </Button>
+        }
+      />
 
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un client…" className="pl-9" />
-        </div>
-        {nuisibleTypes.length > 0 && (
-          <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            className={cn(
-              "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
-              filtersOpen || activeFiltersCount > 0
-                ? "bg-accent/10 border-accent text-accent"
-                : "bg-card border-border text-muted-foreground"
-            )}
-          >
-            <Filter className="h-4 w-4" />
-            {activeFiltersCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-white">
-                {activeFiltersCount}
-              </span>
-            )}
-          </button>
-        )}
-      </div>
+      <Card className="hover:translate-y-0 hover:shadow-soft">
+        <CardContent className="space-y-4 p-4 lg:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+                placeholder="Rechercher par nom, adresse, téléphone ou email…"
+                className="h-11 pl-10 pr-10"
+                aria-label="Rechercher un client"
+              />
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => setQ("")}
+                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Effacer la recherche"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
 
-      {filtersOpen && nuisibleTypes.length > 0 && (
-        <Card>
-          <CardContent className="p-3 space-y-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Type nuisible</div>
-              <div className="flex flex-wrap gap-1">
-                <button onClick={() => setNuisibleFilter("all")}
-                  className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                    nuisibleFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                >Tous</button>
-                {nuisibleTypes.map((t) => (
-                  <button key={t} onClick={() => setNuisibleFilter(t)}
-                    className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                      nuisibleFilter === t ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                  >{t}</button>
+            {nuisibleTypes.length > 0 && (
+              <Button
+                type="button"
+                variant={filtersOpen || hasFilter ? "secondary" : "outline"}
+                className="h-11 justify-between sm:w-auto"
+                onClick={() => setFiltersOpen((open) => !open)}
+                aria-expanded={filtersOpen}
+              >
+                <span className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtrer
+                </span>
+                {hasFilter && (
+                  <Badge variant="secondary" className="ml-2 h-5 min-w-5 justify-center px-1.5">
+                    1
+                  </Badge>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {filtersOpen && nuisibleTypes.length > 0 && (
+            <div className="space-y-3 border-t border-border/50 pt-4">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Type de nuisible
+                </span>
+                {hasFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setNuisibleFilter("all")}
+                    className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+                <FilterChip
+                  active={nuisibleFilter === "all"}
+                  onClick={() => setNuisibleFilter("all")}
+                >
+                  Tous
+                </FilterChip>
+                {nuisibleTypes.map((type) => (
+                  <FilterChip
+                    key={type}
+                    active={nuisibleFilter === type}
+                    onClick={() => setNuisibleFilter(type)}
+                  >
+                    {type}
+                  </FilterChip>
                 ))}
               </div>
             </div>
-            {activeFiltersCount > 0 && (
-              <button onClick={() => setNuisibleFilter("all")}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                <X className="h-3.5 w-3.5" /> Réinitialiser
-              </button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {isLoading ? (
-        <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
-      ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          {total === 0 && !debouncedQ.trim() && nuisibleFilter === "all" ? "Aucun client. Commencez par en ajouter un." : "Aucun résultat."}
-        </CardContent></Card>
+        <ClientsLoading />
+      ) : isError ? (
+        <StateCard
+          icon={Users}
+          title="Impossible de charger les clients"
+          description="Une erreur est survenue pendant le chargement. Réessayez dans quelques instants."
+        />
+      ) : clients.length === 0 ? (
+        <StateCard
+          icon={hasActiveSearch ? Search : Building2}
+          title={hasActiveSearch ? "Aucun résultat" : "Aucun client pour le moment"}
+          description={
+            hasActiveSearch
+              ? "Aucun client ne correspond à votre recherche ou aux filtres sélectionnés."
+              : "Ajoutez votre premier client pour commencer à organiser vos interventions."
+          }
+          action={
+            hasActiveSearch ? (
+              <Button type="button" variant="outline" onClick={resetFilters}>
+                Réinitialiser la recherche
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link to="/clients/new">
+                  <Plus className="h-4 w-4" />
+                  Ajouter un client
+                </Link>
+              </Button>
+            )
+          }
+        />
       ) : (
-        <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">{total} client{total > 1 ? "s" : ""}</div>
-          {filtered.map((c) => (
-            <Link key={c.id} to="/clients/$id" params={{ id: c.id }} className="block">
-              <Card className="hover:border-primary/50 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold truncate">{c.raison_sociale}</div>
-                      {c.adresse_site && (
-                        <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{c.adresse_site}</span>
-                        </div>
-                      )}
-                      <div className="mt-1 flex items-center gap-3 text-xs">
-                        {c.telephone && <span className="flex items-center gap-1 text-muted-foreground"><Phone className="h-3 w-3" />{c.telephone}</span>}
-                        {c.type_nuisible && <span className="inline-flex items-center rounded-full bg-accent/15 px-2 py-0.5 text-accent font-medium">{c.type_nuisible}</span>}
-                      </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold tabular-nums text-foreground">{total}</span> client
+              {total > 1 ? "s" : ""}
+            </p>
+            {hasActiveSearch && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                Tout effacer
+              </button>
+            )}
+          </div>
+
+          <div className="hidden lg:block">
+            <ClientsTable clients={clients} />
+          </div>
+
+          <div className="grid gap-3 lg:hidden">
+            {clients.map((client) => (
+              <ClientMobileCard key={client.id} client={client} />
+            ))}
+          </div>
+
           <Pager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         </div>
       )}
-    </div>
+    </PageContainer>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition-colors",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ClientsTable({ clients }: { clients: Client[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead>Client</TableHead>
+          <TableHead>Coordonnées</TableHead>
+          <TableHead>Site</TableHead>
+          <TableHead>Nuisible</TableHead>
+          <TableHead className="w-12">
+            <span className="sr-only">Ouvrir</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {clients.map((client) => (
+          <TableRow key={client.id} className="group">
+            <TableCell className="max-w-64">
+              <Link
+                to="/clients/$id"
+                params={{ id: client.id }}
+                className="flex min-w-0 items-center gap-3"
+              >
+                <ClientAvatar name={client.raison_sociale} />
+                <span className="truncate font-semibold group-hover:text-primary">
+                  {client.raison_sociale}
+                </span>
+              </Link>
+            </TableCell>
+            <TableCell className="max-w-64">
+              <div className="space-y-1">
+                {client.telephone && (
+                  <a
+                    href={`tel:${client.telephone}`}
+                    className="flex items-center gap-2 truncate text-sm hover:text-primary"
+                  >
+                    <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{client.telephone}</span>
+                  </a>
+                )}
+                {client.email && (
+                  <a
+                    href={`mailto:${client.email}`}
+                    className="flex items-center gap-2 truncate text-xs text-muted-foreground hover:text-primary"
+                  >
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{client.email}</span>
+                  </a>
+                )}
+                {!client.telephone && !client.email && (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="max-w-72">
+              {client.adresse_site ? (
+                <span className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span className="line-clamp-2">{client.adresse_site}</span>
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </TableCell>
+            <TableCell>
+              {client.type_nuisible ? (
+                <Badge variant="secondary">{client.type_nuisible}</Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </TableCell>
+            <TableCell>
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                aria-label={`Ouvrir ${client.raison_sociale}`}
+              >
+                <Link to="/clients/$id" params={{ id: client.id }}>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function ClientMobileCard({ client }: { client: Client }) {
+  return (
+    <Card className="hover:translate-y-0">
+      <CardContent className="p-4">
+        <Link
+          to="/clients/$id"
+          params={{ id: client.id }}
+          className="flex min-w-0 items-start gap-3"
+        >
+          <ClientAvatar name={client.raison_sociale} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="line-clamp-2 font-semibold leading-5">{client.raison_sociale}</h2>
+              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            </div>
+            {client.adresse_site && (
+              <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="line-clamp-2">{client.adresse_site}</span>
+              </p>
+            )}
+            {client.type_nuisible && (
+              <Badge variant="secondary" className="mt-3">
+                {client.type_nuisible}
+              </Badge>
+            )}
+          </div>
+        </Link>
+
+        {(client.telephone || client.email) && (
+          <div className="mt-4 flex gap-2 border-t border-border/50 pt-3">
+            {client.telephone && (
+              <Button asChild variant="outline" size="sm" className="min-w-0 flex-1">
+                <a href={`tel:${client.telephone}`}>
+                  <Phone className="h-4 w-4" />
+                  Appeler
+                </a>
+              </Button>
+            )}
+            {client.email && (
+              <Button asChild variant="outline" size="sm" className="min-w-0 flex-1">
+                <a href={`mailto:${client.email}`}>
+                  <Mail className="h-4 w-4" />
+                  Email
+                </a>
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ClientAvatar({ name }: { name: string }) {
+  return (
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-xs font-bold text-primary">
+      {clientInitials(name)}
+    </span>
+  );
+}
+
+function ClientsLoading() {
+  return (
+    <>
+      <div className="hidden lg:block">
+        <Card className="hover:translate-y-0 hover:shadow-soft">
+          <CardContent className="space-y-4 p-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="ml-auto h-4 w-40" />
+                <Skeleton className="h-4 w-56" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid gap-3 lg:hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Card key={index} className="hover:translate-y-0 hover:shadow-soft">
+            <CardContent className="flex gap-3 p-4">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function StateCard({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: typeof Users;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <Card className="hover:translate-y-0 hover:shadow-soft">
+      <CardContent className="flex flex-col items-center px-6 py-12 text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </span>
+        <h2 className="mt-4 font-semibold">{title}</h2>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
+        {action && <div className="mt-6">{action}</div>}
+      </CardContent>
+    </Card>
   );
 }

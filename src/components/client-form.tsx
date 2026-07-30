@@ -1,11 +1,17 @@
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clientSchema, type ClientForm as ClientFormType, TYPES_NUISIBLES } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function ClientForm({
   defaultValues,
@@ -17,7 +23,7 @@ export function ClientForm({
   submitLabel?: string;
 }) {
   const form = useForm<ClientFormType>({
-    resolver: zodResolver(clientSchema) as any,
+    resolver: zodResolver(clientSchema) as Resolver<ClientFormType>,
     defaultValues: {
       raison_sociale: defaultValues?.raison_sociale ?? "",
       adresse_site: defaultValues?.adresse_site ?? "",
@@ -33,47 +39,118 @@ export function ClientForm({
   });
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-      <Field label="Raison sociale / Nom *" error={form.formState.errors.raison_sociale?.message}>
-        <Input {...form.register("raison_sociale")} />
-      </Field>
-      <Field label="Adresse du site">
-        <Textarea rows={2} {...form.register("adresse_site")} />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Téléphone"><Input type="tel" {...form.register("telephone")} /></Field>
-        <Field label="Email * (requis pour rapports)" error={form.formState.errors.email?.message}><Input type="email" {...form.register("email")} placeholder="contact@client.fr" /></Field>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <FormSection title="Informations principales">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field
+              label="Raison sociale / Nom *"
+              error={form.formState.errors.raison_sociale?.message}
+            >
+              <Input {...form.register("raison_sociale")} autoComplete="organization" />
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Adresse du site">
+              <Textarea rows={3} {...form.register("adresse_site")} autoComplete="street-address" />
+            </Field>
+          </div>
+          <Field label="Téléphone">
+            <Input type="tel" {...form.register("telephone")} autoComplete="tel" />
+          </Field>
+          <Field
+            label="Email (requis pour les rapports)"
+            error={form.formState.errors.email?.message}
+          >
+            <Input
+              type="email"
+              {...form.register("email")}
+              placeholder="contact@client.fr"
+              autoComplete="email"
+            />
+          </Field>
+          <Field label="Type de nuisible">
+            <Select
+              value={form.watch("type_nuisible") ?? ""}
+              onValueChange={(value) => form.setValue("type_nuisible", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner…" />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPES_NUISIBLES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </FormSection>
+
+      <FormSection title="Informations légales">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="SIRET">
+            <Input {...form.register("siret")} />
+          </Field>
+          <Field label="SIREN">
+            <Input {...form.register("siren")} />
+          </Field>
+          <Field label="RCS">
+            <Input {...form.register("rcs")} placeholder="Paris B 123 456 789" />
+          </Field>
+          <Field label="Forme juridique">
+            <Input
+              {...form.register("forme_juridique")}
+              placeholder="Société par actions simplifiée"
+            />
+          </Field>
+        </div>
+      </FormSection>
+
+      <FormSection title="Notes">
+        <Field label="Informations complémentaires">
+          <Textarea rows={4} {...form.register("notes")} />
+        </Field>
+      </FormSection>
+
+      <div className="flex justify-end border-t border-border/50 pt-6">
+        <Button
+          type="submit"
+          className="w-full sm:w-auto sm:min-w-48"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? "Enregistrement…" : submitLabel}
+        </Button>
       </div>
-      <Field label="SIRET (optionnel)"><Input {...form.register("siret")} /></Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="SIREN (optionnel)"><Input {...form.register("siren")} /></Field>
-        <Field label="RCS (optionnel)"><Input {...form.register("rcs")} placeholder="Paris B 123 456 789" /></Field>
-      </div>
-      <Field label="Forme juridique (optionnel)">
-        <Input {...form.register("forme_juridique")} placeholder="société par actions simplifiée" />
-      </Field>
-      <Field label="Type de nuisible">
-        <Select value={form.watch("type_nuisible") ?? ""} onValueChange={(v) => form.setValue("type_nuisible", v)}>
-          <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
-          <SelectContent>
-            {TYPES_NUISIBLES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field label="Notes">
-        <Textarea rows={3} {...form.register("notes")} />
-      </Field>
-      <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>{submitLabel}</Button>
     </form>
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold text-foreground">{label}</Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-4">
+      <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+      {children}
+    </section>
   );
 }

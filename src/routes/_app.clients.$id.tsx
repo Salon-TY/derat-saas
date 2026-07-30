@@ -4,14 +4,46 @@ import { useClient, useInterventions, useContracts } from "@/lib/queries";
 import { ClientForm } from "@/components/client-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trash2, Phone, Mail, MapPin, Hash, ClipboardList, FileSignature, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  ClipboardList,
+  FileSignature,
+  Hash,
+  Mail,
+  MapPin,
+  Phone,
+  Trash2,
+} from "lucide-react";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatDateFR, STATUTS_INTERVENTION, STATUTS_CONTRAT } from "@/lib/schemas";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  formatDateFR,
+  STATUTS_CONTRAT,
+  STATUT_INTERVENTION_COLORS,
+  statutInterventionLabel,
+} from "@/lib/schemas";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { ClientForm as ClientFormType } from "@/lib/schemas";
 import { PermissionGate } from "@/components/permission-gate";
+import { PageActions, PageContainer, PageHeader, PageSection } from "@/components/page-layout";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: `Fiche client — ${APP_NAME}` }] }),
@@ -22,22 +54,25 @@ export const Route = createFileRoute("/_app/clients/$id")({
   ),
 });
 
-function statutLabel(list: readonly { value: string; label: string }[], v: string) {
-  return list.find((s) => s.value === v)?.label ?? v;
+function statutLabel(list: readonly { value: string; label: string }[], value: string) {
+  return list.find((status) => status.value === value)?.label ?? value;
 }
 
 function ClientDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: client, isLoading } = useClient(id);
+  const { data: client, isLoading, isError } = useClient(id);
   const { data: interventions = [] } = useInterventions({ client_id: id });
   const { data: contracts = [] } = useContracts();
-  const clientContracts = contracts.filter((c) => c.client_id === id);
+  const clientContracts = contracts.filter((contract) => contract.client_id === id);
 
   async function handleUpdate(values: ClientFormType) {
     const { error } = await db.from("clients").update(values).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["clients"] });
     qc.invalidateQueries({ queryKey: ["client", id] });
     toast.success("Client mis à jour");
@@ -45,117 +80,373 @@ function ClientDetail() {
 
   async function handleDelete() {
     const { error } = await db.from("clients").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["clients"] });
     toast.success("Client supprimé");
     navigate({ to: "/clients" });
   }
 
-  if (isLoading) return <div className="text-sm text-muted-foreground">Chargement…</div>;
-  if (!client) return <div className="text-sm text-muted-foreground">Client introuvable.</div>;
+  if (isLoading) return <ClientDetailLoading />;
+
+  if (isError || !client) {
+    return (
+      <PageContainer>
+        <Link
+          to="/clients"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour aux clients
+        </Link>
+        <Card className="hover:translate-y-0 hover:shadow-soft">
+          <CardContent className="flex flex-col items-center px-6 py-12 text-center">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <h1 className="mt-4 font-semibold">
+              {isError ? "Impossible de charger ce client" : "Client introuvable"}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {isError
+                ? "Une erreur est survenue pendant le chargement."
+                : "Cette fiche n’existe pas ou n’est plus disponible."}
+            </p>
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/clients" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="mr-1 h-4 w-4" /> Retour
-        </Link>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
-              <AlertDialogDescription>Toutes les interventions et contrats liés seront supprimés.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive">Supprimer</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+    <PageContainer>
+      <Link
+        to="/clients"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour aux clients
+      </Link>
 
-      <Card>
-        <CardContent className="p-4 space-y-2">
-          <h1 className="text-xl font-bold tracking-tight">{client.raison_sociale}</h1>
-          {client.adresse_site && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.adresse_site)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-2 text-sm text-primary hover:underline"
-            >
-              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-              {client.adresse_site}
-            </a>
-          )}
-          {client.telephone && <div className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 shrink-0 text-muted-foreground" /><a className="text-primary underline" href={`tel:${client.telephone}`}>{client.telephone}</a></div>}
-          {client.email && <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 shrink-0 text-muted-foreground" /><a className="text-primary underline truncate" href={`mailto:${client.email}`}>{client.email}</a></div>}
-          {client.siret && <div className="flex items-center gap-2 text-sm"><Hash className="h-4 w-4 shrink-0 text-muted-foreground" />SIRET: {client.siret}</div>}
-          {client.type_nuisible && <div className="inline-flex items-center rounded-full bg-accent/15 px-2 py-1 text-xs text-accent font-medium">Nuisible: {client.type_nuisible}</div>}
-          {!client.email && (
-            <div className="flex items-center gap-2 rounded-lg border border-orange-300 bg-orange-50 dark:bg-orange-950/20 px-3 py-2 text-sm text-orange-700 dark:text-orange-400">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span className="flex-1">Email manquant — requis pour l'envoi des rapports</span>
-              <a href="#modifier" className="text-xs font-medium underline">Corriger ↓</a>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={client.raison_sociale}
+        subtitle={
+          client.type_nuisible ? (
+            <Badge variant="secondary">{client.type_nuisible}</Badge>
+          ) : (
+            "Fiche client"
+          )
+        }
+        actions={
+          <PageActions className="w-full sm:w-auto">
+            {client.telephone && (
+              <Button asChild variant="outline" className="flex-1 sm:flex-none">
+                <a href={`tel:${client.telephone}`}>
+                  <Phone className="h-4 w-4" />
+                  Appeler
+                </a>
+              </Button>
+            )}
+            {client.email && (
+              <Button asChild variant="outline" className="flex-1 sm:flex-none">
+                <a href={`mailto:${client.email}`}>
+                  <Mail className="h-4 w-4" />
+                  Écrire
+                </a>
+              </Button>
+            )}
+          </PageActions>
+        }
+      />
 
-      {clientContracts.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2"><FileSignature className="h-4 w-4" />Contrat(s)</h2>
-          <div className="space-y-2">
-            {clientContracts.map((c) => (
-              <Link key={c.id} to="/contrats/$id" params={{ id: c.id }}>
-                <Card><CardContent className="p-3 text-sm flex items-center justify-between gap-2">
-                  <div>
-                    <div className="font-medium">{formatDateFR(c.date_debut)} → {formatDateFR(c.date_fin)}</div>
-                    <div className="text-xs text-muted-foreground">{c.passages_realises}/{c.nb_passages_inclus} passages · {statutLabel(STATUTS_CONTRAT, c.statut)}</div>
-                  </div>
-                </CardContent></Card>
-              </Link>
-            ))}
-          </div>
-        </section>
+      {!client.email && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-warning/50 bg-warning/10 p-4 text-sm sm:flex-row sm:items-center">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+          <span className="flex-1 text-foreground">
+            Email manquant — requis pour l’envoi des rapports.
+          </span>
+          <a
+            href="#modifier"
+            className="shrink-0 text-xs font-semibold text-primary hover:underline"
+          >
+            Corriger
+          </a>
+        </div>
       )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" />Historique interventions</h2>
-        {interventions.length === 0 ? (
-          <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">Aucune intervention.</CardContent></Card>
-        ) : (
-          <div className="space-y-2">
-            {interventions.map((i) => (
-              <Link key={i.id} to="/interventions/$id" params={{ id: i.id }}>
-                <Card><CardContent className="p-3 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{formatDateFR(i.date)}</span>
-                    <span className={`text-xs rounded-full px-2 py-0.5 ${
-                      i.statut === "rapport_transmis" ? "bg-success/15 text-success"
-                      : i.statut === "realisee" ? "bg-primary/15 text-primary"
-                      : i.statut === "en_cours" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-                      : i.statut === "annulee" ? "bg-muted text-muted-foreground"
-                      : "bg-warning/20 text-warning-foreground"
-                    }`}>
-                      {statutLabel(STATUTS_INTERVENTION, i.statut)}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">{i.type_intervention}{i.type_nuisible ? ` · ${i.type_nuisible}` : ""}</div>
-                </CardContent></Card>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-6">
+          <PageSection title="Activité">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SummaryCard
+                icon={ClipboardList}
+                value={interventions.length}
+                label={`intervention${interventions.length > 1 ? "s" : ""}`}
+              />
+              <SummaryCard
+                icon={FileSignature}
+                value={clientContracts.length}
+                label={`contrat${clientContracts.length > 1 ? "s" : ""}`}
+              />
+            </div>
+          </PageSection>
 
-      <section id="modifier">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Modifier</h2>
-        <ClientForm defaultValues={client} onSubmit={handleUpdate} submitLabel="Enregistrer" />
-      </section>
+          {clientContracts.length > 0 && (
+            <PageSection title="Contrats">
+              <div className="grid gap-3">
+                {clientContracts.map((contract) => (
+                  <Link
+                    key={contract.id}
+                    to="/contrats/$id"
+                    params={{ id: contract.id }}
+                    className="group"
+                  >
+                    <Card className="hover:border-primary/30">
+                      <CardContent className="flex items-center gap-4 p-4">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                          <FileSignature className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">
+                            {formatDateFR(contract.date_debut)} → {formatDateFR(contract.date_fin)}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {contract.passages_realises}/{contract.nb_passages_inclus} passages
+                          </div>
+                        </div>
+                        <Badge variant="secondary">
+                          {statutLabel(STATUTS_CONTRAT, contract.statut)}
+                        </Badge>
+                        <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </PageSection>
+          )}
+
+          <PageSection title="Historique des interventions">
+            {interventions.length === 0 ? (
+              <Card className="hover:translate-y-0 hover:shadow-soft">
+                <CardContent className="flex flex-col items-center px-6 py-10 text-center">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <CalendarDays className="h-4 w-4" />
+                  </span>
+                  <p className="mt-4 text-sm font-medium">Aucune intervention</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Les interventions de ce client apparaîtront ici.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {interventions.map((intervention) => (
+                  <Link
+                    key={intervention.id}
+                    to="/interventions/$id"
+                    params={{ id: intervention.id }}
+                    className="group"
+                  >
+                    <Card className="hover:border-primary/30">
+                      <CardContent className="flex items-center gap-4 p-4">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                          <CalendarDays className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">{formatDateFR(intervention.date)}</div>
+                          <div className="mt-1 truncate text-xs text-muted-foreground">
+                            {intervention.type_intervention}
+                            {intervention.type_nuisible ? ` · ${intervention.type_nuisible}` : ""}
+                          </div>
+                        </div>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-1 text-[10px] font-medium uppercase",
+                            STATUT_INTERVENTION_COLORS[intervention.statut] ??
+                              "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {statutInterventionLabel(intervention.statut)}
+                        </span>
+                        <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </PageSection>
+        </div>
+
+        <aside className="space-y-6 xl:sticky xl:top-24">
+          <PageSection title="Coordonnées">
+            <Card className="hover:translate-y-0 hover:shadow-soft">
+              <CardContent className="divide-y divide-border/50 p-0">
+                {client.adresse_site && (
+                  <ContactRow icon={MapPin} label="Adresse">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.adresse_site)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="break-words text-primary hover:underline"
+                    >
+                      {client.adresse_site}
+                    </a>
+                  </ContactRow>
+                )}
+                {client.telephone && (
+                  <ContactRow icon={Phone} label="Téléphone">
+                    <a href={`tel:${client.telephone}`} className="text-primary hover:underline">
+                      {client.telephone}
+                    </a>
+                  </ContactRow>
+                )}
+                {client.email && (
+                  <ContactRow icon={Mail} label="Email">
+                    <a
+                      href={`mailto:${client.email}`}
+                      className="break-all text-primary hover:underline"
+                    >
+                      {client.email}
+                    </a>
+                  </ContactRow>
+                )}
+                {client.siret && (
+                  <ContactRow icon={Hash} label="SIRET">
+                    <span className="break-all">{client.siret}</span>
+                  </ContactRow>
+                )}
+                {!client.adresse_site && !client.telephone && !client.email && !client.siret && (
+                  <p className="p-4 text-sm text-muted-foreground">Aucune coordonnée renseignée.</p>
+                )}
+              </CardContent>
+            </Card>
+          </PageSection>
+        </aside>
+      </div>
+
+      <PageSection title="Modifier la fiche" className="scroll-mt-24">
+        <Card id="modifier" className="hover:translate-y-0 hover:shadow-soft">
+          <CardContent className="p-4 sm:p-6">
+            <ClientForm
+              defaultValues={client}
+              onSubmit={handleUpdate}
+              submitLabel="Enregistrer les modifications"
+            />
+          </CardContent>
+        </Card>
+      </PageSection>
+
+      <PageSection title="Zone sensible">
+        <Card className="border-destructive/30 hover:translate-y-0 hover:shadow-soft">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <p className="text-sm font-semibold">Supprimer ce client</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cette action supprimera aussi les interventions et contrats liés.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Toutes les interventions et contrats liés seront supprimés.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+                    Supprimer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
+      </PageSection>
+    </PageContainer>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: typeof ClipboardList;
+  value: number;
+  label: string;
+}) {
+  return (
+    <Card className="hover:translate-y-0 hover:shadow-soft">
+      <CardContent className="flex items-center gap-4 p-4">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div>
+          <div className="text-2xl font-bold tabular-nums">{value}</div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContactRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof MapPin;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3 p-4">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
+        <div className="mt-1 text-sm">{children}</div>
+      </div>
     </div>
+  );
+}
+
+function ClientDetailLoading() {
+  return (
+    <PageContainer>
+      <Skeleton className="h-5 w-32" />
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-72 max-w-full" />
+        <Skeleton className="h-5 w-24" />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+          </div>
+          <Skeleton className="h-64 rounded-2xl" />
+        </div>
+        <Skeleton className="h-72 rounded-2xl" />
+      </div>
+    </PageContainer>
   );
 }
