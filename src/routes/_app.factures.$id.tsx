@@ -1,13 +1,38 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- typage historique du formulaire, logique inchangée */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useInvoice, useSettings, useClients, usePresets, useRelancesForInvoice, type Relance } from "@/lib/queries";
-import { formatEUR, formatDateFR, STATUTS_FACTURE, type InvoiceForm, invoiceSchema } from "@/lib/schemas";
+import {
+  useInvoice,
+  useSettings,
+  useClients,
+  usePresets,
+  useRelancesForInvoice,
+  type Relance,
+} from "@/lib/queries";
+import {
+  formatEUR,
+  formatDateFR,
+  STATUTS_FACTURE,
+  type InvoiceForm,
+  invoiceSchema,
+} from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Download, Trash2, Mail, MapPin, Pencil, Plus, X, Bell, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Trash2,
+  Mail,
+  MapPin,
+  Pencil,
+  Plus,
+  X,
+  Bell,
+  Clock,
+} from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { printDocument } from "@/lib/print";
@@ -15,15 +40,30 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PermissionGate } from "@/components/permission-gate";
+import { PageContainer } from "@/components/page-layout";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_app/factures/$id")({
   head: () => ({ meta: [{ title: `Facture — ${APP_NAME}` }] }),
@@ -44,9 +84,9 @@ const STATUT_COLORS: Record<string, string> = {
 // PDF badge colours (inline, no Tailwind)
 const PDF_BADGE: Record<string, { bg: string; color: string }> = {
   brouillon: { bg: "#e5e7eb", color: "#374151" },
-  envoyee:   { bg: "#fff3e0", color: "#ea6c0a" },
-  payee:     { bg: "#e6f4ef", color: "#1a3c2e" },
-  retard:    { bg: "#fee2e2", color: "#b91c1c" },
+  envoyee: { bg: "#fff3e0", color: "#ea6c0a" },
+  payee: { bg: "#e6f4ef", color: "#1a3c2e" },
+  retard: { bg: "#fee2e2", color: "#b91c1c" },
 };
 
 function statutLabel(v: string) {
@@ -57,8 +97,16 @@ function statutLabel(v: string) {
 
 const PRESETS_DEFAULT = [
   { description: "Désinsectisation + Dératisation", prix_unitaire_ht: 208.33 },
-  { description: "Désinsectisation + Souscription contrat annuel - Formule préventive contre les insectes et rongeurs (3 passages sur 12 mois)", prix_unitaire_ht: 90.00 },
-  { description: "Désinsectisation + Souscription contrat annuel - Formule préventive contre les insectes et rongeurs (12 passages sur 12 mois)", prix_unitaire_ht: 300.00 },
+  {
+    description:
+      "Désinsectisation + Souscription contrat annuel - Formule préventive contre les insectes et rongeurs (3 passages sur 12 mois)",
+    prix_unitaire_ht: 90.0,
+  },
+  {
+    description:
+      "Désinsectisation + Souscription contrat annuel - Formule préventive contre les insectes et rongeurs (12 passages sur 12 mois)",
+    prix_unitaire_ht: 300.0,
+  },
 ];
 
 function EditFactureForm({
@@ -95,13 +143,17 @@ function EditFactureForm({
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const lines = form.watch("lines");
   const tvaTaux = form.watch("tva_taux") ?? 20;
-  const totalHT = lines.reduce((s, l) => s + (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0), 0);
+  const totalHT = lines.reduce(
+    (s, l) => s + (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0),
+    0,
+  );
   const tvaAmount = totalHT * (tvaTaux / 100);
   const totalTTC = totalHT + tvaAmount;
 
-  const allPresets = presets.length > 0
-    ? presets.map((p) => ({ description: p.description, prix_unitaire_ht: p.prix_unitaire_ht }))
-    : PRESETS_DEFAULT;
+  const allPresets =
+    presets.length > 0
+      ? presets.map((p) => ({ description: p.description, prix_unitaire_ht: p.prix_unitaire_ht }))
+      : PRESETS_DEFAULT;
 
   async function onSubmit(values: InvoiceForm) {
     const linesCalc = values.lines.map((l) => ({
@@ -113,20 +165,26 @@ function EditFactureForm({
     const tva = totalHTCalc * (values.tva_taux / 100);
     const ttc = totalHTCalc + tva;
 
-    const { error } = await db.from("invoices").update({
-      client_id: values.client_id,
-      date_facture: values.date_facture,
-      echeance: values.echeance || null,
-      adresse_site: values.adresse_site,
-      statut: values.statut,
-      tva_taux: values.tva_taux,
-      total_ht: totalHTCalc,
-      tva,
-      total_ttc: ttc,
-      notes: values.notes,
-    }).eq("id", invoice.id);
+    const { error } = await db
+      .from("invoices")
+      .update({
+        client_id: values.client_id,
+        date_facture: values.date_facture,
+        echeance: values.echeance || null,
+        adresse_site: values.adresse_site,
+        statut: values.statut,
+        tva_taux: values.tva_taux,
+        total_ht: totalHTCalc,
+        tva,
+        total_ttc: ttc,
+        notes: values.notes,
+      })
+      .eq("id", invoice.id);
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
     // Recreate lines
     await db.from("invoice_lines").delete().eq("invoice_id", invoice.id);
@@ -140,7 +198,10 @@ function EditFactureForm({
       ordre: i,
     }));
     const { error: e2 } = await db.from("invoice_lines").insert(linesInsert);
-    if (e2) { toast.error(e2.message); return; }
+    if (e2) {
+      toast.error(e2.message);
+      return;
+    }
 
     qc.invalidateQueries({ queryKey: ["invoice", invoice.id] });
     qc.invalidateQueries({ queryKey: ["invoices"] });
@@ -153,90 +214,180 @@ function EditFactureForm({
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Modifier la facture N°{invoice.numero}</h2>
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}><X className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      <Card><CardContent className="p-4 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client</h3>
-        <EditField label="Client *" error={(form.formState.errors as any).client_id?.message}>
-          <Select value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v, { shouldValidate: true })}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner un client…" /></SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.raison_sociale}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </EditField>
-        <EditField label="Adresse du site">
-          <Textarea rows={2} {...form.register("adresse_site")} />
-        </EditField>
-      </CardContent></Card>
-
-      <Card><CardContent className="p-4 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dates & statut</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <EditField label="Date facture *"><Input type="date" {...form.register("date_facture")} /></EditField>
-          <EditField label="Échéance"><Input type="date" {...form.register("echeance")} /></EditField>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <EditField label="Statut">
-            <Select value={form.watch("statut")} onValueChange={(v) => form.setValue("statut", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUTS_FACTURE.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Client
+          </h3>
+          <EditField label="Client *" error={(form.formState.errors as any).client_id?.message}>
+            <Select
+              value={form.watch("client_id")}
+              onValueChange={(v) => form.setValue("client_id", v, { shouldValidate: true })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un client…" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.raison_sociale}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </EditField>
-          <EditField label="TVA (%)"><Input type="number" {...form.register("tva_taux")} /></EditField>
-        </div>
-      </CardContent></Card>
+          <EditField label="Adresse du site">
+            <Textarea rows={2} {...form.register("adresse_site")} />
+          </EditField>
+        </CardContent>
+      </Card>
 
-      <Card><CardContent className="p-4 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prestations rapides</h3>
-        <div className="flex flex-wrap gap-2">
-          {allPresets.map((p, i) => (
-            <button key={i} type="button"
-              onClick={() => append({ description: p.description, quantite: 1, prix_unitaire_ht: p.prix_unitaire_ht })}
-              className="text-left text-xs rounded-lg border px-3 py-2 hover:border-primary/50 hover:bg-primary/5 transition-colors max-w-xs">
-              {p.description.length > 55 ? p.description.slice(0, 55) + "…" : p.description}
-              <span className="ml-1 text-muted-foreground">({formatEUR(p.prix_unitaire_ht)} HT)</span>
-            </button>
-          ))}
-        </div>
-      </CardContent></Card>
-
-      <Card><CardContent className="p-4 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lignes</h3>
-        {fields.map((field, i) => (
-          <div key={field.id} className="rounded-lg border p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Ligne {i + 1}</span>
-              {fields.length > 1 && (
-                <button type="button" onClick={() => remove(i)} className="text-destructive"><Trash2 className="h-4 w-4" /></button>
-              )}
-            </div>
-            <EditField label="Description *" error={(form.formState.errors as any).lines?.[i]?.description?.message}>
-              <Textarea rows={2} {...form.register(`lines.${i}.description`)} />
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Dates & statut
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <EditField label="Date facture *">
+              <Input type="date" {...form.register("date_facture")} />
             </EditField>
-            <div className="grid grid-cols-2 gap-2">
-              <EditField label="Quantité"><Input type="number" step="0.01" {...form.register(`lines.${i}.quantite`)} /></EditField>
-              <EditField label="Prix HT (€)"><Input type="number" step="0.01" {...form.register(`lines.${i}.prix_unitaire_ht`)} /></EditField>
-            </div>
-            <div className="text-right text-sm font-medium text-muted-foreground">
-              {formatEUR((Number(form.watch(`lines.${i}.quantite`)) || 0) * (Number(form.watch(`lines.${i}.prix_unitaire_ht`)) || 0))}
-            </div>
+            <EditField label="Échéance">
+              <Input type="date" {...form.register("echeance")} />
+            </EditField>
           </div>
-        ))}
-        <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => append({ description: "", quantite: 1, prix_unitaire_ht: 0 })}>
-          <Plus className="mr-1 h-4 w-4" /> Ajouter une ligne
-        </Button>
-      </CardContent></Card>
+          <div className="grid grid-cols-2 gap-3">
+            <EditField label="Statut">
+              <Select
+                value={form.watch("statut")}
+                onValueChange={(v) => form.setValue("statut", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUTS_FACTURE.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </EditField>
+            <EditField label="TVA (%)">
+              <Input type="number" {...form.register("tva_taux")} />
+            </EditField>
+          </div>
+        </CardContent>
+      </Card>
 
-      <Card><CardContent className="p-4 space-y-1">
-        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total HT</span><span>{formatEUR(totalHT)}</span></div>
-        <div className="flex justify-between text-sm"><span className="text-muted-foreground">TVA ({tvaTaux}%)</span><span>{formatEUR(tvaAmount)}</span></div>
-        <div className="flex justify-between font-bold border-t pt-2 mt-1"><span>Total TTC</span><span className="text-primary">{formatEUR(totalTTC)}</span></div>
-      </CardContent></Card>
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Prestations rapides
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {allPresets.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() =>
+                  append({
+                    description: p.description,
+                    quantite: 1,
+                    prix_unitaire_ht: p.prix_unitaire_ht,
+                  })
+                }
+                className="text-left text-xs rounded-lg border px-3 py-2 hover:border-primary/50 hover:bg-primary/5 transition-colors max-w-xs"
+              >
+                {p.description.length > 55 ? p.description.slice(0, 55) + "…" : p.description}
+                <span className="ml-1 text-muted-foreground">
+                  ({formatEUR(p.prix_unitaire_ht)} HT)
+                </span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Lignes
+          </h3>
+          {fields.map((field, i) => (
+            <div key={field.id} className="rounded-lg border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Ligne {i + 1}</span>
+                {fields.length > 1 && (
+                  <button type="button" onClick={() => remove(i)} className="text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <EditField
+                label="Description *"
+                error={(form.formState.errors as any).lines?.[i]?.description?.message}
+              >
+                <Textarea rows={2} {...form.register(`lines.${i}.description`)} />
+              </EditField>
+              <div className="grid grid-cols-2 gap-2">
+                <EditField label="Quantité">
+                  <Input type="number" step="0.01" {...form.register(`lines.${i}.quantite`)} />
+                </EditField>
+                <EditField label="Prix HT (€)">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...form.register(`lines.${i}.prix_unitaire_ht`)}
+                  />
+                </EditField>
+              </div>
+              <div className="text-right text-sm font-medium text-muted-foreground">
+                {formatEUR(
+                  (Number(form.watch(`lines.${i}.quantite`)) || 0) *
+                    (Number(form.watch(`lines.${i}.prix_unitaire_ht`)) || 0),
+                )}
+              </div>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => append({ description: "", quantite: 1, prix_unitaire_ht: 0 })}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Ajouter une ligne
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Total HT</span>
+            <span>{formatEUR(totalHT)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">TVA ({tvaTaux}%)</span>
+            <span>{formatEUR(tvaAmount)}</span>
+          </div>
+          <div className="flex justify-between font-bold border-t pt-2 mt-1">
+            <span>Total TTC</span>
+            <span className="text-primary">{formatEUR(totalTTC)}</span>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Annuler</Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+          Annuler
+        </Button>
         <Button type="submit" className="flex-1" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Enregistrement…" : "Sauvegarder les modifications"}
         </Button>
@@ -245,10 +396,20 @@ function EditFactureForm({
   );
 }
 
-function EditField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function EditField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
@@ -258,8 +419,8 @@ function EditField({ label, error, children }: { label: string; error?: string; 
 // ─── Main component ─────────────────────────────────────────────────────────
 
 const NIVEAU_LABELS: Record<number, { label: string; color: string }> = {
-  1: { label: "Rappel avant échéance", color: "text-amber-600" },
-  2: { label: "Relance amiable", color: "text-orange-600" },
+  1: { label: "Rappel avant échéance", color: "text-accent" },
+  2: { label: "Relance amiable", color: "text-warning-foreground" },
   3: { label: "Mise en demeure", color: "text-destructive" },
 };
 
@@ -288,7 +449,10 @@ function FactureDetail() {
 
   async function updateStatut(statut: string) {
     const { error } = await db.from("invoices").update({ statut }).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["invoice", id] });
     qc.invalidateQueries({ queryKey: ["invoices"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -298,24 +462,35 @@ function FactureDetail() {
   async function handleDelete() {
     await db.from("invoice_lines").delete().eq("invoice_id", id);
     const { error } = await db.from("invoices").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["invoices"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     toast.success("Facture supprimée");
     navigate({ to: "/factures" });
   }
 
-  function exportPDF(printOpts?: { printButtonLabel?: string; hint?: string; onPrinted?: () => void }) {
+  function exportPDF(printOpts?: {
+    printButtonLabel?: string;
+    hint?: string;
+    onPrinted?: () => void;
+  }) {
     if (!invoice) return;
     const s = settings;
     const badge = PDF_BADGE[invoice.statut] ?? PDF_BADGE.brouillon;
-    const rowsHtml = (invoice.lines ?? []).map((l, i) => `
+    const rowsHtml = (invoice.lines ?? [])
+      .map(
+        (l, i) => `
       <tr style="background:${i % 2 === 0 ? "#fff" : "#f8faf8"}">
         <td style="padding:8px 10px">${l.description}</td>
         <td style="padding:8px 10px;text-align:center">${l.quantite}</td>
         <td style="padding:8px 10px;text-align:right">${formatEUR(l.prix_unitaire_ht)}</td>
         <td style="padding:8px 10px;text-align:right;font-weight:600">${formatEUR(l.total_ht)}</td>
-      </tr>`).join("");
+      </tr>`,
+      )
+      .join("");
 
     const css = `
   body { font-family:Arial,sans-serif; font-size:11px; color:#1f2937; background:#fff; }
@@ -459,13 +634,17 @@ function FactureDetail() {
       <div class="t-row ttc"><span>Total TTC</span><span>${formatEUR(invoice.total_ttc)}</span></div>
     </div>
 
-    ${s?.iban || s?.bic ? `
+    ${
+      s?.iban || s?.bic
+        ? `
     <div class="rib">
       <strong>Coordonnées bancaires</strong>
       ${s?.iban ? `IBAN : ${s.iban}<br>` : ""}
       ${s?.bic ? `BIC : ${s.bic}` : ""}
     </div>
-    ` : ""}
+    `
+        : ""
+    }
 
     <div class="footer">
       En cas de retard de paiement, une pénalité au taux annuel de 5 % sera appliquée,
@@ -478,22 +657,32 @@ function FactureDetail() {
 `;
 
     const ok = printDocument({ title: `Facture N°${invoice.numero}`, bodyHtml, css, ...printOpts });
-    if (!ok) { toast.error("Autorisez les popups pour générer le PDF"); return; }
+    if (!ok) {
+      toast.error("Autorisez les popups pour générer le PDF");
+      return;
+    }
   }
 
   async function sendRelance() {
     if (!invoice) return;
     const email = invoice.client?.email ?? "";
-    if (!email) { toast.error("Aucun email renseigné pour ce client"); return; }
+    if (!email) {
+      toast.error("Aucun email renseigné pour ce client");
+      return;
+    }
 
     const s = settings;
     const nomSociete = s?.nom ?? "";
-    const signature = s?.relance_signature ? `\n\n${s.relance_signature}` : `\n\nCordialement,\n${nomSociete}${s?.telephone ? `\nTél : ${s.telephone}` : ""}`;
+    const signature = s?.relance_signature
+      ? `\n\n${s.relance_signature}`
+      : `\n\nCordialement,\n${nomSociete}${s?.telephone ? `\nTél : ${s.telephone}` : ""}`;
     const niveau = niveauRelance(invoice.echeance ?? null, settings);
     const montant = formatEUR(invoice.total_ttc);
     const numFac = `N°${invoice.numero}`;
     const echeanceStr = invoice.echeance ? formatDateFR(invoice.echeance) : "—";
-    const iban = s?.iban ? `\n\nCoordonnées bancaires pour virement :\nIBAN : ${s.iban}${s.bic ? `\nBIC : ${s.bic}` : ""}` : "";
+    const iban = s?.iban
+      ? `\n\nCoordonnées bancaires pour virement :\nIBAN : ${s.iban}${s.bic ? `\nBIC : ${s.bic}` : ""}`
+      : "";
 
     const now = new Date();
     const daysLate = invoice.echeance
@@ -516,7 +705,9 @@ function FactureDetail() {
 
     setSendingRelance(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -535,13 +726,18 @@ function FactureDetail() {
     }
 
     const mailto = `mailto:${email}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
-    setTimeout(() => { window.location.href = mailto; }, 300);
+    setTimeout(() => {
+      window.location.href = mailto;
+    }, 300);
   }
 
   function sendEmail() {
     if (!invoice) return;
     const email = invoice.client?.email ?? "";
-    if (!email) { toast.warning("Aucun email renseigné pour ce client"); return; }
+    if (!email) {
+      toast.warning("Aucun email renseigné pour ce client");
+      return;
+    }
     const s = settings;
     const nomSociete = s?.nom ?? "";
     const objet = `Facture N°${invoice.numero} - ${nomSociete}`;
@@ -561,31 +757,58 @@ function FactureDetail() {
       hint: "Corrigez le document si besoin, puis générez le PDF. Votre messagerie s'ouvrira ensuite : joignez-y le PDF que vous venez d'enregistrer.",
       onPrinted: () => {
         window.location.href = `mailto:${email}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
-        toast.success("Votre messagerie est ouverte. Joignez le PDF que vous venez d'enregistrer, puis envoyez.");
+        toast.success(
+          "Votre messagerie est ouverte. Joignez le PDF que vous venez d'enregistrer, puis envoyez.",
+        );
       },
     });
   }
 
-  if (isLoading) return <div className="text-sm text-muted-foreground py-10 text-center">Chargement…</div>;
-  if (!invoice) return <div className="text-sm text-muted-foreground py-10 text-center">Facture introuvable.</div>;
+  if (isLoading)
+    return (
+      <PageContainer>
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
+      </PageContainer>
+    );
+  if (!invoice)
+    return (
+      <PageContainer>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Facture introuvable.
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
 
   const canEdit = invoice.statut !== "payee";
 
   if (editing) {
     return (
-      <div className="space-y-4">
-        <Link to="/factures" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+      <PageContainer>
+        <Link
+          to="/factures"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="mr-1 h-4 w-4" /> Retour
         </Link>
-        <EditFactureForm invoice={invoice} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />
-      </div>
+        <EditFactureForm
+          invoice={invoice}
+          onCancel={() => setEditing(false)}
+          onSaved={() => setEditing(false)}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <PageContainer>
       <div className="flex items-center justify-between gap-3">
-        <Link to="/factures" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/factures"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="mr-1 h-4 w-4" /> Retour
         </Link>
         <div className="flex items-center gap-2">
@@ -596,7 +819,9 @@ function FactureDetail() {
           )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -605,128 +830,186 @@ function FactureDetail() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive">Supprimer</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+                  Supprimer
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
       </div>
 
-      <Card><CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold">Facture N°{invoice.numero}</h1>
-            <div className="text-sm text-muted-foreground">{invoice.client?.raison_sociale ?? "—"}</div>
-            <div className="text-xs text-muted-foreground">{formatDateFR(invoice.date_facture)}{invoice.echeance ? ` · Éch. ${formatDateFR(invoice.echeance)}` : ""}</div>
-            {invoice.adresse_site && (
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(invoice.adresse_site)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-              >
-                <MapPin className="h-3 w-3 shrink-0" />{invoice.adresse_site}
-              </a>
-            )}
-          </div>
-          <span className={cn("text-xs font-medium uppercase rounded-full px-2 py-1 shrink-0", STATUT_COLORS[invoice.statut] ?? "bg-muted")}>
-            {statutLabel(invoice.statut)}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Statut :</span>
-          <Select value={invoice.statut} onValueChange={updateStatut}>
-            <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {STATUTS_FACTURE.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        {!canEdit && (
-          <p className="text-xs text-muted-foreground italic">La facture est payée — modification désactivée.</p>
-        )}
-      </CardContent></Card>
-
-      <Card><CardContent className="p-4 space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Prestations</h2>
-        {(invoice.lines ?? []).map((l, i) => (
-          <div key={i} className="flex items-start justify-between gap-2 py-2 border-b last:border-0">
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">{l.description}</div>
-              <div className="text-xs text-muted-foreground">Qté : {l.quantite} × {formatEUR(l.prix_unitaire_ht)}</div>
+      <Card>
+        <CardContent className="space-y-3 p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h1 className="break-words text-xl font-bold">Facture N°{invoice.numero}</h1>
+              <div className="break-words text-sm text-muted-foreground">
+                {invoice.client?.raison_sociale ?? "—"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {formatDateFR(invoice.date_facture)}
+                {invoice.echeance ? ` · Éch. ${formatDateFR(invoice.echeance)}` : ""}
+              </div>
+              {invoice.adresse_site && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(invoice.adresse_site)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                >
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {invoice.adresse_site}
+                </a>
+              )}
             </div>
-            <div className="text-sm font-semibold shrink-0">{formatEUR(l.total_ht)}</div>
+            <Badge className={cn("shrink-0", STATUT_COLORS[invoice.statut] ?? "bg-muted")}>
+              {statutLabel(invoice.statut)}
+            </Badge>
           </div>
-        ))}
-        <div className="pt-2 space-y-1">
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total HT</span><span>{formatEUR(invoice.total_ht)}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">TVA ({invoice.tva_taux ?? 20}%)</span><span>{formatEUR(invoice.tva)}</span></div>
-          <div className="flex justify-between text-base font-bold border-t pt-2"><span>Total TTC</span><span className="text-primary">{formatEUR(invoice.total_ttc)}</span></div>
-        </div>
-      </CardContent></Card>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Statut :</span>
+            <Select value={invoice.statut} onValueChange={updateStatut}>
+              <SelectTrigger className="h-7 text-xs w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUTS_FACTURE.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {!canEdit && (
+            <p className="text-xs text-muted-foreground italic">
+              La facture est payée — modification désactivée.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Prestations
+          </h2>
+          {(invoice.lines ?? []).map((l, i) => (
+            <div
+              key={i}
+              className="flex items-start justify-between gap-2 py-2 border-b last:border-0"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="break-words text-sm font-medium">{l.description}</div>
+                <div className="text-xs text-muted-foreground">
+                  Qté : {l.quantite} × {formatEUR(l.prix_unitaire_ht)}
+                </div>
+              </div>
+              <div className="text-sm font-semibold shrink-0">{formatEUR(l.total_ht)}</div>
+            </div>
+          ))}
+          <div className="pt-2 space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total HT</span>
+              <span>{formatEUR(invoice.total_ht)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">TVA ({invoice.tva_taux ?? 20}%)</span>
+              <span>{formatEUR(invoice.tva)}</span>
+            </div>
+            <div className="flex justify-between text-base font-bold border-t pt-2">
+              <span>Total TTC</span>
+              <span className="text-primary">{formatEUR(invoice.total_ttc)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Relances */}
       {invoice.statut !== "payee" && invoice.statut !== "brouillon" && (
-        <Card><CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-accent shrink-0" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Relances</h2>
-          </div>
-
-          {/* Historique */}
-          {relances.length > 0 && (
-            <div className="space-y-1.5">
-              {relances.map((r) => (
-                <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className={cn("font-bold", NIVEAU_LABELS[r.niveau]?.color)}>
-                      Niv. {r.niveau}
-                    </span>
-                    <span className="text-muted-foreground">{NIVEAU_LABELS[r.niveau]?.label}</span>
-                  </div>
-                  <span className="flex items-center gap-1 text-muted-foreground shrink-0">
-                    <Clock className="h-3 w-3" />{formatDateFR(r.date_envoi)}
-                  </span>
-                </div>
-              ))}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-accent shrink-0" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Relances
+              </h2>
             </div>
-          )}
 
-          {/* Bouton relance */}
-          {invoice.client?.email ? (() => {
-            const niv = niveauRelance(invoice.echeance ?? null, settings);
-            const info = NIVEAU_LABELS[niv];
-            return (
-              <div className="space-y-1">
-                <Button
-                  onClick={sendRelance}
-                  disabled={sendingRelance}
-                  className={cn(
-                    "w-full gap-2",
-                    niv === 3 ? "bg-destructive hover:bg-destructive/90 text-white" :
-                    niv === 2 ? "bg-orange-600 hover:bg-orange-700 text-white" :
-                    "bg-amber-500 hover:bg-amber-600 text-white"
-                  )}
-                >
-                  <Mail className="h-4 w-4" />
-                  {sendingRelance ? "Envoi…" : `Envoyer — Niveau ${niv} (${info.label})`}
-                </Button>
-                <p className="text-[10px] text-muted-foreground text-center">
-                  {niv === 1 && "Rappel doux avant échéance"}
-                  {niv === 2 && "Relance ferme mais courtoise"}
-                  {niv === 3 && "Mise en demeure — ton urgent"}
-                  {relances.length > 0 && ` · ${relances.length} relance${relances.length > 1 ? "s" : ""} déjà envoyée${relances.length > 1 ? "s" : ""}`}
-                </p>
+            {/* Historique */}
+            {relances.length > 0 && (
+              <div className="space-y-1.5">
+                {relances.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={cn("font-bold", NIVEAU_LABELS[r.niveau]?.color)}>
+                        Niv. {r.niveau}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {NIVEAU_LABELS[r.niveau]?.label}
+                      </span>
+                    </div>
+                    <span className="flex items-center gap-1 text-muted-foreground shrink-0">
+                      <Clock className="h-3 w-3" />
+                      {formatDateFR(r.date_envoi)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            );
-          })() : (
-            <p className="text-xs text-muted-foreground italic">
-              Aucun email client — <Link to="/clients/$id" params={{ id: invoice.client_id }} className="underline">Ajouter l'email du client</Link>
-            </p>
-          )}
-        </CardContent></Card>
+            )}
+
+            {/* Bouton relance */}
+            {invoice.client?.email ? (
+              (() => {
+                const niv = niveauRelance(invoice.echeance ?? null, settings);
+                const info = NIVEAU_LABELS[niv];
+                return (
+                  <div className="space-y-1">
+                    <Button
+                      onClick={sendRelance}
+                      disabled={sendingRelance}
+                      className={cn(
+                        "w-full gap-2",
+                        niv === 3
+                          ? "bg-destructive hover:bg-destructive/90 text-white"
+                          : niv === 2
+                            ? "bg-warning text-warning-foreground hover:bg-warning/90"
+                            : "bg-accent text-accent-foreground hover:bg-accent/90",
+                      )}
+                    >
+                      <Mail className="h-4 w-4" />
+                      {sendingRelance ? "Envoi…" : `Envoyer — Niveau ${niv} (${info.label})`}
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      {niv === 1 && "Rappel doux avant échéance"}
+                      {niv === 2 && "Relance ferme mais courtoise"}
+                      {niv === 3 && "Mise en demeure — ton urgent"}
+                      {relances.length > 0 &&
+                        ` · ${relances.length} relance${relances.length > 1 ? "s" : ""} déjà envoyée${relances.length > 1 ? "s" : ""}`}
+                    </p>
+                  </div>
+                );
+              })()
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                Aucun email client —{" "}
+                <Link to="/clients/$id" params={{ id: invoice.client_id }} className="underline">
+                  Ajouter l'email du client
+                </Link>
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
-      <Button onClick={() => exportPDF()} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+      <Button
+        onClick={() => exportPDF()}
+        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+      >
         <Download className="mr-2 h-4 w-4" /> Télécharger / Imprimer PDF
       </Button>
 
@@ -735,9 +1018,10 @@ function FactureDetail() {
           <Mail className="mr-2 h-4 w-4" /> Envoyer par email
         </Button>
         <p className="text-[11px] text-muted-foreground text-center leading-tight px-2">
-          Le PDF s'ouvre dans un nouvel onglet — téléchargez-le puis joignez-le manuellement à votre email.
+          Le PDF s'ouvre dans un nouvel onglet — téléchargez-le puis joignez-le manuellement à votre
+          email.
         </p>
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- typage historique du document, logique inchangée */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useState } from "react";
@@ -14,16 +15,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, Trash2, MapPin, Building2, FileText, Mail, PenLine,
-  CheckCircle, Pencil, ClipboardList, CalendarClock,
+  ArrowLeft,
+  Trash2,
+  MapPin,
+  Building2,
+  FileText,
+  Mail,
+  PenLine,
+  CheckCircle,
+  Pencil,
+  ClipboardList,
+  CalendarClock,
 } from "lucide-react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PermissionGate } from "@/components/permission-gate";
+import { PageContainer } from "@/components/page-layout";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_app/contrats/$id")({
   head: () => ({ meta: [{ title: `Contrat — ${APP_NAME}` }] }),
@@ -46,7 +65,13 @@ function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function companySirenFormatted(siret: string | null | undefined): string {
@@ -63,14 +88,22 @@ function companySirenPhrase(siret: string | null | undefined): string {
   return formatted ? `SIREN ${formatted}` : "immatriculation non renseignée";
 }
 
-function clientLegalIdLine(client: { rcs?: string | null; siren?: string | null; siret?: string | null }): string {
+function clientLegalIdLine(client: {
+  rcs?: string | null;
+  siren?: string | null;
+  siret?: string | null;
+}): string {
   if (client.rcs) return `RCS : ${client.rcs}`;
   if (client.siren) return `SIREN : ${client.siren}`;
   if (client.siret) return `SIRET : ${client.siret}`;
   return "";
 }
 
-function clientLegalIdPhrase(client: { rcs?: string | null; siren?: string | null; siret?: string | null }): string {
+function clientLegalIdPhrase(client: {
+  rcs?: string | null;
+  siren?: string | null;
+  siret?: string | null;
+}): string {
   if (client.rcs) return `RCS ${client.rcs}`;
   if (client.siren) return `SIREN ${client.siren}`;
   if (client.siret) return `SIRET ${client.siret}`;
@@ -90,7 +123,10 @@ function ContractDetail() {
 
   async function handleDelete() {
     const { error } = await db.from("contracts").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["contracts"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     toast.success("Contrat supprimé");
@@ -99,10 +135,15 @@ function ContractDetail() {
 
   async function handleSignatureSave(blob: Blob) {
     setSavingSignature(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const url = await uploadSignature(blob, user?.id ?? "");
     if (url) {
-      await db.from("contracts").update({ signature_url: url, signature_at: new Date().toISOString() }).eq("id", id);
+      await db
+        .from("contracts")
+        .update({ signature_url: url, signature_at: new Date().toISOString() })
+        .eq("id", id);
       qc.invalidateQueries({ queryKey: ["contract", id] });
       qc.invalidateQueries({ queryKey: ["contracts"] });
       toast.success("Signature enregistrée");
@@ -120,7 +161,11 @@ function ContractDetail() {
     toast.success("Signature supprimée");
   }
 
-  function generatePDF(printOpts?: { printButtonLabel?: string; hint?: string; onPrinted?: () => void }) {
+  function generatePDF(printOpts?: {
+    printButtonLabel?: string;
+    hint?: string;
+    onPrinted?: () => void;
+  }) {
     if (!contract) return;
     const s = settings;
     const client = contract.client;
@@ -205,14 +250,25 @@ function ContractDetail() {
   </div>
 `;
 
-    const ok = printDocument({ title: `Contrat ${contract.numero ?? ""}`, bodyHtml, css, ...printOpts });
-    if (!ok) { toast.error("Autorisez les popups pour générer le PDF"); return; }
+    const ok = printDocument({
+      title: `Contrat ${contract.numero ?? ""}`,
+      bodyHtml,
+      css,
+      ...printOpts,
+    });
+    if (!ok) {
+      toast.error("Autorisez les popups pour générer le PDF");
+      return;
+    }
   }
 
   async function handleSendEmail() {
     if (!contract) return;
     const clientEmail = contract.client?.email ?? "";
-    if (!clientEmail) { toast.warning("Aucun email renseigné pour ce client"); return; }
+    if (!clientEmail) {
+      toast.warning("Aucun email renseigné pour ce client");
+      return;
+    }
 
     const s = settings;
     const nomSociete = s?.nom ?? "";
@@ -233,7 +289,9 @@ function ContractDetail() {
       "Cordialement,",
       nomSociete,
       s?.telephone ? `Tél : ${s.telephone}` : "",
-    ].filter((l) => l !== undefined).join("\n");
+    ]
+      .filter((l) => l !== undefined)
+      .join("\n");
 
     // L'aperçu éditable s'ouvre d'abord ; la messagerie n'ouvre qu'après que
     // l'utilisateur a cliqué sur "Générer le PDF" (évènement afterprint).
@@ -242,30 +300,60 @@ function ContractDetail() {
       hint: "Corrigez le document si besoin, puis générez le PDF. Votre messagerie s'ouvrira ensuite : joignez-y le PDF que vous venez d'enregistrer.",
       onPrinted: () => {
         window.location.href = `mailto:${clientEmail}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
-        toast.success("Votre messagerie est ouverte. Joignez le PDF que vous venez d'enregistrer, puis envoyez.");
+        toast.success(
+          "Votre messagerie est ouverte. Joignez le PDF que vous venez d'enregistrer, puis envoyez.",
+        );
       },
     });
   }
 
-  if (isLoading) return <div className="text-sm text-muted-foreground py-10 text-center">Chargement…</div>;
-  if (!contract) return <div className="text-sm text-muted-foreground py-10 text-center">Contrat introuvable.</div>;
+  if (isLoading)
+    return (
+      <PageContainer>
+        <Skeleton className="h-24 rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-56 rounded-xl" />
+          <Skeleton className="h-56 rounded-xl" />
+        </div>
+      </PageContainer>
+    );
+  if (!contract)
+    return (
+      <PageContainer>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Contrat introuvable.
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
 
   const clientEmail = contract.client?.email ?? "";
   const hasSig = !!contract.signature_url;
   // Même calcul que la file /programmation : passages déjà planifiés/en cours
   // exclus du reste à programmer pour ne jamais sur-planifier.
-  const planifiesCount = interventions.filter((i) => i.statut === "planifiee" || i.statut === "en_cours").length;
-  const restant = Math.max(0, contract.nb_passages_inclus - contract.passages_realises - planifiesCount);
+  const planifiesCount = interventions.filter(
+    (i) => i.statut === "planifiee" || i.statut === "en_cours",
+  ).length;
+  const restant = Math.max(
+    0,
+    contract.nb_passages_inclus - contract.passages_realises - planifiesCount,
+  );
 
   return (
-    <div className="space-y-4">
+    <PageContainer>
       <div className="flex items-center justify-between gap-3">
-        <Link to="/contrats" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/contrats"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="mr-1 h-4 w-4" /> Retour
         </Link>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -274,22 +362,28 @@ function ContractDetail() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive">Supprimer</AlertDialogAction>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+                Supprimer
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
       <Card className="border-primary/20 bg-primary/3">
-        <CardContent className="p-4 space-y-1">
+        <CardContent className="space-y-2 p-4 sm:p-6">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-[10px] font-mono text-muted-foreground tracking-wider">{contract.numero}</p>
-              <h1 className="text-lg font-bold mt-0.5">{contract.client?.raison_sociale ?? "Client supprimé"}</h1>
+              <p className="text-[10px] font-mono text-muted-foreground tracking-wider">
+                {contract.numero}
+              </p>
+              <h1 className="mt-1 break-words text-lg font-bold">
+                {contract.client?.raison_sociale ?? "Client supprimé"}
+              </h1>
             </div>
-            <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase shrink-0 bg-primary/15 text-primary">
+            <Badge className="shrink-0 bg-primary/15 text-primary">
               {statutLabel(contract.statut)}
-            </span>
+            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -303,11 +397,14 @@ function ContractDetail() {
           {contract.adresse_etablissement && (
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contract.adresse_etablissement)}`}
-              target="_blank" rel="noopener noreferrer"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-start gap-1.5 text-xs text-primary hover:underline"
             >
               <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-              <span className="whitespace-pre-wrap">{contract.adresse_etablissement}</span>
+              <span className="whitespace-pre-wrap break-words">
+                {contract.adresse_etablissement}
+              </span>
             </a>
           )}
         </CardContent>
@@ -315,21 +412,41 @@ function ContractDetail() {
 
       <Card>
         <CardContent className="p-4 space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prestation</h2>
-          <div className="text-sm"><span className="text-muted-foreground">Type : </span>{contract.type_prestation}</div>
-          <div className="text-sm"><span className="text-muted-foreground">Fréquence : </span>{contract.frequence || "—"}</div>
-          <div className="text-sm"><span className="text-muted-foreground">Type de passage : </span>{contract.type_passage}</div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Prestation
+          </h2>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Type : </span>
+            {contract.type_prestation}
+          </div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Fréquence : </span>
+            {contract.frequence || "—"}
+          </div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Type de passage : </span>
+            {contract.type_passage}
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4 space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Durée & suivi</h2>
-          <div className="text-sm">{formatDateFR(contract.date_debut)} → {formatDateFR(contract.date_fin)} ({contract.duree_mois} mois)</div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Durée & suivi
+          </h2>
+          <div className="text-sm">
+            {formatDateFR(contract.date_debut)} → {formatDateFR(contract.date_fin)} (
+            {contract.duree_mois} mois)
+          </div>
           <div className="flex items-center gap-4">
             <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-              <div className="h-2 bg-primary rounded-full"
-                style={{ width: `${Math.min(100, (contract.passages_realises / contract.nb_passages_inclus) * 100)}%` }} />
+              <div
+                className="h-2 bg-primary rounded-full"
+                style={{
+                  width: `${Math.min(100, (contract.passages_realises / contract.nb_passages_inclus) * 100)}%`,
+                }}
+              />
             </div>
             <span className="text-xs text-muted-foreground shrink-0">
               {contract.passages_realises}/{contract.nb_passages_inclus} passages
@@ -337,9 +454,11 @@ function ContractDetail() {
           </div>
           {restant > 0 && (
             <div className="flex items-center justify-between gap-2 pt-1">
-              <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+              <span className="text-xs font-medium text-warning-foreground">
                 {restant} passage{restant > 1 ? "s" : ""} à programmer
-                {planifiesCount > 0 ? ` (${planifiesCount} déjà planifié${planifiesCount > 1 ? "s" : ""})` : ""}
+                {planifiesCount > 0
+                  ? ` (${planifiesCount} déjà planifié${planifiesCount > 1 ? "s" : ""})`
+                  : ""}
               </span>
               <Link to="/programmation" search={{ contract_id: contract.id }}>
                 <Button size="sm" variant="outline" className="h-7 text-xs shrink-0">
@@ -356,19 +475,21 @@ function ContractDetail() {
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
             <ClipboardList className="h-4 w-4" /> Interventions liées
           </h2>
-          <div className="space-y-2">
+          <div className="grid gap-2 md:grid-cols-2">
             {interventions.map((i) => (
               <Link key={i.id} to="/interventions/$id" params={{ id: i.id }}>
-                <Card><CardContent className="p-3 text-sm flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <CalendarClock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="font-medium">{formatDateFR(i.date)}</span>
-                    <span className="text-xs text-muted-foreground">{i.type_intervention}</span>
-                  </div>
-                  <span className="text-xs rounded-full px-2 py-0.5 bg-muted text-muted-foreground">
-                    {interventionStatutLabel(i.statut)}
-                  </span>
-                </CardContent></Card>
+                <Card>
+                  <CardContent className="p-3 text-sm flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-medium">{formatDateFR(i.date)}</span>
+                      <span className="text-xs text-muted-foreground">{i.type_intervention}</span>
+                    </div>
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-muted text-muted-foreground">
+                      {interventionStatutLabel(i.statut)}
+                    </span>
+                  </CardContent>
+                </Card>
               </Link>
             ))}
           </div>
@@ -382,15 +503,22 @@ function ContractDetail() {
           </h2>
           {hasSig ? (
             <div className="space-y-2">
-              <div className="rounded-lg border bg-white dark:bg-zinc-900 p-3 text-center">
-                <img src={contract.signature_url!} alt="Signature client" className="max-h-20 mx-auto" />
+              <div className="rounded-lg border bg-card p-3 text-center">
+                <img
+                  src={contract.signature_url!}
+                  alt="Signature client"
+                  className="max-h-20 mx-auto"
+                />
                 <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1">
                   <CheckCircle className="h-3 w-3 text-primary" />
                   Signé par le client — {formatDateTime(contract.signature_at)}
                 </p>
               </div>
-              <button type="button" onClick={handleDeleteSignature}
-                className="text-xs text-destructive/70 hover:text-destructive underline">
+              <button
+                type="button"
+                onClick={handleDeleteSignature}
+                className="text-xs text-destructive/70 hover:text-destructive underline"
+              >
                 Supprimer la signature
               </button>
             </div>
@@ -403,15 +531,23 @@ function ContractDetail() {
               )}
             </div>
           ) : (
-            <Button type="button" variant="outline" className="w-full" onClick={() => setShowSignatureCanvas(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowSignatureCanvas(true)}
+            >
               <PenLine className="mr-2 h-4 w-4" /> Faire signer le client
             </Button>
           )}
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => generatePDF()}>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Button
+          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+          onClick={() => generatePDF()}
+        >
           <FileText className="mr-2 h-4 w-4" /> Générer le PDF
         </Button>
 
@@ -430,11 +566,13 @@ function ContractDetail() {
             <Pencil className="mr-2 h-4 w-4" /> Modifier le contrat
           </Button>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Modifier le contrat</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Modifier le contrat</DialogTitle>
+            </DialogHeader>
             <ContratForm contract={contract} onSuccess={() => setEditOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </PageContainer>
   );
 }

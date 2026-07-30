@@ -1,9 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- typage historique du formulaire, logique inchangée */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { contractSchema, type ContractForm as ContractFormType, formatDateFR, STATUTS_CONTRAT, TYPES_PASSAGE } from "@/lib/schemas";
+import {
+  contractSchema,
+  type ContractForm as ContractFormType,
+  formatDateFR,
+  STATUTS_CONTRAT,
+  TYPES_PASSAGE,
+} from "@/lib/schemas";
 import { useContracts, useClients, useCurrentRole } from "@/lib/queries";
 import type { Contract } from "@/lib/queries";
 import { db } from "@/lib/db";
@@ -15,12 +22,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Plus, AlertTriangle, CheckCircle2, Clock, Trash2, Search, Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/permission-gate";
+import { PageContainer, PageHeader } from "@/components/page-layout";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function addMonths(dateStr: string, months: number): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -67,7 +99,7 @@ function statutLabel(v: string) {
 }
 
 function ContratsPage() {
-  const { data: contracts = [], isLoading } = useContracts();
+  const { data: contracts = [], isLoading, isError } = useContracts();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [statutFilter, setStatutFilter] = useState("all");
@@ -93,7 +125,9 @@ function ContratsPage() {
       list = list.filter((c) => c.date_fin <= end);
     } else if (expFilter === "3months") {
       const now = new Date();
-      const end = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate()).toISOString().slice(0, 10);
+      const end = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate())
+        .toISOString()
+        .slice(0, 10);
       list = list.filter((c) => c.date_fin <= end);
     } else if (expFilter === "expired") {
       const today = new Date().toISOString().slice(0, 10);
@@ -107,25 +141,37 @@ function ContratsPage() {
   }, [contracts, q, statutFilter, expFilter, sortDir]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Contrats</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="shrink-0"><Plus className="mr-1 h-4 w-4" /> Nouveau</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Nouveau contrat</DialogTitle></DialogHeader>
-            <ContratForm onSuccess={() => setOpen(false)} />
-          </DialogContent>
-        </Dialog>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Contrats"
+        subtitle={`${contracts.length} contrat${contracts.length > 1 ? "s" : ""}`}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="shrink-0">
+                <Plus className="mr-2 h-4 w-4" /> Nouveau contrat
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Nouveau contrat</DialogTitle>
+              </DialogHeader>
+              <ContratForm onSuccess={() => setOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       {/* Search + filter */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un client…" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Rechercher un client…"
+            className="pl-9"
+          />
         </div>
         <button
           onClick={() => setFiltersOpen((v) => !v)}
@@ -133,7 +179,7 @@ function ContratsPage() {
             "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
             filtersOpen || activeFiltersCount > 0
               ? "bg-accent/10 border-accent text-accent"
-              : "bg-card border-border text-muted-foreground"
+              : "bg-card border-border text-muted-foreground",
           )}
         >
           <Filter className="h-4 w-4" />
@@ -149,44 +195,89 @@ function ContratsPage() {
         <Card>
           <CardContent className="p-3 space-y-3">
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Statut</div>
-              <div className="flex flex-wrap gap-1">
-                {[{ v: "all", l: "Tous" }, ...STATUTS_CONTRAT.map((s) => ({ v: s.value, l: s.label }))].map(({ v, l }) => (
-                  <button key={v} onClick={() => setStatutFilter(v)}
-                    className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                      statutFilter === v ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                  >{l}</button>
-                ))}
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                Statut
               </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Expiration</div>
               <div className="flex flex-wrap gap-1">
                 {[
-                  { v: "all", l: "Tous" }, { v: "month", l: "Ce mois" },
-                  { v: "3months", l: "Dans 3 mois" }, { v: "expired", l: "Déjà expiré" },
+                  { v: "all", l: "Tous" },
+                  ...STATUTS_CONTRAT.map((s) => ({ v: s.value, l: s.label })),
                 ].map(({ v, l }) => (
-                  <button key={v} onClick={() => setExpFilter(v)}
-                    className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                      expFilter === v ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                  >{l}</button>
+                  <button
+                    key={v}
+                    onClick={() => setStatutFilter(v)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-medium border",
+                      statutFilter === v
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border",
+                    )}
+                  >
+                    {l}
+                  </button>
                 ))}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Tri date fin</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                Expiration
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { v: "all", l: "Tous" },
+                  { v: "month", l: "Ce mois" },
+                  { v: "3months", l: "Dans 3 mois" },
+                  { v: "expired", l: "Déjà expiré" },
+                ].map(({ v, l }) => (
+                  <button
+                    key={v}
+                    onClick={() => setExpFilter(v)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-medium border",
+                      expFilter === v
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border",
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                Tri date fin
+              </div>
               <div className="flex gap-1">
-                {[{ v: "asc", l: "↑ Plus urgents" }, { v: "desc", l: "↓ Plus tardifs" }].map(({ v, l }) => (
-                  <button key={v} onClick={() => setSortDir(v as any)}
-                    className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                      sortDir === v ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                  >{l}</button>
+                {[
+                  { v: "asc", l: "↑ Plus urgents" },
+                  { v: "desc", l: "↓ Plus tardifs" },
+                ].map(({ v, l }) => (
+                  <button
+                    key={v}
+                    onClick={() => setSortDir(v as any)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-medium border",
+                      sortDir === v
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border",
+                    )}
+                  >
+                    {l}
+                  </button>
                 ))}
               </div>
             </div>
             {activeFiltersCount > 0 && (
-              <button onClick={() => { setQ(""); setStatutFilter("all"); setExpFilter("all"); setSortDir("asc"); }}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => {
+                  setQ("");
+                  setStatutFilter("all");
+                  setExpFilter("all");
+                  setSortDir("asc");
+                }}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-3.5 w-3.5" /> Réinitialiser
               </button>
             )}
@@ -195,51 +286,91 @@ function ContratsPage() {
       )}
 
       {isLoading ? (
-        <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((item) => (
+            <Skeleton key={item} className="h-48 rounded-xl" />
+          ))}
+        </div>
+      ) : isError ? (
+        <Card className="border-destructive/30">
+          <CardContent className="py-10 text-center text-sm text-destructive">
+            Impossible de charger les contrats.
+          </CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          {contracts.length === 0 ? "Aucun contrat. Créez-en un." : "Aucun résultat."}
-        </CardContent></Card>
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {contracts.length === 0 ? "Aucun contrat. Créez-en un." : "Aucun résultat."}
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">{filtered.length} contrat{filtered.length > 1 ? "s" : ""}</div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="col-span-full text-xs text-muted-foreground">
+            {filtered.length} contrat{filtered.length > 1 ? "s" : ""}
+          </div>
           {filtered.map((c) => {
             const days = daysUntil(c.date_fin);
             const expiring = c.statut === "actif" && days <= 30 && days >= 0;
             const expired = days < 0;
             return (
-              <Card key={c.id} className={cn("overflow-hidden",
-                expiring && days <= 7 && "border-destructive/40",
-                expiring && days > 7 && "border-orange-300")}>
+              <Card
+                key={c.id}
+                className={cn(
+                  "h-full overflow-hidden",
+                  expiring && days <= 7 && "border-destructive/40",
+                  expiring && days > 7 && "border-warning/40",
+                )}
+              >
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <Link to="/contrats/$id" params={{ id: c.id }} className="min-w-0 flex-1">
-                      {c.numero && <div className="text-[10px] font-mono text-muted-foreground">{c.numero}</div>}
-                      <div className="font-semibold truncate">{c.client?.raison_sociale ?? "—"}</div>
-                      <div className="text-xs text-muted-foreground">{formatDateFR(c.date_debut)} → {formatDateFR(c.date_fin)}</div>
+                      {c.numero && (
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          {c.numero}
+                        </div>
+                      )}
+                      <div className="break-words font-semibold">
+                        {c.client?.raison_sociale ?? "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateFR(c.date_debut)} → {formatDateFR(c.date_fin)}
+                      </div>
                     </Link>
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="gap-1">
                         {STATUT_ICONS[c.statut]}
                         <span className="text-xs font-medium">{statutLabel(c.statut)}</span>
-                      </div>
-                      <DeleteContratButton id={c.id} nom={c.client?.raison_sociale ?? "ce contrat"} />
+                      </Badge>
+                      <DeleteContratButton
+                        id={c.id}
+                        nom={c.client?.raison_sociale ?? "ce contrat"}
+                      />
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                      <div className="h-2 bg-primary rounded-full"
-                        style={{ width: `${Math.min(100, (c.passages_realises / c.nb_passages_inclus) * 100)}%` }} />
+                      <div
+                        className="h-2 bg-primary rounded-full"
+                        style={{
+                          width: `${Math.min(100, (c.passages_realises / c.nb_passages_inclus) * 100)}%`,
+                        }}
+                      />
                     </div>
                     <span className="text-xs text-muted-foreground shrink-0">
                       {c.passages_realises}/{c.nb_passages_inclus} passages
                     </span>
                   </div>
                   {expiring && (
-                    <div className={cn("text-xs font-medium flex items-center gap-1",
-                      days <= 7 ? "text-destructive" : "text-orange-500")}>
+                    <div
+                      className={cn(
+                        "text-xs font-medium flex items-center gap-1",
+                        days <= 7 ? "text-destructive" : "text-warning-foreground",
+                      )}
+                    >
                       <AlertTriangle className="h-3 w-3" />
-                      {expired ? `Expiré depuis ${Math.abs(days)} jour${Math.abs(days) > 1 ? "s" : ""}` : `Expire dans ${days} jour${days > 1 ? "s" : ""}`}
+                      {expired
+                        ? `Expiré depuis ${Math.abs(days)} jour${Math.abs(days) > 1 ? "s" : ""}`
+                        : `Expire dans ${days} jour${days > 1 ? "s" : ""}`}
                     </div>
                   )}
                   <CorrigerPassages contrat={c} />
@@ -249,7 +380,7 @@ function ContratsPage() {
           })}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -257,7 +388,10 @@ function DeleteContratButton({ id, nom }: { id: string; nom: string }) {
   const qc = useQueryClient();
   async function handleDelete() {
     const { error } = await db.from("contracts").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["contracts"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     toast.success("Contrat supprimé");
@@ -265,18 +399,26 @@ function DeleteContratButton({ id, nom }: { id: string; nom: string }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+        >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Supprimer ce contrat ?</AlertDialogTitle>
-          <AlertDialogDescription>Contrat de {nom}. Cette action est irréversible.</AlertDialogDescription>
+          <AlertDialogDescription>
+            Contrat de {nom}. Cette action est irréversible.
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive">Supprimer</AlertDialogAction>
+          <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+            Supprimer
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -296,15 +438,24 @@ function CorrigerPassages({ contrat }: { contrat: any }) {
   function correct() {
     const raw = window.prompt(
       "Correction manuelle — nombre de passages réalisés (normalement calculé automatiquement depuis les interventions terminées) :",
-      String(contrat.passages_realises)
+      String(contrat.passages_realises),
     );
     if (raw == null) return;
     const n = Number(raw.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0) { toast.error("Valeur invalide"); return; }
+    if (!Number.isFinite(n) || n < 0) {
+      toast.error("Valeur invalide");
+      return;
+    }
     const clamped = Math.min(contrat.nb_passages_inclus, Math.round(n));
     (async () => {
-      const { error } = await db.from("contracts").update({ passages_realises: clamped }).eq("id", contrat.id);
-      if (error) { toast.error(error.message); return; }
+      const { error } = await db
+        .from("contracts")
+        .update({ passages_realises: clamped })
+        .eq("id", contrat.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["contracts"] });
       qc.invalidateQueries({ queryKey: ["passages_a_programmer"] });
       toast.success("Correction enregistrée");
@@ -312,13 +463,23 @@ function CorrigerPassages({ contrat }: { contrat: any }) {
   }
 
   return (
-    <button type="button" onClick={correct} className="self-start text-[11px] text-muted-foreground underline hover:text-foreground">
+    <button
+      type="button"
+      onClick={correct}
+      className="self-start text-[11px] text-muted-foreground underline hover:text-foreground"
+    >
       Corriger le compteur (manuel)
     </button>
   );
 }
 
-export function ContratForm({ contract, onSuccess }: { contract?: Contract; onSuccess: () => void }) {
+export function ContratForm({
+  contract,
+  onSuccess,
+}: {
+  contract?: Contract;
+  onSuccess: () => void;
+}) {
   const qc = useQueryClient();
   const { data: clients = [] } = useClients();
   const today = new Date().toISOString().slice(0, 10);
@@ -354,14 +515,25 @@ export function ContratForm({ contract, onSuccess }: { contract?: Contract; onSu
   }, [clientId, clients]);
 
   async function onSubmit(values: ContractFormType) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { toast.error("Non connecté"); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Non connecté");
+      return;
+    }
     const date_fin = addMonths(values.date_debut, values.duree_mois);
 
     if (isEdit) {
-      const { error } = await db.from("contracts").update({ ...values, date_fin }).eq("id", contract!.id);
+      const { error } = await db
+        .from("contracts")
+        .update({ ...values, date_fin })
+        .eq("id", contract!.id);
       if (error) {
-        if (error.code === "23505") { toast.error("Ce numéro de contrat est déjà utilisé."); return; }
+        if (error.code === "23505") {
+          toast.error("Ce numéro de contrat est déjà utilisé.");
+          return;
+        }
         toast.error(error.message);
         return;
       }
@@ -370,8 +542,13 @@ export function ContratForm({ contract, onSuccess }: { contract?: Contract; onSu
       toast.success("Contrat mis à jour");
     } else {
       const numero = await nextContractNumero();
-      const { error } = await db.from("contracts").insert({ ...values, numero, date_fin, user_id: user.id });
-      if (error) { toast.error(error.message); return; }
+      const { error } = await db
+        .from("contracts")
+        .insert({ ...values, numero, date_fin, user_id: user.id });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["contracts"] });
       toast.success(`Contrat ${numero} créé`);
     }
@@ -381,11 +558,24 @@ export function ContratForm({ contract, onSuccess }: { contract?: Contract; onSu
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client & établissement</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Client & établissement
+        </h3>
         <Field label="Client *" error={(form.formState.errors as any).client_id?.message}>
-          <Select value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v, { shouldValidate: true })}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner un client…" /></SelectTrigger>
-            <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.raison_sociale}</SelectItem>)}</SelectContent>
+          <Select
+            value={form.watch("client_id")}
+            onValueChange={(v) => form.setValue("client_id", v, { shouldValidate: true })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Sélectionner un client…" />
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.raison_sociale}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </Field>
         {isEdit && (
@@ -393,25 +583,48 @@ export function ContratForm({ contract, onSuccess }: { contract?: Contract; onSu
             <Input {...form.register("numero")} placeholder="CT-2026-001" />
           </Field>
         )}
-        <Field label="Nom de l'établissement"><Input {...form.register("nom_etablissement")} /></Field>
-        <Field label="Adresse de l'établissement"><Textarea rows={2} {...form.register("adresse_etablissement")} /></Field>
+        <Field label="Nom de l'établissement">
+          <Input {...form.register("nom_etablissement")} />
+        </Field>
+        <Field label="Adresse de l'établissement">
+          <Textarea rows={2} {...form.register("adresse_etablissement")} />
+        </Field>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prestation</h3>
-        <Field label="Type de prestation"><Input {...form.register("type_prestation")} /></Field>
-        <Field label="Fréquence"><Input {...form.register("frequence")} placeholder="1 passage hebdomadaire" /></Field>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Prestation
+        </h3>
+        <Field label="Type de prestation">
+          <Input {...form.register("type_prestation")} />
+        </Field>
+        <Field label="Fréquence">
+          <Input {...form.register("frequence")} placeholder="1 passage hebdomadaire" />
+        </Field>
         <Field label="Type de passage">
-          <Select value={form.watch("type_passage")} onValueChange={(v) => form.setValue("type_passage", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{TYPES_PASSAGE.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+          <Select
+            value={form.watch("type_passage")}
+            onValueChange={(v) => form.setValue("type_passage", v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES_PASSAGE.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </Field>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Durée</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Durée
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Date début *" error={(form.formState.errors as any).date_debut?.message}>
             <Input type="date" {...form.register("date_debut")} />
           </Field>
@@ -419,39 +632,73 @@ export function ContratForm({ contract, onSuccess }: { contract?: Contract; onSu
             <Input type="number" min={1} max={60} {...form.register("duree_mois")} />
           </Field>
         </div>
-        <Field label="Ville de signature"><Input {...form.register("ville_signature")} placeholder="Paris" /></Field>
+        <Field label="Ville de signature">
+          <Input {...form.register("ville_signature")} placeholder="Paris" />
+        </Field>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suivi</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Passages inclus" error={(form.formState.errors as any).nb_passages_inclus?.message}>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Suivi
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Passages inclus"
+            error={(form.formState.errors as any).nb_passages_inclus?.message}
+          >
             <Input type="number" {...form.register("nb_passages_inclus")} />
           </Field>
-          <Field label="Passages réalisés" error={(form.formState.errors as any).passages_realises?.message}>
+          <Field
+            label="Passages réalisés"
+            error={(form.formState.errors as any).passages_realises?.message}
+          >
             <Input type="number" {...form.register("passages_realises")} />
           </Field>
         </div>
         <Field label="Statut">
           <Select value={form.watch("statut")} onValueChange={(v) => form.setValue("statut", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{STATUTS_CONTRAT.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUTS_CONTRAT.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </Field>
-        <Field label="Notes"><Textarea rows={2} {...form.register("notes")} /></Field>
+        <Field label="Notes">
+          <Textarea rows={2} {...form.register("notes")} />
+        </Field>
       </div>
 
       <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-        {form.formState.isSubmitting ? "Enregistrement…" : isEdit ? "Enregistrer" : "Créer le contrat"}
+        {form.formState.isSubmitting
+          ? "Enregistrement…"
+          : isEdit
+            ? "Enregistrer"
+            : "Créer le contrat"}
       </Button>
     </form>
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
