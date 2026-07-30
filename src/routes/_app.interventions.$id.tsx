@@ -1,19 +1,66 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useIntervention, useSettings, useProduitsBiocides, useContracts, useAssignableMembers, resolveTechnicianName, useSiteHistory, logStockMovement, syncContractPassageCount, type AssignableMember, type Intervention } from "@/lib/queries";
+import {
+  useIntervention,
+  useSettings,
+  useProduitsBiocides,
+  useContracts,
+  useAssignableMembers,
+  resolveTechnicianName,
+  useSiteHistory,
+  logStockMovement,
+  syncContractPassageCount,
+  type AssignableMember,
+  type Intervention,
+} from "@/lib/queries";
 import { formatDateFR, STATUTS_INTERVENTION } from "@/lib/schemas";
 import type { InterventionForm as IFType } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft, Receipt, Copy, FileText, MapPin, Calendar, Bug, FlaskConical,
-  Package, ClipboardList, CalendarClock, Trash2, Camera, X, ChevronLeft,
-  ChevronRight, Mail, PenLine, CheckCircle, AlertTriangle, Phone, ShieldCheck,
-  PlayCircle, Undo2, History, ChevronDown, Timer, ClipboardEdit, MessageSquareWarning, Pencil,
+  ArrowLeft,
+  Receipt,
+  Copy,
+  FileText,
+  MapPin,
+  Calendar,
+  Bug,
+  FlaskConical,
+  Package,
+  ClipboardList,
+  CalendarClock,
+  Trash2,
+  Camera,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Mail,
+  PenLine,
+  CheckCircle,
+  AlertTriangle,
+  Phone,
+  ShieldCheck,
+  PlayCircle,
+  Undo2,
+  History,
+  ChevronDown,
+  Timer,
+  ClipboardEdit,
+  MessageSquareWarning,
+  Pencil,
 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
-import { uploadInterventionPhotos, deleteInterventionPhoto, uploadSignature, deleteSignature } from "@/lib/photos";
-import { InterventionForm, type PhotoFile, type StockUsageItem } from "@/components/intervention-form";
+import {
+  uploadInterventionPhotos,
+  deleteInterventionPhoto,
+  uploadSignature,
+  deleteSignature,
+} from "@/lib/photos";
+import {
+  InterventionForm,
+  type PhotoFile,
+  type StockUsageItem,
+} from "@/components/intervention-form";
 import { SignatureCanvas } from "@/components/signature-canvas";
 import { TechnicianSelect } from "@/components/technician-select";
 import { printDocument } from "@/lib/print";
@@ -23,13 +70,28 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
+import { PageContainer } from "@/components/page-layout";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_app/interventions/$id")({
   head: () => ({ meta: [{ title: `Rapport d'intervention — ${APP_NAME}` }] }),
@@ -38,7 +100,7 @@ export const Route = createFileRoute("/_app/interventions/$id")({
 
 const STATUT_COLORS: Record<string, string> = {
   planifiee: "bg-accent/15 text-accent",
-  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  en_cours: "bg-warning/15 text-warning-foreground",
   realisee: "bg-primary/15 text-primary",
   rapport_transmis: "bg-success/15 text-success",
   annulee: "bg-muted text-muted-foreground",
@@ -57,10 +119,19 @@ function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function formatDuration(startIso: string | null | undefined, endIso: string | null | undefined): string | null {
+function formatDuration(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+): string | null {
   if (!startIso || !endIso) return null;
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
@@ -96,12 +167,15 @@ function InterventionDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: intervention, isLoading } = useIntervention(id);
+  const { data: intervention, isLoading, isError } = useIntervention(id);
   const { data: settings } = useSettings();
   const { data: produitsBiocides = [] } = useProduitsBiocides();
   const { data: contracts = [] } = useContracts();
   const { data: assignableMembers = [] } = useAssignableMembers();
-  const technicienName = resolveTechnicianName(assignableMembers, intervention?.technicien_id) ?? settings?.nom_technicien ?? null;
+  const technicienName =
+    resolveTechnicianName(assignableMembers, intervention?.technicien_id) ??
+    settings?.nom_technicien ??
+    null;
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
@@ -110,7 +184,11 @@ function InterventionDetail() {
   // compte-rendu pour ses propres interventions (les techniciens, eux,
   // utilisent l'interface dédiée /tech/* et n'atteignent jamais cette page).
   const isMine = !!intervention && !!currentUserId && intervention.technicien_id === currentUserId;
-  const { data: siteHistory = [] } = useSiteHistory(intervention?.client_id, intervention?.adresse_site, id);
+  const { data: siteHistory = [] } = useSiteHistory(
+    intervention?.client_id,
+    intervention?.adresse_site,
+    id,
+  );
 
   const [heureDebutInput, setHeureDebutInput] = useState("");
   const [heureFinInput, setHeureFinInput] = useState("");
@@ -146,7 +224,9 @@ function InterventionDetail() {
     }));
     e.target.value = "";
     setUploadingPhotos(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const newUrls = await uploadInterventionPhotos(toAdd, user?.id ?? "");
     toAdd.forEach((p) => URL.revokeObjectURL(p.preview));
     if (newUrls.length > 0) {
@@ -160,7 +240,10 @@ function InterventionDetail() {
   async function handleDeletePhoto(url: string) {
     await deleteInterventionPhoto(url);
     const merged = photos.filter((u) => u !== url);
-    await db.from("interventions").update({ photos: merged.length > 0 ? merged : null }).eq("id", id);
+    await db
+      .from("interventions")
+      .update({ photos: merged.length > 0 ? merged : null })
+      .eq("id", id);
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     setLightboxIndex(null);
   }
@@ -170,7 +253,10 @@ function InterventionDetail() {
   // ── Contrat rattaché ─────────────────────────────────────────────────────────
 
   async function handleContractChange(contractId: string) {
-    await db.from("interventions").update({ contract_id: contractId || null }).eq("id", id);
+    await db
+      .from("interventions")
+      .update({ contract_id: contractId || null })
+      .eq("id", id);
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     toast.success("Contrat rattaché mis à jour");
   }
@@ -178,7 +264,10 @@ function InterventionDetail() {
   // ── Technicien assigné ──────────────────────────────────────────────────────
 
   async function handleTechnicienChange(technicienId: string) {
-    await db.from("interventions").update({ technicien_id: technicienId === "none" ? null : technicienId }).eq("id", id);
+    await db
+      .from("interventions")
+      .update({ technicien_id: technicienId === "none" ? null : technicienId })
+      .eq("id", id);
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     qc.invalidateQueries({ queryKey: ["my_todo_count"] });
     toast.success("Technicien assigné mis à jour");
@@ -187,8 +276,14 @@ function InterventionDetail() {
   // ── Consignes (planification, owner/bureau) ─────────────────────────────────
 
   async function handleSaveConsignes() {
-    const { error } = await db.from("interventions").update({ consignes: consignesInput || null }).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    const { error } = await db
+      .from("interventions")
+      .update({ consignes: consignesInput || null })
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     toast.success("Consignes mises à jour");
   }
@@ -220,11 +315,15 @@ function InterventionDetail() {
         const level = await fetchStockLevel(item.product_id, technicienId);
         const disponible = Number(level?.quantite ?? 0);
         if (disponible < item.quantite) {
-          warnings.push(`Stock insuffisant pour ${item.nom} : il reste seulement ${disponible} ${item.unite} ${technicienId ? "sur le camion" : "au garage"}`);
+          warnings.push(
+            `Stock insuffisant pour ${item.nom} : il reste seulement ${disponible} ${item.unite} ${technicienId ? "sur le camion" : "au garage"}`,
+          );
         }
       }
       if (warnings.length > 0) {
-        const proceed = window.confirm(`⚠️ Attention :\n${warnings.join("\n")}\n\nContinuer quand même ?`);
+        const proceed = window.confirm(
+          `⚠️ Attention :\n${warnings.join("\n")}\n\nContinuer quand même ?`,
+        );
         if (!proceed) return;
       }
     }
@@ -245,7 +344,10 @@ function InterventionDetail() {
     if (isFirstSubmission) updates.produits_utilises = produits_utilises;
 
     const { error } = await db.from("interventions").update(updates).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
     if (isFirstSubmission) {
       for (const item of stockItems) {
@@ -255,7 +357,12 @@ function InterventionDetail() {
         if (level) {
           await db.from("stock_levels").update({ quantite: next }).eq("id", level.id);
         } else {
-          await db.from("stock_levels").insert({ product_id: item.product_id, technicien_id: technicienId, quantite: next, user_id: intervention?.user_id });
+          await db.from("stock_levels").insert({
+            product_id: item.product_id,
+            technicien_id: technicienId,
+            quantite: next,
+            user_id: intervention?.user_id,
+          });
         }
         await logStockMovement({
           product_id: item.product_id,
@@ -281,12 +388,19 @@ function InterventionDetail() {
 
   async function handleSignatureSave(blob: Blob) {
     setSavingSignature(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const url = await uploadSignature(blob, user?.id ?? "");
     if (url) {
       const signedAt = new Date().toISOString();
       await syncPassages("realisee");
-      const updates: Record<string, unknown> = { signature_url: url, signature_at: signedAt, statut: "realisee", retour_admin: null };
+      const updates: Record<string, unknown> = {
+        signature_url: url,
+        signature_at: signedAt,
+        statut: "realisee",
+        retour_admin: null,
+      };
       if (!intervention?.heure_fin) updates.heure_fin = signedAt;
       await db.from("interventions").update(updates).eq("id", id);
       qc.invalidateQueries({ queryKey: ["intervention", id] });
@@ -330,7 +444,10 @@ function InterventionDetail() {
       heure_fin: heureFinInput ? new Date(heureFinInput).toISOString() : null,
     };
     const { error } = await db.from("interventions").update(updates).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     toast.success("Horaires mis à jour");
   }
@@ -342,9 +459,15 @@ function InterventionDetail() {
     const note = window.prompt("Note pour le technicien (optionnel) :", "");
     if (note === null) return;
     await syncPassages("en_cours");
-    const updates: Record<string, unknown> = { statut: "en_cours", retour_admin: note.trim() || null };
+    const updates: Record<string, unknown> = {
+      statut: "en_cours",
+      retour_admin: note.trim() || null,
+    };
     const { error } = await db.from("interventions").update(updates).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     qc.invalidateQueries({ queryKey: ["interventions"] });
     qc.invalidateQueries({ queryKey: ["my_todo_count"] });
@@ -357,7 +480,10 @@ function InterventionDetail() {
     // Une intervention "faite" supprimée ne doit pas rester comptée sur le contrat.
     await syncPassages(null);
     const { error } = await db.from("interventions").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["interventions"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     toast.success("Intervention supprimée");
@@ -366,23 +492,35 @@ function InterventionDetail() {
 
   async function handleDuplicate() {
     if (!intervention) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { toast.error("Non connecté"); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Non connecté");
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
-    const { data, error } = await db.from("interventions").insert({
-      user_id: user.id,
-      client_id: intervention.client_id,
-      date: today,
-      adresse_site: intervention.adresse_site,
-      type_nuisible: intervention.type_nuisible,
-      type_intervention: intervention.type_intervention,
-      technicien_id: intervention.technicien_id,
-      contract_id: intervention.contract_id,
-      consignes: intervention.consignes,
-      statut: "planifiee",
-      date_prochain_passage: null,
-    }).select().single();
-    if (error) { toast.error(error.message); return; }
+    const { data, error } = await db
+      .from("interventions")
+      .insert({
+        user_id: user.id,
+        client_id: intervention.client_id,
+        date: today,
+        adresse_site: intervention.adresse_site,
+        type_nuisible: intervention.type_nuisible,
+        type_intervention: intervention.type_intervention,
+        technicien_id: intervention.technicien_id,
+        contract_id: intervention.contract_id,
+        consignes: intervention.consignes,
+        statut: "planifiee",
+        date_prochain_passage: null,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["interventions"] });
     qc.invalidateQueries({ queryKey: ["my_todo_count"] });
     toast.success("Intervention dupliquée");
@@ -392,20 +530,29 @@ function InterventionDetail() {
   // ── PDF ─────────────────────────────────────────────────────────────────────
   // Ne jamais inclure retour_admin (note interne au responsable) dans le PDF.
 
-  function generatePDF(printOpts?: { printButtonLabel?: string; hint?: string; onPrinted?: () => void }) {
+  function generatePDF(printOpts?: {
+    printButtonLabel?: string;
+    hint?: string;
+    onPrinted?: () => void;
+  }) {
     if (!intervention) return;
     const s = settings;
     const num = rapportNum;
     const dateHeure = formatDateTime(intervention.created_at);
-    const photosHtml = (intervention.photos ?? []).slice(0, 3).length > 0
-      ? `<div class="photos-grid">${(intervention.photos ?? []).slice(0, 3).map((url) =>
-          `<img src="${url}" alt="Photo" style="width:100%;height:100px;object-fit:cover;border-radius:4px;border:1px solid #eee;">`
-        ).join("")}</div>`
-      : "";
+    const photosHtml =
+      (intervention.photos ?? []).slice(0, 3).length > 0
+        ? `<div class="photos-grid">${(intervention.photos ?? [])
+            .slice(0, 3)
+            .map(
+              (url) =>
+                `<img src="${url}" alt="Photo" style="width:100%;height:100px;object-fit:cover;border-radius:4px;border:1px solid #eee;">`,
+            )
+            .join("")}</div>`
+        : "";
     const sigHtml = intervention.signature_url
       ? `<div class="sig-img-block">
            <img src="${intervention.signature_url}" alt="Signature" style="max-height:60px;border-bottom:1px solid #ccc;padding-bottom:4px;">
-           <div style="font-size:9px;color:#555;margin-top:3px;">Signé par le client — ${formatDateTime((intervention as any).signature_at)}</div>
+           <div style="font-size:9px;color:#555;margin-top:3px;">Signé par le client — ${formatDateTime((intervention as Intervention & { signature_at?: string | null }).signature_at)}</div>
          </div>`
       : `<div class="sig-line">Signature du client (bon pour accord)</div>`;
 
@@ -470,11 +617,15 @@ function InterventionDetail() {
     ${intervention.heure_debut && intervention.heure_fin ? `<div class="row"><span class="lbl">Durée :</span><span class="val">${formatDuration(intervention.heure_debut, intervention.heure_fin)}</span></div>` : ""}
   </div>
 
-  ${intervention.observations ? `
+  ${
+    intervention.observations
+      ? `
   <div class="section">
     <div class="section-title">Compte-rendu / Observations</div>
     <div class="obs">${intervention.observations.replace(/\n/g, "<br>")}</div>
-  </div>` : ""}
+  </div>`
+      : ""
+  }
 
   ${photosHtml ? `<div class="section"><div class="section-title">Photos</div>${photosHtml}</div>` : ""}
 
@@ -496,7 +647,10 @@ function InterventionDetail() {
 `;
 
     const ok = printDocument({ title: `Rapport ${num}`, bodyHtml, css, ...printOpts });
-    if (!ok) { toast.error("Autorisez les popups pour générer le PDF"); return; }
+    if (!ok) {
+      toast.error("Autorisez les popups pour générer le PDF");
+      return;
+    }
   }
 
   // ── Certificat biocide ──────────────────────────────────────────────────────
@@ -507,7 +661,10 @@ function InterventionDetail() {
     const year = new Date(intervention.date).getFullYear();
     const certNum = `CB-${year}-${intervention.id.slice(0, 6).toUpperCase()}`;
     const now = new Date();
-    const dateGeneration = now.toLocaleDateString("fr-FR") + " " + now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const dateGeneration =
+      now.toLocaleDateString("fr-FR") +
+      " " +
+      now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
     // Match produits utilisés avec la base biocide
     const produitsTexte = intervention.produits ?? "";
@@ -524,19 +681,19 @@ function InterventionDetail() {
               <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#6b7280">${pb.numero_homologation || "—"}</td>
               <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#6b7280">${pb.type}</td>
               <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#6b7280">${pb.dose_habituelle || "—"}</td>
-            </tr>`
+            </tr>`,
           );
         }
       }
       if (produitsLignes.length === 0) {
         // Fallback: just list the raw text
         produitsLignes.push(
-          `<tr><td colspan="4" style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${produitsTexte}</td></tr>`
+          `<tr><td colspan="4" style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${produitsTexte}</td></tr>`,
         );
       }
     } else {
       produitsLignes.push(
-        `<tr><td colspan="4" style="padding:5px 8px;color:#9ca3af;font-style:italic">Aucun produit renseigné</td></tr>`
+        `<tr><td colspan="4" style="padding:5px 8px;color:#9ca3af;font-style:italic">Aucun produit renseigné</td></tr>`,
       );
     }
 
@@ -647,11 +804,15 @@ function InterventionDetail() {
   ${intervention.quantite ? `<div style="margin-top:6px;font-size:10px;color:#64748b">Quantités : ${intervention.quantite}</div>` : ""}
 </div>
 
-${intervention.observations ? `
+${
+  intervention.observations
+    ? `
 <div class="section">
   <div class="section-title">Zones traitées / Observations</div>
   <div style="font-size:10px;color:#374151;line-height:1.6;white-space:pre-wrap">${intervention.observations}</div>
-</div>` : ""}
+</div>`
+    : ""
+}
 
 <div class="section">
   <div class="section-title">Recommandations post-traitement</div>
@@ -681,7 +842,10 @@ ${intervention.observations ? `
 `;
 
     const ok = printDocument({ title: `Certificat ${certNum}`, bodyHtml, css });
-    if (!ok) { toast.error("Autorisez les popups pour générer le PDF"); return; }
+    if (!ok) {
+      toast.error("Autorisez les popups pour générer le PDF");
+      return;
+    }
   }
 
   // ── Email ───────────────────────────────────────────────────────────────────
@@ -719,7 +883,9 @@ ${intervention.observations ? `
       "Cordialement,",
       nomSociete,
       s?.telephone ? `Tél : ${s.telephone}` : "",
-    ].filter((l) => l !== undefined).join("\n");
+    ]
+      .filter((l) => l !== undefined)
+      .join("\n");
 
     // L'aperçu éditable s'ouvre d'abord ; la messagerie n'ouvre qu'après que
     // l'utilisateur a cliqué sur "Générer le PDF" (évènement afterprint).
@@ -728,7 +894,9 @@ ${intervention.observations ? `
       hint: "Corrigez le document si besoin, puis générez le PDF. Votre messagerie s'ouvrira ensuite : joignez-y le PDF que vous venez d'enregistrer.",
       onPrinted: async () => {
         window.location.href = `mailto:${clientEmail}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
-        toast.success("Votre messagerie est ouverte. Joignez le PDF que vous venez d'enregistrer, puis envoyez.");
+        toast.success(
+          "Votre messagerie est ouverte. Joignez le PDF que vous venez d'enregistrer, puis envoyez.",
+        );
         await updateStatut("rapport_transmis");
         toast.success("Statut mis à jour : Vérifiée");
       },
@@ -737,29 +905,68 @@ ${intervention.observations ? `
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  if (isLoading) return <div className="text-sm text-muted-foreground py-10 text-center">Chargement…</div>;
-  if (!intervention) return <div className="text-sm text-muted-foreground py-10 text-center">Intervention introuvable.</div>;
+  if (isLoading)
+    return (
+      <PageContainer>
+        <Skeleton className="h-24 rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </PageContainer>
+    );
+  if (isError)
+    return (
+      <PageContainer>
+        <Card className="border-destructive/30">
+          <CardContent className="py-12 text-center text-sm text-destructive">
+            Impossible de charger l’intervention.
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
+  if (!intervention)
+    return (
+      <PageContainer>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Intervention introuvable.
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
 
   const clientEmail = intervention.client?.email ?? "";
   const hasSig = !!intervention.signature_url;
 
   return (
-    <div className="space-y-4">
+    <PageContainer>
       {/* Barre haut */}
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/interventions" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Link
+          to="/interventions"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="mr-1 h-4 w-4" /> Retour
         </Link>
         <div className="flex items-center gap-2">
           <Select value={intervention.statut} onValueChange={updateStatut}>
-            <SelectTrigger className="h-8 text-xs w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 w-40 text-xs">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {STATUTS_INTERVENTION.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              {STATUTS_INTERVENTION.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -768,7 +975,9 @@ ${intervention.observations ? `
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive">Supprimer</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+                  Supprimer
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -777,31 +986,40 @@ ${intervention.observations ? `
 
       {/* 1. En-tête rapport */}
       <Card className="border-primary/20 bg-primary/3">
-        <CardContent className="p-4 space-y-1">
+        <CardContent className="space-y-3 p-4 sm:p-6">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-[10px] font-mono text-muted-foreground tracking-wider">{rapportNum}</p>
+              <p className="text-[10px] font-mono text-muted-foreground tracking-wider">
+                {rapportNum}
+              </p>
               <h1 className="text-lg font-bold mt-0.5">Rapport d'intervention</h1>
             </div>
-            <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase shrink-0", STATUT_COLORS[intervention.statut] ?? "bg-muted")}>
+            <Badge className={cn("shrink-0", STATUT_COLORS[intervention.statut] ?? "bg-muted")}>
               {statutLabel(intervention.statut)}
-            </span>
+            </Badge>
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap mt-1">
-            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDateFR(intervention.date)}</span>
-            <span className="text-muted-foreground/60">Créé le {formatDateTime(intervention.created_at)}</span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDateFR(intervention.date)}
+            </span>
+            <span className="text-muted-foreground/60">
+              Créé le {formatDateTime(intervention.created_at)}
+            </span>
           </div>
         </CardContent>
       </Card>
 
       {/* 1bis. Retour du responsable */}
       {intervention.retour_admin && (
-        <Card className="border-orange-400 bg-orange-50 dark:border-orange-900/60 dark:bg-orange-950/30">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="p-4 flex items-start gap-2.5">
-            <MessageSquareWarning className="h-4 w-4 text-orange-600 dark:text-orange-400 mt-0.5 shrink-0" />
+            <MessageSquareWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
             <div className="text-sm">
-              <p className="font-semibold text-orange-700 dark:text-orange-400">Retour du responsable</p>
-              <p className="text-orange-700/90 dark:text-orange-400/90 whitespace-pre-wrap mt-0.5">{intervention.retour_admin}</p>
+              <p className="font-semibold text-warning-foreground">Retour du responsable</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-warning-foreground/90">
+                {intervention.retour_admin}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -811,7 +1029,9 @@ ${intervention.observations ? `
       {isMine && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4 space-y-2.5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mon intervention</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Mon intervention
+            </h2>
             {intervention.statut === "planifiee" && (
               <Button className="w-full" onClick={() => updateStatut("en_cours")}>
                 <PlayCircle className="mr-2 h-4 w-4" /> Démarrer l'intervention
@@ -820,7 +1040,8 @@ ${intervention.observations ? `
             {intervention.statut === "en_cours" && (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Renseignez le compte-rendu ci-dessous (produits utilisés, observations, photos, signature), puis marquez l'intervention comme terminée.
+                  Renseignez le compte-rendu ci-dessous (produits utilisés, observations, photos,
+                  signature), puis marquez l'intervention comme terminée.
                 </p>
                 <Button className="w-full" onClick={() => updateStatut("realisee")}>
                   <CheckCircle className="mr-2 h-4 w-4" /> Marquer terminée
@@ -845,13 +1066,14 @@ ${intervention.observations ? `
 
       {/* 1quater. Vérification admin — rapport terminé en attente de validation */}
       {intervention.statut === "realisee" && (
-        <Card className="border-orange-300 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="p-4 space-y-2.5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-400">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-warning-foreground">
               À vérifier
             </h2>
-            <p className="text-xs text-orange-700/80 dark:text-orange-400/80">
-              Le technicien a terminé ce rapport. Vérifiez son contenu puis validez-le pour l'envoyer au client.
+            <p className="text-xs text-warning-foreground/80">
+              Le technicien a terminé ce rapport. Vérifiez son contenu puis validez-le pour
+              l'envoyer au client.
             </p>
             <Button variant="outline" className="w-full" onClick={handleReturnToTechnician}>
               <Undo2 className="mr-2 h-4 w-4" /> Renvoyer au technicien
@@ -863,12 +1085,17 @@ ${intervention.observations ? `
       {/* 2. Client */}
       <Card>
         <CardContent className="p-4 space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client</h2>
-          <p className="font-semibold">{intervention.client?.raison_sociale ?? "Client supprimé"}</p>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Client
+          </h2>
+          <p className="font-semibold">
+            {intervention.client?.raison_sociale ?? "Client supprimé"}
+          </p>
           {intervention.adresse_site && (
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(intervention.adresse_site)}`}
-              target="_blank" rel="noopener noreferrer"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-start gap-1.5 text-xs text-primary hover:underline"
             >
               <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
@@ -876,17 +1103,22 @@ ${intervention.observations ? `
             </a>
           )}
           {intervention.client?.telephone && (
-            <a href={`tel:${intervention.client.telephone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Phone className="h-3 w-3 shrink-0" />{intervention.client.telephone}
+            <a
+              href={`tel:${intervention.client.telephone}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
+              <Phone className="h-3 w-3 shrink-0" />
+              {intervention.client.telephone}
             </a>
           )}
           {clientEmail ? (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Mail className="h-3 w-3 shrink-0" />{clientEmail}
+              <Mail className="h-3 w-3 shrink-0" />
+              {clientEmail}
             </p>
           ) : (
             <Link to="/clients/$id" params={{ id: intervention.client_id }}>
-              <div className="flex items-center gap-1.5 rounded border border-orange-300 bg-orange-50 dark:bg-orange-950/20 px-2.5 py-1.5 text-xs text-orange-700 dark:text-orange-400">
+              <div className="flex min-h-10 items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 Aucun email — Cliquez pour ajouter (requis pour envoi)
               </div>
@@ -906,26 +1138,43 @@ ${intervention.observations ? `
           <ClipboardList className="h-4 w-4" /> La mission
         </h2>
         <Card>
-          <CardContent className="p-4 space-y-3">
-            <InfoRow icon={<Bug className="h-4 w-4" />} label="Type de nuisible" value={intervention.type_nuisible || "—"} />
-            <InfoRow icon={<FlaskConical className="h-4 w-4" />} label="Type d'intervention" value={intervention.type_intervention || "—"} />
+          <CardContent className="grid gap-4 p-4 sm:p-6 lg:grid-cols-2">
+            <InfoRow
+              icon={<Bug className="h-4 w-4" />}
+              label="Type de nuisible"
+              value={intervention.type_nuisible || "—"}
+            />
+            <InfoRow
+              icon={<FlaskConical className="h-4 w-4" />}
+              label="Type d'intervention"
+              value={intervention.type_intervention || "—"}
+            />
 
             <div className="space-y-1.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Contrat rattaché</div>
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Contrat rattaché
+              </div>
               <Select value={intervention.contract_id ?? ""} onValueChange={handleContractChange}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Aucun contrat" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Aucun contrat" />
+                </SelectTrigger>
                 <SelectContent>
-                  {contracts.filter((c) => c.client_id === intervention.client_id).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.numero ? `${c.numero} — ` : ""}{c.nom_etablissement || "Établissement"}
-                    </SelectItem>
-                  ))}
+                  {contracts
+                    .filter((c) => c.client_id === intervention.client_id)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.numero ? `${c.numero} — ` : ""}
+                        {c.nom_etablissement || "Établissement"}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Technicien assigné</div>
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Technicien assigné
+              </div>
               <TechnicianSelect
                 value={intervention.technicien_id ?? "none"}
                 onValueChange={handleTechnicienChange}
@@ -945,7 +1194,9 @@ ${intervention.observations ? `
                   placeholder="Ex. clés chez le gardien, attention chien…"
                   className="text-sm"
                 />
-                <Button size="sm" variant="outline" onClick={handleSaveConsignes}>Enregistrer</Button>
+                <Button size="sm" variant="outline" onClick={handleSaveConsignes}>
+                  Enregistrer
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -964,28 +1215,30 @@ ${intervention.observations ? `
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
               <Timer className="h-3 w-3" /> Durée sur site
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
+              <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Début</label>
                 <input
                   type="datetime-local"
-                  className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-xs"
                   value={heureDebutInput}
                   onChange={(e) => setHeureDebutInput(e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Fin</label>
                 <input
                   type="datetime-local"
-                  className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-xs"
                   value={heureFinInput}
                   onChange={(e) => setHeureFinInput(e.target.value)}
                 />
               </div>
-              <Button size="sm" variant="outline" className="h-8" onClick={handleSaveTimes}>Enregistrer</Button>
+              <Button variant="outline" className="min-h-10 self-end" onClick={handleSaveTimes}>
+                Enregistrer
+              </Button>
               {intervention.heure_debut && intervention.heure_fin && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-3">
                   Durée : {formatDuration(intervention.heure_debut, intervention.heure_fin)}
                 </span>
               )}
@@ -998,19 +1251,40 @@ ${intervention.observations ? `
           <Card>
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Compte-rendu</h3>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingCompteRendu(true)}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Compte-rendu
+                </h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => setEditingCompteRendu(true)}
+                >
                   <Pencil className="mr-1 h-3 w-3" /> Modifier
                 </Button>
               </div>
-              <InfoRow icon={<Package className="h-4 w-4" />} label="Produits utilisés" value={intervention.produits || "—"} />
-              <InfoRow icon={<ClipboardList className="h-4 w-4" />} label="Quantité" value={intervention.quantite || "—"} />
+              <InfoRow
+                icon={<Package className="h-4 w-4" />}
+                label="Produits utilisés"
+                value={intervention.produits || "—"}
+              />
+              <InfoRow
+                icon={<ClipboardList className="h-4 w-4" />}
+                label="Quantité"
+                value={intervention.quantite || "—"}
+              />
               {intervention.date_prochain_passage && (
-                <InfoRow icon={<CalendarClock className="h-4 w-4" />} label="Prochain passage" value={formatDateFR(intervention.date_prochain_passage)} />
+                <InfoRow
+                  icon={<CalendarClock className="h-4 w-4" />}
+                  label="Prochain passage"
+                  value={formatDateFR(intervention.date_prochain_passage)}
+                />
               )}
               {intervention.observations && (
                 <div className="pt-1 border-t">
-                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mt-2 mb-1">Observations</div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mt-2 mb-1">
+                    Observations
+                  </div>
                   <p className="text-sm whitespace-pre-wrap">{intervention.observations}</p>
                 </div>
               )}
@@ -1024,7 +1298,7 @@ ${intervention.observations ? `
                 defaultValues={{
                   client_id: intervention.client_id,
                   date: intervention.date,
-                  type_intervention: intervention.type_intervention as any,
+                  type_intervention: intervention.type_intervention as IFType["type_intervention"],
                   technicien_id: intervention.technicien_id ?? undefined,
                   produits: intervention.produits ?? "",
                   quantite: intervention.quantite ?? "",
@@ -1032,10 +1306,17 @@ ${intervention.observations ? `
                   date_prochain_passage: intervention.date_prochain_passage ?? "",
                 }}
                 onSubmit={handleSaveCompteRendu}
-                submitLabel={hasCompteRendu ? "Enregistrer les modifications" : "Enregistrer le compte-rendu"}
+                submitLabel={
+                  hasCompteRendu ? "Enregistrer les modifications" : "Enregistrer le compte-rendu"
+                }
               />
               {editingCompteRendu && (
-                <Button variant="ghost" size="sm" className="w-full mt-1.5 text-xs text-muted-foreground" onClick={() => setEditingCompteRendu(false)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-1.5 text-xs text-muted-foreground"
+                  onClick={() => setEditingCompteRendu(false)}
+                >
                   Annuler
                 </Button>
               )}
@@ -1051,10 +1332,23 @@ ${intervention.observations ? `
                 <Camera className="h-4 w-4" /> Photos ({photos.length}/5)
               </h3>
               {photos.length < 5 && (
-                <label className={cn("flex items-center gap-1 text-xs text-primary cursor-pointer", uploadingPhotos && "opacity-50 pointer-events-none")}>
+                <label
+                  className={cn(
+                    "flex items-center gap-1 text-xs text-primary cursor-pointer",
+                    uploadingPhotos && "opacity-50 pointer-events-none",
+                  )}
+                >
                   <Camera className="h-3.5 w-3.5" />
                   {uploadingPhotos ? "Upload…" : "Ajouter"}
-                  <input type="file" accept="image/*" capture="environment" multiple className="sr-only" onChange={handleAddPhotos} disabled={uploadingPhotos} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    multiple
+                    className="sr-only"
+                    onChange={handleAddPhotos}
+                    disabled={uploadingPhotos}
+                  />
                 </label>
               )}
             </div>
@@ -1063,8 +1357,12 @@ ${intervention.observations ? `
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {photos.map((url, i) => (
-                  <button key={url} type="button" onClick={() => setLightboxIndex(i)}
-                    className="relative aspect-square rounded-md overflow-hidden border hover:opacity-90 transition-opacity">
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setLightboxIndex(i)}
+                    className="relative aspect-square rounded-md overflow-hidden border hover:opacity-90 transition-opacity"
+                  >
                     <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
@@ -1081,15 +1379,26 @@ ${intervention.observations ? `
             </h3>
             {hasSig ? (
               <div className="space-y-2">
-                <div className="rounded-lg border bg-white dark:bg-zinc-900 p-3 text-center">
-                  <img src={intervention.signature_url!} alt="Signature client" className="max-h-20 mx-auto" />
+                <div className="rounded-lg border bg-card p-3 text-center">
+                  <img
+                    src={intervention.signature_url!}
+                    alt="Signature client"
+                    className="max-h-20 mx-auto"
+                  />
                   <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1">
                     <CheckCircle className="h-3 w-3 text-primary" />
-                    Signé par le client — {formatDateTime((intervention as any).signature_at)}
+                    Signé par le client —{" "}
+                    {formatDateTime(
+                      (intervention as Intervention & { signature_at?: string | null })
+                        .signature_at,
+                    )}
                   </p>
                 </div>
-                <button type="button" onClick={handleDeleteSignature}
-                  className="text-xs text-destructive/70 hover:text-destructive underline">
+                <button
+                  type="button"
+                  onClick={handleDeleteSignature}
+                  className="text-xs text-destructive/70 hover:text-destructive underline"
+                >
                   Supprimer la signature
                 </button>
               </div>
@@ -1102,7 +1411,12 @@ ${intervention.observations ? `
                 )}
               </div>
             ) : (
-              <Button type="button" variant="outline" className="w-full" onClick={() => setShowSignatureCanvas(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowSignatureCanvas(true)}
+              >
                 <PenLine className="mr-2 h-4 w-4" /> Faire signer le client
               </Button>
             )}
@@ -1112,26 +1426,52 @@ ${intervention.observations ? `
 
       {/* Lightbox */}
       {lightboxIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={closeLightbox}>
-          <button type="button" className="absolute top-3 right-3 text-white/80 hover:text-white" onClick={closeLightbox}>
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={closeLightbox}
+        >
+          <button
+            type="button"
+            className="absolute top-3 right-3 text-white/80 hover:text-white"
+            onClick={closeLightbox}
+          >
             <X className="h-6 w-6" />
           </button>
           {lightboxIndex > 0 && (
-            <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((n) => Math.max(0, (n ?? 1) - 1)); }}>
+            <button
+              type="button"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((n) => Math.max(0, (n ?? 1) - 1));
+              }}
+            >
               <ChevronLeft className="h-8 w-8" />
             </button>
           )}
           {lightboxIndex < photos.length - 1 && (
-            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((n) => Math.min(photos.length - 1, (n ?? 0) + 1)); }}>
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((n) => Math.min(photos.length - 1, (n ?? 0) + 1));
+              }}
+            >
               <ChevronRight className="h-8 w-8" />
             </button>
           )}
           <div className="relative max-w-[90vw] max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
-            <img src={photos[lightboxIndex]} alt="" className="max-w-full max-h-[80vh] object-contain rounded" />
-            <button type="button" onClick={() => handleDeletePhoto(photos[lightboxIndex])}
-              className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-destructive px-2 py-1 text-xs text-white">
+            <img
+              src={photos[lightboxIndex]}
+              alt=""
+              className="max-w-full max-h-[80vh] object-contain rounded"
+            />
+            <button
+              type="button"
+              onClick={() => handleDeletePhoto(photos[lightboxIndex])}
+              className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-destructive px-2 py-1 text-xs text-white"
+            >
               <Trash2 className="h-3 w-3" /> Supprimer
             </button>
           </div>
@@ -1142,13 +1482,19 @@ ${intervention.observations ? `
       )}
 
       {/* 5. Actions */}
-      <div className="space-y-2">
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => generatePDF()}>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <Button
+          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+          onClick={() => generatePDF()}
+        >
           <FileText className="mr-2 h-4 w-4" /> Générer PDF rapport officiel
         </Button>
 
         {settings?.numero_certibiocide ? (
-          <Button className="w-full bg-green-700 hover:bg-green-800 text-white" onClick={generateCertificat}>
+          <Button
+            className="w-full bg-success text-success-foreground hover:bg-success/90"
+            onClick={generateCertificat}
+          >
             <ShieldCheck className="mr-2 h-4 w-4" /> Certificat de traitement biocide
           </Button>
         ) : (
@@ -1157,26 +1503,34 @@ ${intervention.observations ? `
               <ShieldCheck className="mr-2 h-4 w-4" /> Certificat biocide
             </Button>
             <p className="text-[11px] text-muted-foreground text-center mt-1">
-              <Link to="/parametres" className="underline hover:text-foreground">Renseignez votre numéro Certibiocide</Link> dans les paramètres
+              <Link to="/parametres" className="underline hover:text-foreground">
+                Renseignez votre numéro Certibiocide
+              </Link>{" "}
+              dans les paramètres
             </p>
           </div>
         )}
 
         {clientEmail ? (
           <Button
-            className={cn("w-full", intervention.statut === "realisee" && "bg-primary hover:bg-primary/90")}
+            className={cn(
+              "w-full",
+              intervention.statut === "realisee" && "bg-primary hover:bg-primary/90",
+            )}
             variant={intervention.statut === "realisee" ? "default" : "outline"}
             onClick={handleSendEmail}
           >
             <Mail className="mr-2 h-4 w-4" />
-            {intervention.statut === "realisee" ? "Valider et envoyer le rapport" : "Envoyer rapport par email"}
+            {intervention.statut === "realisee"
+              ? "Valider et envoyer le rapport"
+              : "Envoyer rapport par email"}
           </Button>
         ) : (
           <div className="space-y-1">
             <Button className="w-full" variant="outline" disabled>
               <Mail className="mr-2 h-4 w-4" /> Envoyer par email
             </Button>
-            <p className="text-[11px] text-orange-600 dark:text-orange-400 text-center flex items-center justify-center gap-1">
+            <p className="flex items-center justify-center gap-1 text-center text-[11px] text-warning-foreground">
               <AlertTriangle className="h-3 w-3" />
               Aucun email renseigné pour ce client —{" "}
               <Link to="/clients/$id" params={{ id: intervention.client_id }} className="underline">
@@ -1186,7 +1540,13 @@ ${intervention.observations ? `
           </div>
         )}
 
-        <Link to="/factures/new" search={{ client_id: intervention.client_id, adresse_site: intervention.adresse_site ?? "" }}>
+        <Link
+          to="/factures/new"
+          search={{
+            client_id: intervention.client_id,
+            adresse_site: intervention.adresse_site ?? "",
+          }}
+        >
           <Button className="w-full" variant="default">
             <Receipt className="mr-2 h-4 w-4" /> Facturer cette intervention
           </Button>
@@ -1196,7 +1556,7 @@ ${intervention.observations ? `
           <Copy className="mr-2 h-4 w-4" /> Dupliquer
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -1205,7 +1565,9 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
     <div className="flex items-start gap-2">
       <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>
       <div className="min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
         <div className="text-sm">{value}</div>
       </div>
     </div>
@@ -1214,7 +1576,13 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 // Passages précédents sur le même site — donne au technicien le contexte
 // sans qu'il ait besoin d'appeler le bureau.
-function SiteHistoryPanel({ history, assignableMembers }: { history: Intervention[]; assignableMembers: AssignableMember[] }) {
+function SiteHistoryPanel({
+  history,
+  assignableMembers,
+}: {
+  history: Intervention[];
+  assignableMembers: AssignableMember[];
+}) {
   const [open, setOpen] = useState(true);
   return (
     <Card>
@@ -1224,7 +1592,12 @@ function SiteHistoryPanel({ history, assignableMembers }: { history: Interventio
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
               <History className="h-4 w-4" /> Historique du site ({history.length})
             </h2>
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                open && "rotate-180",
+              )}
+            />
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 pt-1">
             {history.map((h) => (
@@ -1232,16 +1605,25 @@ function SiteHistoryPanel({ history, assignableMembers }: { history: Interventio
                 <div className="rounded-md border p-2.5 text-xs space-y-1 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{formatDateFR(h.date)}</span>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase shrink-0", STATUT_COLORS[h.statut] ?? "bg-muted")}>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase shrink-0",
+                        STATUT_COLORS[h.statut] ?? "bg-muted",
+                      )}
+                    >
                       {statutLabel(h.statut)}
                     </span>
                   </div>
                   <div className="text-muted-foreground">
                     {resolveTechnicianName(assignableMembers, h.technicien_id) ?? "Non assigné"}
                     {h.produits ? ` · ${h.produits}` : ""}
-                    {h.photos?.length ? ` · ${h.photos.length} photo${h.photos.length > 1 ? "s" : ""}` : ""}
+                    {h.photos?.length
+                      ? ` · ${h.photos.length} photo${h.photos.length > 1 ? "s" : ""}`
+                      : ""}
                   </div>
-                  {h.observations && <p className="text-muted-foreground truncate">{h.observations}</p>}
+                  {h.observations && (
+                    <p className="text-muted-foreground truncate">{h.observations}</p>
+                  )}
                 </div>
               </Link>
             ))}

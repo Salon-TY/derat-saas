@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { InterventionForm as IFType } from "@/lib/schemas";
+import { PageContainer, PageHeader, PageSection } from "@/components/page-layout";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_app/interventions/new")({
   head: () => ({ meta: [{ title: `Nouvelle intervention — ${APP_NAME}` }] }),
@@ -47,8 +49,15 @@ function NewIntervention() {
       date_prochain_passage: values.date_prochain_passage || null,
       user_id: userId,
     };
-    const { data: newIntervention, error } = await db.from("interventions").insert(payload).select().single();
-    if (error) { toast.error(error.message); return; }
+    const { data: newIntervention, error } = await db
+      .from("interventions")
+      .insert(payload)
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
     // Filet de sécurité : si des produits ont malgré tout été fournis (compat.
     // futur), on applique la même déduction qu'avant plutôt que de la perdre.
@@ -59,7 +68,12 @@ function NewIntervention() {
       if (level) {
         await db.from("stock_levels").update({ quantite: next }).eq("id", level.id);
       } else {
-        await db.from("stock_levels").insert({ product_id: item.product_id, technicien_id: technicienId, quantite: next, user_id: userId });
+        await db.from("stock_levels").insert({
+          product_id: item.product_id,
+          technicien_id: technicienId,
+          quantite: next,
+          user_id: userId,
+        });
       }
       await logStockMovement({
         product_id: item.product_id,
@@ -83,20 +97,32 @@ function NewIntervention() {
   }
 
   return (
-    <div className="space-y-4">
-      <Link to="/interventions" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+    <PageContainer>
+      <Link
+        to="/interventions"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="mr-1 h-4 w-4" /> Retour
       </Link>
-      <h1 className="text-2xl font-bold tracking-tight">Nouvelle intervention</h1>
-      <InterventionForm
-        mode="planification"
-        defaultValues={{
-          client_id: search.client_id,
-          date: search.date,
-        }}
-        onSubmit={handleSubmit}
-        submitLabel="Planifier l'intervention"
+      <PageHeader
+        title="Nouvelle intervention"
+        subtitle="Planifiez la mission et assignez-la à un technicien."
       />
-    </div>
+      <PageSection title="Informations de planification" className="max-w-4xl">
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <InterventionForm
+              mode="planification"
+              defaultValues={{
+                client_id: search.client_id,
+                date: search.date,
+              }}
+              onSubmit={handleSubmit}
+              submitLabel="Planifier l'intervention"
+            />
+          </CardContent>
+        </Card>
+      </PageSection>
+    </PageContainer>
   );
 }

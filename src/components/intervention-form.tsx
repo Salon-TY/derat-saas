@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState, useRef } from "react";
 import {
@@ -7,7 +7,15 @@ import {
   TYPES_NUISIBLES,
   TYPES_INTERVENTION,
 } from "@/lib/schemas";
-import { useClients, useStockProducts, useContracts, useAssignableMembers, useStockLevels, getGarageLevel, getVanLevel } from "@/lib/queries";
+import {
+  useClients,
+  useStockProducts,
+  useContracts,
+  useAssignableMembers,
+  useStockLevels,
+  getGarageLevel,
+  getVanLevel,
+} from "@/lib/queries";
 import { db } from "@/lib/db";
 
 export type StockUsageItem = {
@@ -18,7 +26,14 @@ export type StockUsageItem = {
 };
 
 type UnifiedItem =
-  | { kind: "stock"; product_id: string; nom: string; quantite: number; unite: string; stock_actuel: number }
+  | {
+      kind: "stock";
+      product_id: string;
+      nom: string;
+      quantite: number;
+      unite: string;
+      stock_actuel: number;
+    }
   | { kind: "free"; id: string; nom: string; quantite_text: string };
 
 import { supabase } from "@/integrations/supabase/client";
@@ -43,16 +58,58 @@ import { TechnicianSelect } from "@/components/technician-select";
 
 // Cases à cocher rapport rapide — label court + phrase complète dans les observations
 const RAPPORT_ITEMS = [
-  { id: "acces_difficile",       label: "Accès difficile",              phrase: "L'accès aux zones de traitement a été difficile lors de cette intervention." },
-  { id: "traces_fraiches",       label: "Traces fraîches détectées",    phrase: "Des traces d'activité récente ont été détectées sur le site." },
-  { id: "appats_poses",          label: "Appâts posés",                 phrase: "Des appâts rodenticides ont été posés aux points stratégiques identifiés." },
-  { id: "appats_consommes",      label: "Appâts consommés",             phrase: "Les appâts posés lors du passage précédent ont été consommés, confirmant une activité persistante." },
-  { id: "pieges_poses",          label: "Pièges posés",                 phrase: "Des pièges mécaniques ont été installés aux emplacements à risque." },
-  { id: "pieges_declenches",     label: "Pièges déclenchés",            phrase: "Les pièges installés ont été déclenchés, attestant d'une présence active." },
-  { id: "retour_necessaire",     label: "Retour nécessaire",            phrase: "Un second passage sera nécessaire pour s'assurer de l'efficacité du traitement." },
-  { id: "client_absent",         label: "Client absent",                phrase: "Le client était absent lors de l'intervention. Un compte-rendu lui sera transmis." },
-  { id: "traitement_complet",    label: "Traitement complet effectué",  phrase: "Le traitement complet a été réalisé conformément au protocole prévu." },
-  { id: "recommandations_hygiene", label: "Recommandations hygiène",    phrase: "Des recommandations relatives aux mesures d'hygiène préventives ont été communiquées au client." },
+  {
+    id: "acces_difficile",
+    label: "Accès difficile",
+    phrase: "L'accès aux zones de traitement a été difficile lors de cette intervention.",
+  },
+  {
+    id: "traces_fraiches",
+    label: "Traces fraîches détectées",
+    phrase: "Des traces d'activité récente ont été détectées sur le site.",
+  },
+  {
+    id: "appats_poses",
+    label: "Appâts posés",
+    phrase: "Des appâts rodenticides ont été posés aux points stratégiques identifiés.",
+  },
+  {
+    id: "appats_consommes",
+    label: "Appâts consommés",
+    phrase:
+      "Les appâts posés lors du passage précédent ont été consommés, confirmant une activité persistante.",
+  },
+  {
+    id: "pieges_poses",
+    label: "Pièges posés",
+    phrase: "Des pièges mécaniques ont été installés aux emplacements à risque.",
+  },
+  {
+    id: "pieges_declenches",
+    label: "Pièges déclenchés",
+    phrase: "Les pièges installés ont été déclenchés, attestant d'une présence active.",
+  },
+  {
+    id: "retour_necessaire",
+    label: "Retour nécessaire",
+    phrase: "Un second passage sera nécessaire pour s'assurer de l'efficacité du traitement.",
+  },
+  {
+    id: "client_absent",
+    label: "Client absent",
+    phrase: "Le client était absent lors de l'intervention. Un compte-rendu lui sera transmis.",
+  },
+  {
+    id: "traitement_complet",
+    label: "Traitement complet effectué",
+    phrase: "Le traitement complet a été réalisé conformément au protocole prévu.",
+  },
+  {
+    id: "recommandations_hygiene",
+    label: "Recommandations hygiène",
+    phrase:
+      "Des recommandations relatives aux mesures d'hygiène préventives ont été communiquées au client.",
+  },
 ];
 
 // Le fichier photo reste un type partagé : le détail d'intervention gère ses
@@ -104,28 +161,38 @@ export function InterventionForm({
   useEffect(() => {
     if (mode !== "compte-rendu") return;
     import("@/lib/db").then(({ db }) => {
-      db.from("interventions").select("produits").then(({ data }) => {
-        const counts = new Map<string, number>();
-        for (const row of data ?? []) {
-          if (!row.produits) continue;
-          const parts = (row.produits as string).split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-          for (const p of parts) {
-            const nom = p.replace(/\s*[x×][\d.,]+.*$/i, "").trim();
-            if (nom.length > 1) counts.set(nom, (counts.get(nom) ?? 0) + 1);
+      db.from("interventions")
+        .select("produits")
+        .then(({ data }) => {
+          const counts = new Map<string, number>();
+          for (const row of data ?? []) {
+            if (!row.produits) continue;
+            const parts = (row.produits as string)
+              .split(/[,\n]/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            for (const p of parts) {
+              const nom = p.replace(/\s*[x×][\d.,]+.*$/i, "").trim();
+              if (nom.length > 1) counts.set(nom, (counts.get(nom) ?? 0) + 1);
+            }
           }
-        }
-        setFreeSuggestions(
-          [...counts.entries()]
-            .map(([nom, count]) => ({ nom, count }))
-            .sort((a, b) => b.count - a.count)
-        );
-      });
+          setFreeSuggestions(
+            [...counts.entries()]
+              .map(([nom, count]) => ({ nom, count }))
+              .sort((a, b) => b.count - a.count),
+          );
+        });
     });
   }, [mode]);
 
-  const freeAutoComplete = freeSuggestions.filter(
-    (s) => freeNom.length >= 2 && s.nom.toLowerCase().includes(freeNom.toLowerCase()) && s.nom !== freeNom
-  ).slice(0, 5);
+  const freeAutoComplete = freeSuggestions
+    .filter(
+      (s) =>
+        freeNom.length >= 2 &&
+        s.nom.toLowerCase().includes(freeNom.toLowerCase()) &&
+        s.nom !== freeNom,
+    )
+    .slice(0, 5);
 
   // Names of free items with ≥3 historical uses → suggest adding to stock
   const stockSuggestions = items
@@ -135,7 +202,7 @@ export function InterventionForm({
     .map((s) => s.nom);
 
   const form = useForm<IFType>({
-    resolver: zodResolver(interventionSchema) as any,
+    resolver: zodResolver(interventionSchema) as Resolver<IFType>,
     defaultValues: {
       client_id: defaultValues?.client_id ?? "",
       contract_id: defaultValues?.contract_id ?? "",
@@ -167,9 +234,7 @@ export function InterventionForm({
     return level?.quantite ?? 0;
   }
   const pickedAvailableQty = pickedProductId ? availableQty(pickedProductId) : null;
-  const stockAfter = pickedProduct
-    ? Math.max(0, (pickedAvailableQty ?? 0) - pickedQty)
-    : null;
+  const stockAfter = pickedProduct ? Math.max(0, (pickedAvailableQty ?? 0) - pickedQty) : null;
 
   useEffect(() => {
     if (mode !== "planification") return;
@@ -198,26 +263,39 @@ export function InterventionForm({
     if (form.getValues("technicien_id")) return;
     if (assignableMembers.length === 0) return;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user && assignableMembers.some((m) => m.user_id === user.id)) {
         form.setValue("technicien_id", user.id);
       }
     })();
   }, [assignableMembers, mode]);
 
-
   async function createClient() {
-    if (!newClientName.trim()) { toast.error("Le nom est requis"); return; }
+    if (!newClientName.trim()) {
+      toast.error("Le nom est requis");
+      return;
+    }
     setCreatingClient(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await db.from("clients").insert({
-      user_id: user?.id,
-      raison_sociale: newClientName.trim(),
-      telephone: newClientTel.trim(),
-      adresse_site: newClientAdresse.trim(),
-    }).select().single();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data, error } = await db
+      .from("clients")
+      .insert({
+        user_id: user?.id,
+        raison_sociale: newClientName.trim(),
+        telephone: newClientTel.trim(),
+        adresse_site: newClientAdresse.trim(),
+      })
+      .select()
+      .single();
     setCreatingClient(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     await refetchClients();
     qc.invalidateQueries({ queryKey: ["clients"] });
     form.setValue("client_id", data.id, { shouldValidate: true });
@@ -232,12 +310,15 @@ export function InterventionForm({
   function toggleCheck(id: string) {
     const item = RAPPORT_ITEMS.find((r) => r.id === id)!;
     const isChecked = rapportChecks.includes(id);
-    setRapportChecks((prev) => isChecked ? prev.filter((x) => x !== id) : [...prev, id]);
+    setRapportChecks((prev) => (isChecked ? prev.filter((x) => x !== id) : [...prev, id]));
     const current = form.getValues("observations") ?? "";
     if (!isChecked) {
       form.setValue("observations", current ? `${current}\n${item.phrase}` : item.phrase);
     } else {
-      const updated = current.replace(item.phrase, "").replace(/\n{2,}/g, "\n").trim();
+      const updated = current
+        .replace(item.phrase, "")
+        .replace(/\n{2,}/g, "\n")
+        .trim();
       form.setValue("observations", updated);
     }
   }
@@ -247,34 +328,48 @@ export function InterventionForm({
     const product = stockProducts.find((p) => p.id === pickedProductId);
     if (!product) return;
     const qty = Number(pickedQty);
-    if (!qty || qty <= 0) { toast.error("Quantité invalide"); return; }
+    if (!qty || qty <= 0) {
+      toast.error("Quantité invalide");
+      return;
+    }
     setItems((prev) => {
       const existing = prev.find((i) => i.kind === "stock" && i.product_id === pickedProductId);
       if (existing) {
         return prev.map((i) =>
           i.kind === "stock" && i.product_id === pickedProductId
             ? { ...i, quantite: i.quantite + qty }
-            : i
+            : i,
         );
       }
-      return [...prev, {
-        kind: "stock",
-        product_id: product.id,
-        nom: product.nom,
-        quantite: qty,
-        unite: product.unite,
-        stock_actuel: availableQty(product.id),
-      }];
+      return [
+        ...prev,
+        {
+          kind: "stock",
+          product_id: product.id,
+          nom: product.nom,
+          quantite: qty,
+          unite: product.unite,
+          stock_actuel: availableQty(product.id),
+        },
+      ];
     });
     setPickedProductId("");
     setPickedQty(product.type_gestion === "volume" ? 0.5 : 1);
   }
 
   function addFreeItem() {
-    if (!freeNom.trim()) { toast.error("Nom du produit requis"); return; }
+    if (!freeNom.trim()) {
+      toast.error("Nom du produit requis");
+      return;
+    }
     setItems((prev) => [
       ...prev,
-      { kind: "free", id: `free-${Date.now()}`, nom: freeNom.trim(), quantite_text: freeQty.trim() },
+      {
+        kind: "free",
+        id: `free-${Date.now()}`,
+        nom: freeNom.trim(),
+        quantite_text: freeQty.trim(),
+      },
     ]);
     setFreeNom("");
     setFreeQty("");
@@ -283,9 +378,9 @@ export function InterventionForm({
   }
 
   function removeItem(key: string) {
-    setItems((prev) => prev.filter((i) =>
-      i.kind === "stock" ? i.product_id !== key : i.id !== key
-    ));
+    setItems((prev) =>
+      prev.filter((i) => (i.kind === "stock" ? i.product_id !== key : i.id !== key)),
+    );
   }
 
   function handleSubmitWithStock(values: IFType) {
@@ -293,20 +388,22 @@ export function InterventionForm({
       .filter((i): i is Extract<UnifiedItem, { kind: "stock" }> => i.kind === "stock")
       .map((i) => ({ product_id: i.product_id, nom: i.nom, quantite: i.quantite, unite: i.unite }));
 
-    const produitsSerialized = items.length > 0
-      ? items.map((i) =>
-          i.kind === "stock"
-            ? `${i.nom} ×${i.quantite} ${i.unite}`
-            : `${i.nom}${i.quantite_text ? ` (${i.quantite_text})` : ""}`
-        ).join(", ")
-      : values.produits;
+    const produitsSerialized =
+      items.length > 0
+        ? items
+            .map((i) =>
+              i.kind === "stock"
+                ? `${i.nom} ×${i.quantite} ${i.unite}`
+                : `${i.nom}${i.quantite_text ? ` (${i.quantite_text})` : ""}`,
+            )
+            .join(", ")
+        : values.produits;
 
     return onSubmit({ ...values, produits: produitsSerialized, quantite: "" }, stockItems);
   }
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmitWithStock)} className="space-y-3">
-
+    <form onSubmit={form.handleSubmit(handleSubmitWithStock)} className="space-y-6">
       {mode === "planification" && (
         <>
           {/* Sélection client + création rapide */}
@@ -392,11 +489,14 @@ export function InterventionForm({
                 value={form.watch("contract_id") || undefined}
                 onValueChange={(v) => form.setValue("contract_id", v)}
               >
-                <SelectTrigger><SelectValue placeholder="Aucun contrat…" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Aucun contrat…" />
+                </SelectTrigger>
                 <SelectContent>
                   {clientContracts.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.numero ? `${c.numero} — ` : ""}{c.nom_etablissement || "Établissement"}
+                      {c.numero ? `${c.numero} — ` : ""}
+                      {c.nom_etablissement || "Établissement"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -404,31 +504,37 @@ export function InterventionForm({
             </Field>
           )}
 
-          <Field label="Date *" error={form.formState.errors.date?.message}>
-            <Input type="date" {...form.register("date")} />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Date *" error={form.formState.errors.date?.message}>
+              <Input type="date" {...form.register("date")} />
+            </Field>
 
-          <Field label="Technicien assigné">
-            <TechnicianSelect
-              value={form.watch("technicien_id") ?? "none"}
-              onValueChange={(v) => form.setValue("technicien_id", v === "none" ? undefined : v)}
-            />
-          </Field>
+            <Field label="Technicien assigné">
+              <TechnicianSelect
+                value={form.watch("technicien_id") ?? "none"}
+                onValueChange={(v) => form.setValue("technicien_id", v === "none" ? undefined : v)}
+              />
+            </Field>
+          </div>
 
           <Field label="Adresse du site (auto)">
             <Textarea rows={2} {...form.register("adresse_site")} />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Type de nuisible">
               <Select
                 value={form.watch("type_nuisible") ?? ""}
                 onValueChange={(v) => form.setValue("type_nuisible", v)}
               >
-                <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner…" />
+                </SelectTrigger>
                 <SelectContent>
                   {TYPES_NUISIBLES.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -436,12 +542,18 @@ export function InterventionForm({
             <Field label="Type d'intervention">
               <Select
                 value={form.watch("type_intervention")}
-                onValueChange={(v) => form.setValue("type_intervention", v as any)}
+                onValueChange={(value) =>
+                  form.setValue("type_intervention", value as IFType["type_intervention"])
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {TYPES_INTERVENTION.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -462,10 +574,11 @@ export function InterventionForm({
         <>
           {/* ─── Produits utilisés (hybride stock + libre) ─────────────────────── */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Produits utilisés</Label>
+            <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Produits utilisés
+            </Label>
             <Card className="border-border">
               <CardContent className="p-3 space-y-3">
-
                 {/* Liste unifiée des produits ajoutés */}
                 {items.length > 0 && (
                   <div className="space-y-1.5">
@@ -479,8 +592,12 @@ export function InterventionForm({
                             <span className="font-medium">{item.nom}</span>
                             {item.kind === "stock" && (
                               <>
-                                <span className="text-muted-foreground">× {item.quantite} {item.unite}</span>
-                                <span className="rounded-full bg-primary/15 text-primary text-[9px] font-semibold px-1.5 py-0.5 shrink-0">Stock</span>
+                                <span className="text-muted-foreground">
+                                  × {item.quantite} {item.unite}
+                                </span>
+                                <span className="rounded-full bg-primary/15 text-primary text-[9px] font-semibold px-1.5 py-0.5 shrink-0">
+                                  Stock
+                                </span>
                               </>
                             )}
                             {item.kind === "free" && item.quantite_text && (
@@ -488,15 +605,20 @@ export function InterventionForm({
                             )}
                           </div>
                           {item.kind === "stock" && (
-                            <p className={`text-[10px] mt-0.5 ${item.quantite > item.stock_actuel ? "text-destructive" : "text-muted-foreground"}`}>
-                              Stock après déduction : {Math.max(0, item.stock_actuel - item.quantite)} {item.unite}
+                            <p
+                              className={`text-[10px] mt-0.5 ${item.quantite > item.stock_actuel ? "text-destructive" : "text-muted-foreground"}`}
+                            >
+                              Stock après déduction :{" "}
+                              {Math.max(0, item.stock_actuel - item.quantite)} {item.unite}
                               {item.quantite > item.stock_actuel && " ⚠️"}
                             </p>
                           )}
                         </div>
                         <button
                           type="button"
-                          onClick={() => removeItem(item.kind === "stock" ? item.product_id : item.id)}
+                          onClick={() =>
+                            removeItem(item.kind === "stock" ? item.product_id : item.id)
+                          }
                           className="text-destructive/60 hover:text-destructive shrink-0 mt-0.5"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -508,12 +630,12 @@ export function InterventionForm({
 
                 {/* Suggestion "Ajouter au stock" pour produits libres fréquents */}
                 {stockSuggestions.map((nom) => (
-                  <div key={nom} className="flex items-center justify-between gap-2 rounded-lg bg-accent/5 border border-accent/20 px-3 py-2 text-xs">
+                  <div
+                    key={nom}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-accent/5 border border-accent/20 px-3 py-2 text-xs"
+                  >
                     <span className="text-muted-foreground">💡 « {nom} » est souvent utilisé.</span>
-                    <Link
-                      to={"/stock" as any}
-                      className="shrink-0 text-accent underline font-medium"
-                    >
+                    <Link to="/stock" className="shrink-0 text-accent underline font-medium">
                       Ajouter au stock
                     </Link>
                   </div>
@@ -522,7 +644,9 @@ export function InterventionForm({
                 {/* ── MODE A : Produit du stock ──────────────────────────────── */}
                 {stockProducts.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Depuis le stock</div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                      Depuis le stock
+                    </div>
                     {!technicienId && (
                       <p className="text-[10px] text-muted-foreground italic">
                         Aucun technicien assigné — le garage sera décompté.
@@ -563,15 +687,25 @@ export function InterventionForm({
                             onChange={(e) => setPickedQty(Number(e.target.value))}
                             className="h-8 flex-1 text-sm"
                           />
-                          <Button type="button" size="sm" className="h-8 px-3 shrink-0" onClick={addStockItem}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-8 px-3 shrink-0"
+                            onClick={addStockItem}
+                          >
                             <Plus className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                         {stockAfter !== null && pickedProduct && pickedAvailableQty !== null && (
-                          <p className={`text-[10px] ${pickedQty > pickedAvailableQty ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
-                            Stock actuel ({technicienId ? "camion" : "garage"}) : {pickedAvailableQty} {pickedProduct.unite}
+                          <p
+                            className={`text-[10px] ${pickedQty > pickedAvailableQty ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                          >
+                            Stock actuel ({technicienId ? "camion" : "garage"}) :{" "}
+                            {pickedAvailableQty} {pickedProduct.unite}
                             {" → sera : "}
-                            <span className="font-medium">{stockAfter} {pickedProduct.unite}</span>
+                            <span className="font-medium">
+                              {stockAfter} {pickedProduct.unite}
+                            </span>
                             {pickedQty > pickedAvailableQty && " ⚠️ insuffisant"}
                           </p>
                         )}
@@ -583,13 +717,18 @@ export function InterventionForm({
                 {/* ── MODE B : Produit libre ─────────────────────────────────── */}
                 {showFreeForm ? (
                   <div className="space-y-2 rounded-lg border border-dashed border-muted-foreground/30 p-2.5">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Produit libre (sans suivi stock)</div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                      Produit libre (sans suivi stock)
+                    </div>
                     <div className="relative">
                       <Input
                         ref={freeInputRef}
                         placeholder="Nom du produit…"
                         value={freeNom}
-                        onChange={(e) => { setFreeNom(e.target.value); setShowAutoList(true); }}
+                        onChange={(e) => {
+                          setFreeNom(e.target.value);
+                          setShowAutoList(true);
+                        }}
                         onFocus={() => setShowAutoList(true)}
                         onBlur={() => setTimeout(() => setShowAutoList(false), 150)}
                         className="h-8 text-sm"
@@ -601,7 +740,10 @@ export function InterventionForm({
                               key={s.nom}
                               type="button"
                               className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center justify-between"
-                              onMouseDown={() => { setFreeNom(s.nom); setShowAutoList(false); }}
+                              onMouseDown={() => {
+                                setFreeNom(s.nom);
+                                setShowAutoList(false);
+                              }}
                             >
                               <span>{s.nom}</span>
                               <span className="text-[10px] text-muted-foreground">{s.count}×</span>
@@ -617,10 +759,25 @@ export function InterventionForm({
                       className="h-8 text-sm"
                     />
                     <div className="flex gap-2">
-                      <Button type="button" variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => { setShowFreeForm(false); setFreeNom(""); setFreeQty(""); }}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => {
+                          setShowFreeForm(false);
+                          setFreeNom("");
+                          setFreeQty("");
+                        }}
+                      >
                         Annuler
                       </Button>
-                      <Button type="button" size="sm" className="flex-1 h-7 text-xs" onClick={addFreeItem}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        onClick={addFreeItem}
+                      >
                         Ajouter
                       </Button>
                     </div>
@@ -628,7 +785,10 @@ export function InterventionForm({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => { setShowFreeForm(true); setTimeout(() => freeInputRef.current?.focus(), 50); }}
+                    onClick={() => {
+                      setShowFreeForm(true);
+                      setTimeout(() => freeInputRef.current?.focus(), 50);
+                    }}
                     className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 text-xs text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5 shrink-0" /> Produit libre (sans suivi stock)
@@ -648,7 +808,7 @@ export function InterventionForm({
               Rapport rapide
             </Label>
             <Card>
-              <CardContent className="p-3 grid grid-cols-2 gap-2">
+              <CardContent className="grid gap-3 p-4 sm:grid-cols-2">
                 {RAPPORT_ITEMS.map((item) => (
                   <div key={item.id} className="flex items-center gap-2">
                     <Checkbox
@@ -656,10 +816,7 @@ export function InterventionForm({
                       checked={rapportChecks.includes(item.id)}
                       onCheckedChange={() => toggleCheck(item.id)}
                     />
-                    <label
-                      htmlFor={item.id}
-                      className="text-xs cursor-pointer leading-tight"
-                    >
+                    <label htmlFor={item.id} className="text-xs cursor-pointer leading-tight">
                       {item.label}
                     </label>
                   </div>
@@ -682,17 +839,31 @@ export function InterventionForm({
         </>
       )}
 
-      <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+      <Button
+        type="submit"
+        className="min-h-11 w-full sm:w-auto sm:min-w-56"
+        disabled={form.formState.isSubmitting}
+      >
         {submitLabel}
       </Button>
     </form>
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
