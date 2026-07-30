@@ -3,24 +3,54 @@ import { APP_NAME } from "@/lib/brand";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useInterventions, useAssignableMembers, useInterventionsCountByStatut,
-  useInterventionNuisibleTypes, type Intervention,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useInterventions,
+  useAssignableMembers,
+  useInterventionsCountByStatut,
+  useInterventionNuisibleTypes,
+  type Intervention,
 } from "@/lib/queries";
-import { STATUTS_INTERVENTION, formatDateFR } from "@/lib/schemas";
 import {
-  Plus, Search, Filter, X, List as ListIcon, Sun, CalendarDays,
-  ChevronLeft, ChevronRight, MapPin, Phone, UserRound, ClipboardCheck
+  STATUTS_INTERVENTION,
+  STATUT_INTERVENTION_COLORS,
+  formatDateFR,
+  statutInterventionLabel,
+} from "@/lib/schemas";
+import {
+  AlertCircle,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  Filter,
+  List as ListIcon,
+  MapPin,
+  Phone,
+  Plus,
+  Search,
+  Sun,
+  UserRound,
+  X,
 } from "lucide-react";
 import { cn, useDebouncedValue } from "@/lib/utils";
 import { Pager } from "@/components/pager";
+import { PageContainer, PageHeader } from "@/components/page-layout";
 
 const PAGE_SIZE = 50;
+const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 export const Route = createFileRoute("/_app/interventions/")({
   head: () => ({ meta: [{ title: `Interventions — ${APP_NAME}` }] }),
@@ -29,52 +59,30 @@ export const Route = createFileRoute("/_app/interventions/")({
 
 type View = "list" | "day" | "week";
 
-const STATUT_COLORS: Record<string, string> = {
-  planifiee: "bg-accent/15 text-accent",
-  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  realisee: "bg-primary/15 text-primary",
-  rapport_transmis: "bg-success/15 text-success",
-  annulee: "bg-muted text-muted-foreground line-through",
-};
-
-const STATUT_BADGE: Record<string, string> = {
-  planifiee: "bg-accent/20 text-accent",
-  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  realisee: "bg-primary/20 text-primary",
-  rapport_transmis: "bg-success/15 text-success",
-  annulee: "bg-muted text-muted-foreground",
-};
-
-const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-
-function toISO(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function toISO(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function startOfDay(d: Date): Date {
-  const r = new Date(d);
-  r.setHours(0, 0, 0, 0);
-  return r;
+function startOfDay(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
 }
 
 function weekStart(date: Date): Date {
-  const d = startOfDay(date);
-  const dow = d.getDay();
-  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
-  return d;
+  const result = startOfDay(date);
+  const dayOfWeek = result.getDay();
+  result.setDate(result.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek));
+  return result;
 }
 
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
-function statutLabel(v: string) {
-  return STATUTS_INTERVENTION.find((s) => s.value === v)?.label ?? v;
+function addDays(date: Date, amount: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + amount);
+  return result;
 }
 
 function useRangeInterventions(start: string, end: string) {
@@ -99,7 +107,6 @@ function InterventionsPage() {
   const today = useMemo(() => startOfDay(new Date()), []);
   const [selectedDate, setSelectedDate] = useState(today);
 
-  // List filters
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 300);
   const [statutFilter, setStatutFilter] = useState("all");
@@ -117,14 +124,26 @@ function InterventionsPage() {
   const periodDates = useMemo(() => {
     if (periodFilter === "all") return null;
     const now = new Date();
-    const todayStr = toISO(now);
-    if (periodFilter === "today") return { from: todayStr, to: todayStr };
-    if (periodFilter === "week") return { from: toISO(weekStart(now)), to: toISO(addDays(weekStart(now), 6)) };
-    if (periodFilter === "month") return { from: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: todayStr };
+    const todayString = toISO(now);
+    if (periodFilter === "today") return { from: todayString, to: todayString };
+    if (periodFilter === "week") {
+      const start = weekStart(now);
+      return { from: toISO(start), to: toISO(addDays(start, 6)) };
+    }
+    if (periodFilter === "month") {
+      return {
+        from: toISO(new Date(now.getFullYear(), now.getMonth(), 1)),
+        to: todayString,
+      };
+    }
     return null;
   }, [periodFilter]);
 
-  const { data: listResult, isLoading } = useInterventions({
+  const {
+    data: listResult,
+    isLoading,
+    isError,
+  } = useInterventions({
     statut: statutFilter !== "all" ? statutFilter : undefined,
     technicien_id: technicienFilter !== "all" ? technicienFilter : undefined,
     type_nuisible: typeFilter !== "all" ? typeFilter : undefined,
@@ -135,12 +154,21 @@ function InterventionsPage() {
     page,
     pageSize: PAGE_SIZE,
   });
-  const listData = (listResult as { rows: Intervention[]; total: number } | undefined) ?? { rows: [], total: 0 };
+  const listData = (listResult as { rows: Intervention[]; total: number } | undefined) ?? {
+    rows: [],
+    total: 0,
+  };
   const filteredList = listData.rows;
   const total = listData.total;
 
   const { data: assignableMembers = [] } = useAssignableMembers();
   const { data: aVerifierCount = 0 } = useInterventionsCountByStatut("realisee");
+  const { data: nuisibleTypes = [] } = useInterventionNuisibleTypes();
+
+  const technicianNames = useMemo(
+    () => new Map(assignableMembers.map((member) => [member.user_id, member.display_name])),
+    [assignableMembers],
+  );
 
   const activeFiltersCount = [
     q.trim() ? 1 : 0,
@@ -148,395 +176,986 @@ function InterventionsPage() {
     typeFilter !== "all" ? 1 : 0,
     periodFilter !== "all" ? 1 : 0,
     technicienFilter !== "all" ? 1 : 0,
-  ].reduce((a, b) => a + b, 0);
+  ].reduce((sum, value) => sum + value, 0);
 
-  const { data: nuisibleTypes = [] } = useInterventionNuisibleTypes();
-
-  // Day/Week navigation
-  const wStart = weekStart(selectedDate);
-  const wEnd = addDays(wStart, 6);
-  const rangeStart = view === "day" ? toISO(selectedDate) : toISO(wStart);
-  const rangeEnd = view === "day" ? toISO(selectedDate) : toISO(wEnd);
-  const { data: rangeInvs = [], isLoading: rangeLoading } = useRangeInterventions(
+  const currentWeekStart = weekStart(selectedDate);
+  const currentWeekEnd = addDays(currentWeekStart, 6);
+  const rangeStart = view === "day" ? toISO(selectedDate) : toISO(currentWeekStart);
+  const rangeEnd = view === "day" ? toISO(selectedDate) : toISO(currentWeekEnd);
+  const {
+    data: rangeInterventions = [],
+    isLoading: rangeLoading,
+    isError: rangeError,
+  } = useRangeInterventions(
     view !== "list" ? rangeStart : "9999-01-01",
-    view !== "list" ? rangeEnd : "9999-01-01"
+    view !== "list" ? rangeEnd : "9999-01-01",
   );
-  const filteredRangeInvs = useMemo(() => (
-    technicienFilter === "all" ? rangeInvs : rangeInvs.filter((i) => i.technicien_id === technicienFilter)
-  ), [rangeInvs, technicienFilter]);
 
-  function prevPeriod() { setSelectedDate((d) => addDays(d, view === "day" ? -1 : -7)); }
-  function nextPeriod() { setSelectedDate((d) => addDays(d, view === "day" ? 1 : 7)); }
-  const isCurrentPeriod = view === "day"
-    ? toISO(selectedDate) === toISO(today)
-    : toISO(wStart) === toISO(weekStart(today));
+  const filteredRangeInterventions = useMemo(
+    () =>
+      technicienFilter === "all"
+        ? rangeInterventions
+        : rangeInterventions.filter(
+            (intervention) => intervention.technicien_id === technicienFilter,
+          ),
+    [rangeInterventions, technicienFilter],
+  );
 
-  const headerLabel = view === "day"
-    ? selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
-    : `Semaine du ${wStart.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} au ${wEnd.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`;
+  function previousPeriod() {
+    setSelectedDate((date) => addDays(date, view === "day" ? -1 : -7));
+  }
+
+  function nextPeriod() {
+    setSelectedDate((date) => addDays(date, view === "day" ? 1 : 7));
+  }
+
+  const isCurrentPeriod =
+    view === "day"
+      ? toISO(selectedDate) === toISO(today)
+      : toISO(currentWeekStart) === toISO(weekStart(today));
+
+  const headerLabel =
+    view === "day"
+      ? selectedDate.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })
+      : `Semaine du ${currentWeekStart.toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "short",
+        })} au ${currentWeekEnd.toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "short",
+        })}`;
 
   function resetFilters() {
-    setQ(""); setStatutFilter("all"); setTypeFilter("all"); setPeriodFilter("all"); setSortDir("desc");
+    setQ("");
+    setStatutFilter("all");
+    setTypeFilter("all");
+    setPeriodFilter("all");
+    setSortDir("desc");
     setTechnicienFilter("all");
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Terrain</h1>
-        <Button asChild size="sm" className="shrink-0">
-          <Link to="/interventions/new"><Plus className="mr-1 h-4 w-4" />Ajouter</Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Terrain"
+        subtitle="Planifiez et suivez les interventions de votre équipe."
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link to="/interventions/new">
+              <Plus className="h-4 w-4" />
+              Ajouter une intervention
+            </Link>
+          </Button>
+        }
+      />
 
-      {/* File d'attente admin : rapports terminés en attente de vérification */}
       {aVerifierCount > 0 && (
         <button
-          onClick={() => { setStatutFilter("realisee"); setView("list"); setFiltersOpen(false); }}
-          className="flex w-full items-center gap-2 rounded-xl border border-orange-300 bg-orange-50 px-3 py-2.5 text-sm text-orange-700 transition-colors hover:border-orange-400 dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-400"
+          type="button"
+          onClick={() => {
+            setStatutFilter("realisee");
+            setView("list");
+            setFiltersOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-2xl border border-warning/50 bg-warning/10 p-4 text-left text-sm transition-colors hover:border-warning"
         >
-          <ClipboardCheck className="h-4 w-4 shrink-0" />
-          <span className="font-medium">{aVerifierCount} rapport{aVerifierCount > 1 ? "s" : ""} à vérifier</span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-warning/20 text-warning-foreground">
+            <ClipboardCheck className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">
+              {aVerifierCount} rapport{aVerifierCount > 1 ? "s" : ""} à vérifier
+            </span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Ouvrir la file des interventions terminées.
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       )}
 
-      {/* 3 view toggles */}
-      <div className="flex rounded-xl bg-muted p-1 gap-1">
-        {([
-          { v: "list" as View, label: "Liste", icon: ListIcon },
-          { v: "day" as View, label: "Jour", icon: Sun },
-          { v: "week" as View, label: "Semaine", icon: CalendarDays },
-        ] as const).map(({ v, label, icon: Icon }) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
-              view === v ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Icon className="h-3.5 w-3.5" />{label}
-          </button>
-        ))}
-      </div>
-
-      {/* Technicien — s'applique aux 3 vues (Liste/Jour/Semaine). */}
-      {assignableMembers.length > 1 && (
-        <div className="flex items-center gap-2">
-          <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Select value={technicienFilter} onValueChange={setTechnicienFilter}>
-            <SelectTrigger className="h-9 text-sm flex-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les techniciens</SelectItem>
-              {assignableMembers.map((m) => (
-                <SelectItem key={m.user_id} value={m.user_id}>{m.display_name}</SelectItem>
+      <Card className="hover:translate-y-0 hover:shadow-soft">
+        <CardContent className="space-y-4 p-4 lg:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+            <div
+              className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 lg:w-80"
+              aria-label="Choisir la vue du planning"
+            >
+              {[
+                { value: "list" as View, label: "Liste", icon: ListIcon },
+                { value: "day" as View, label: "Jour", icon: Sun },
+                { value: "week" as View, label: "Semaine", icon: CalendarDays },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setView(value)}
+                  aria-pressed={view === value}
+                  className={cn(
+                    "flex h-10 items-center justify-center gap-2 rounded-xl text-xs font-semibold transition-all",
+                    view === value
+                      ? "bg-card text-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
+            </div>
+
+            {assignableMembers.length > 1 && (
+              <div className="flex min-w-0 flex-1 items-center gap-3 lg:justify-end">
+                <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Select value={technicienFilter} onValueChange={setTechnicienFilter}>
+                  <SelectTrigger className="h-11 min-w-0 flex-1 lg:max-w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les techniciens</SelectItem>
+                    {assignableMembers.map((member) => (
+                      <SelectItem key={member.user_id} value={member.user_id}>
+                        {member.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {view === "list" && (
+            <ListControls
+              q={q}
+              onQueryChange={setQ}
+              filtersOpen={filtersOpen}
+              onToggleFilters={() => setFiltersOpen((open) => !open)}
+              activeFiltersCount={activeFiltersCount}
+            />
+          )}
+
+          {(view === "day" || view === "week") && (
+            <PeriodNavigation
+              label={headerLabel}
+              isCurrentPeriod={isCurrentPeriod}
+              onPrevious={previousPeriod}
+              onNext={nextPeriod}
+              onToday={() => setSelectedDate(startOfDay(new Date()))}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {view === "list" && filtersOpen && (
+        <FilterPanel
+          periodFilter={periodFilter}
+          onPeriodChange={setPeriodFilter}
+          statutFilter={statutFilter}
+          onStatusChange={setStatutFilter}
+          typeFilter={typeFilter}
+          onTypeChange={setTypeFilter}
+          nuisibleTypes={nuisibleTypes}
+          sortDir={sortDir}
+          onSortChange={setSortDir}
+          activeFiltersCount={activeFiltersCount}
+          onReset={resetFilters}
+        />
       )}
 
       {view === "list" && (
-        <>
-          {/* Search bar */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Client, adresse, nuisible…"
-                className="pl-9"
-              />
-            </div>
-            <button
-              onClick={() => setFiltersOpen((v) => !v)}
-              className={cn(
-                "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
-                filtersOpen || activeFiltersCount > 0
-                  ? "bg-accent/10 border-accent text-accent"
-                  : "bg-card border-border text-muted-foreground"
-              )}
-            >
-              <Filter className="h-4 w-4" />
-              {activeFiltersCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-white">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Filter panel */}
-          {filtersOpen && (
-            <Card>
-              <CardContent className="p-3 space-y-3">
-                {/* Période */}
-                <div>
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Période</div>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      { v: "all", l: "Toutes" },
-                      { v: "today", l: "Aujourd'hui" },
-                      { v: "week", l: "Cette semaine" },
-                      { v: "month", l: "Ce mois" },
-                    ].map(({ v, l }) => (
-                      <button key={v} onClick={() => setPeriodFilter(v)}
-                        className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                          periodFilter === v ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                      >{l}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* Statut */}
-                <div>
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Statut</div>
-                  <div className="flex flex-wrap gap-1">
-                    {[{ value: "all", label: "Tous" }, ...STATUTS_INTERVENTION].map((f) => (
-                      <button key={f.value} onClick={() => setStatutFilter(f.value)}
-                        className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                          statutFilter === f.value ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                      >{f.label}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* Type nuisible */}
-                {nuisibleTypes.length > 0 && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Type nuisible</div>
-                    <div className="flex flex-wrap gap-1">
-                      <button onClick={() => setTypeFilter("all")}
-                        className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                          typeFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                      >Tous</button>
-                      {nuisibleTypes.map((t) => (
-                        <button key={t} onClick={() => setTypeFilter(t)}
-                          className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                            typeFilter === t ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                        >{t}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* Tri */}
-                <div>
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Tri</div>
-                  <div className="flex gap-1">
-                    {[{ v: "desc", l: "Date ↓" }, { v: "asc", l: "Date ↑" }].map(({ v, l }) => (
-                      <button key={v} onClick={() => setSortDir(v as any)}
-                        className={cn("rounded-full px-2.5 py-1 text-xs font-medium border",
-                          sortDir === v ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
-                      >{l}</button>
-                    ))}
-                  </div>
-                </div>
-                {activeFiltersCount > 0 && (
-                  <button onClick={resetFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                    <X className="h-3.5 w-3.5" /> Réinitialiser les filtres
-                  </button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {isLoading ? (
-            <div className="text-center text-sm text-muted-foreground py-10">Chargement…</div>
-          ) : filteredList.length === 0 ? (
-            <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-              {total === 0 && activeFiltersCount === 0 ? "Aucune intervention. Commencez par en créer une." : "Aucun résultat pour ces filtres."}
-            </CardContent></Card>
-          ) : (
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">{total} intervention{total > 1 ? "s" : ""}</div>
-              {filteredList.map((i) => <InterventionListCard key={i.id} item={i} />)}
-              <Pager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
-            </div>
-          )}
-        </>
+        <ListView
+          interventions={filteredList}
+          total={total}
+          isLoading={isLoading}
+          isError={isError}
+          hasFilters={activeFiltersCount > 0}
+          technicianNames={technicianNames}
+          page={page}
+          onPageChange={setPage}
+          onResetFilters={resetFilters}
+        />
       )}
 
-      {(view === "day" || view === "week") && (
-        <>
-          {/* Navigation */}
-          <div className="flex items-center gap-2">
-            <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={prevPeriod}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex-1 text-center text-sm font-medium capitalize truncate">{headerLabel}</div>
-            <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={nextPeriod}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {!isCurrentPeriod && (
-              <Button size="sm" variant="outline" className="h-9 px-3 text-xs shrink-0"
-                onClick={() => setSelectedDate(startOfDay(new Date()))}>Auj.</Button>
-            )}
-          </div>
-
-          {view === "day" && (
-            <DayView date={selectedDate} interventions={filteredRangeInvs} isLoading={rangeLoading} today={today} />
-          )}
-          {view === "week" && (
-            <WeekView wStart={wStart} interventions={filteredRangeInvs} selectedDate={selectedDate}
-              onSelectDay={(d) => { setSelectedDate(d); setView("day"); }} today={today} />
-          )}
-        </>
+      {view === "day" && (
+        <DayView
+          date={selectedDate}
+          interventions={filteredRangeInterventions}
+          isLoading={rangeLoading}
+          isError={rangeError}
+          today={today}
+          technicianNames={technicianNames}
+        />
       )}
+
+      {view === "week" && (
+        <WeekView
+          weekStartDate={currentWeekStart}
+          interventions={filteredRangeInterventions}
+          selectedDate={selectedDate}
+          onSelectDay={(date) => {
+            setSelectedDate(date);
+            setView("day");
+          }}
+          today={today}
+          isLoading={rangeLoading}
+          isError={rangeError}
+          technicianNames={technicianNames}
+        />
+      )}
+    </PageContainer>
+  );
+}
+
+function ListControls({
+  q,
+  onQueryChange,
+  filtersOpen,
+  onToggleFilters,
+  activeFiltersCount,
+}: {
+  q: string;
+  onQueryChange: (value: string) => void;
+  filtersOpen: boolean;
+  onToggleFilters: () => void;
+  activeFiltersCount: number;
+}) {
+  return (
+    <div className="flex gap-3 border-t border-border/50 pt-4">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Adresse, nuisible, produit…"
+          className="h-11 pl-10 pr-10"
+          aria-label="Rechercher une intervention"
+        />
+        {q && (
+          <button
+            type="button"
+            onClick={() => onQueryChange("")}
+            className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Effacer la recherche"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <Button
+        type="button"
+        variant={filtersOpen || activeFiltersCount > 0 ? "secondary" : "outline"}
+        className="h-11 shrink-0"
+        onClick={onToggleFilters}
+        aria-expanded={filtersOpen}
+      >
+        <Filter className="h-4 w-4" />
+        <span className="hidden sm:inline">Filtres</span>
+        {activeFiltersCount > 0 && (
+          <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5">
+            {activeFiltersCount}
+          </Badge>
+        )}
+      </Button>
     </div>
   );
 }
 
-function InterventionListCard({ item }: { item: any }) {
+function PeriodNavigation({
+  label,
+  isCurrentPeriod,
+  onPrevious,
+  onNext,
+  onToday,
+}: {
+  label: string;
+  isCurrentPeriod: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+  onToday: () => void;
+}) {
   return (
-    <Link to="/interventions/$id" params={{ id: item.id }}>
-      <Card className="hover:border-primary/40 transition-colors cursor-pointer">
-        <CardContent className="p-4 space-y-1.5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="font-semibold truncate">{item.client?.raison_sociale ?? "Client supprimé"}</div>
-              <div className="text-xs text-muted-foreground">
-                {formatDateFR(item.date)} · {item.type_intervention}
-              </div>
-            </div>
-            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase", STATUT_COLORS[item.statut] ?? "bg-muted")}>
-              {statutLabel(item.statut)}
-            </span>
-          </div>
-          {item.adresse_site && (
-            <div className="flex items-start gap-1 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-              <span className="truncate">{item.adresse_site}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </Link>
+    <div className="flex items-center gap-2 border-t border-border/50 pt-4">
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="shrink-0"
+        onClick={onPrevious}
+        aria-label="Période précédente"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <div className="min-w-0 flex-1 text-center">
+        <div className="truncate text-sm font-semibold capitalize sm:text-base">{label}</div>
+      </div>
+      {!isCurrentPeriod && (
+        <Button type="button" size="sm" variant="outline" onClick={onToday}>
+          Aujourd’hui
+        </Button>
+      )}
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="shrink-0"
+        onClick={onNext}
+        aria-label="Période suivante"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }
 
-function DayView({ date, interventions, isLoading, today }: {
-  date: Date; interventions: Intervention[]; isLoading: boolean; today: Date;
+function FilterPanel({
+  periodFilter,
+  onPeriodChange,
+  statutFilter,
+  onStatusChange,
+  typeFilter,
+  onTypeChange,
+  nuisibleTypes,
+  sortDir,
+  onSortChange,
+  activeFiltersCount,
+  onReset,
+}: {
+  periodFilter: string;
+  onPeriodChange: (value: string) => void;
+  statutFilter: string;
+  onStatusChange: (value: string) => void;
+  typeFilter: string;
+  onTypeChange: (value: string) => void;
+  nuisibleTypes: string[];
+  sortDir: "desc" | "asc";
+  onSortChange: (value: "desc" | "asc") => void;
+  activeFiltersCount: number;
+  onReset: () => void;
 }) {
-  const dateStr = toISO(date);
-  const isToday = dateStr === toISO(today);
+  return (
+    <Card className="hover:translate-y-0 hover:shadow-soft">
+      <CardContent className="grid gap-6 p-4 md:grid-cols-2 lg:p-6 xl:grid-cols-4">
+        <FilterGroup label="Période">
+          {[
+            { value: "all", label: "Toutes" },
+            { value: "today", label: "Aujourd’hui" },
+            { value: "week", label: "Cette semaine" },
+            { value: "month", label: "Ce mois" },
+          ].map((option) => (
+            <FilterChip
+              key={option.value}
+              active={periodFilter === option.value}
+              onClick={() => onPeriodChange(option.value)}
+            >
+              {option.label}
+            </FilterChip>
+          ))}
+        </FilterGroup>
+
+        <FilterGroup label="Statut">
+          {[{ value: "all", label: "Tous" }, ...STATUTS_INTERVENTION].map((option) => (
+            <FilterChip
+              key={option.value}
+              active={statutFilter === option.value}
+              onClick={() => onStatusChange(option.value)}
+            >
+              {option.label}
+            </FilterChip>
+          ))}
+        </FilterGroup>
+
+        {nuisibleTypes.length > 0 && (
+          <FilterGroup label="Type de nuisible">
+            <FilterChip active={typeFilter === "all"} onClick={() => onTypeChange("all")}>
+              Tous
+            </FilterChip>
+            {nuisibleTypes.map((type) => (
+              <FilterChip
+                key={type}
+                active={typeFilter === type}
+                onClick={() => onTypeChange(type)}
+              >
+                {type}
+              </FilterChip>
+            ))}
+          </FilterGroup>
+        )}
+
+        <div className="space-y-4">
+          <FilterGroup label="Tri">
+            <FilterChip active={sortDir === "desc"} onClick={() => onSortChange("desc")}>
+              Plus récentes
+            </FilterChip>
+            <FilterChip active={sortDir === "asc"} onClick={() => onSortChange("asc")}>
+              Plus anciennes
+            </FilterChip>
+          </FilterGroup>
+          {activeFiltersCount > 0 && (
+            <Button type="button" variant="ghost" size="sm" onClick={onReset}>
+              <X className="h-4 w-4" />
+              Réinitialiser
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground">
-          {isLoading ? "Chargement…" : `${interventions.length} intervention${interventions.length !== 1 ? "s" : ""}`}
-        </span>
-        <Link to="/interventions/new">
-          <Button size="sm" className="h-8">
-            <Plus className="mr-1 h-3.5 w-3.5" />Nouvelle
-          </Button>
-        </Link>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
       </div>
-      {!isLoading && interventions.length === 0 ? (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Aucune intervention {isToday ? "aujourd'hui" : "ce jour"}.
-        </CardContent></Card>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "rounded-full border px-3 py-2 text-xs font-medium transition-colors",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ListView({
+  interventions,
+  total,
+  isLoading,
+  isError,
+  hasFilters,
+  technicianNames,
+  page,
+  onPageChange,
+  onResetFilters,
+}: {
+  interventions: Intervention[];
+  total: number;
+  isLoading: boolean;
+  isError: boolean;
+  hasFilters: boolean;
+  technicianNames: Map<string, string>;
+  page: number;
+  onPageChange: (page: number) => void;
+  onResetFilters: () => void;
+}) {
+  if (isLoading) return <PlanningLoading />;
+  if (isError) {
+    return (
+      <PlanningState
+        icon={AlertCircle}
+        title="Impossible de charger les interventions"
+        description="Une erreur est survenue pendant le chargement. Réessayez dans quelques instants."
+      />
+    );
+  }
+  if (interventions.length === 0) {
+    return (
+      <PlanningState
+        icon={hasFilters ? Search : CalendarDays}
+        title={hasFilters ? "Aucun résultat" : "Aucune intervention"}
+        description={
+          hasFilters
+            ? "Aucune intervention ne correspond aux critères sélectionnés."
+            : "Les prochaines interventions apparaîtront ici."
+        }
+        action={
+          hasFilters ? (
+            <Button type="button" variant="outline" onClick={onResetFilters}>
+              Réinitialiser les filtres
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link to="/interventions/new">
+                <Plus className="h-4 w-4" />
+                Ajouter une intervention
+              </Link>
+            </Button>
+          )
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        <span className="font-semibold tabular-nums text-foreground">{total}</span> intervention
+        {total > 1 ? "s" : ""}
+      </p>
+      <div className="grid gap-3">
+        {interventions.map((intervention) => (
+          <InterventionListCard
+            key={intervention.id}
+            intervention={intervention}
+            technicianName={
+              intervention.technicien_id
+                ? technicianNames.get(intervention.technicien_id)
+                : undefined
+            }
+          />
+        ))}
+      </div>
+      <Pager page={page} pageSize={PAGE_SIZE} total={total} onPageChange={onPageChange} />
+    </div>
+  );
+}
+
+function InterventionListCard({
+  intervention,
+  technicianName,
+}: {
+  intervention: Intervention;
+  technicianName?: string;
+}) {
+  const clientName = intervention.client?.raison_sociale ?? "Client supprimé";
+  return (
+    <Card className="hover:border-primary/30">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3 lg:items-center">
+          <div className="hidden w-24 shrink-0 lg:block">
+            <div className="text-sm font-semibold tabular-nums">
+              {formatDateFR(intervention.date)}
+            </div>
+            {intervention.heure_debut && (
+              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock3 className="h-3.5 w-3.5" />
+                {intervention.heure_debut.slice(0, 5)}
+              </div>
+            )}
+          </div>
+
+          <Link to="/interventions/$id" params={{ id: intervention.id }} className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="min-w-0 truncate font-semibold">{clientName}</h2>
+              <StatusBadge status={intervention.statut} />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <span className="lg:hidden">{formatDateFR(intervention.date)}</span>
+              {intervention.heure_debut && (
+                <span className="flex items-center gap-1 lg:hidden">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  {intervention.heure_debut.slice(0, 5)}
+                </span>
+              )}
+              <span>{intervention.type_intervention}</span>
+              {intervention.type_nuisible && <span>{intervention.type_nuisible}</span>}
+              {technicianName && (
+                <span className="flex items-center gap-1">
+                  <UserRound className="h-3.5 w-3.5" />
+                  {technicianName}
+                </span>
+              )}
+            </div>
+            {intervention.adresse_site && (
+              <div className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="line-clamp-2 lg:truncate">{intervention.adresse_site}</span>
+              </div>
+            )}
+          </Link>
+
+          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground lg:mt-0" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DayView({
+  date,
+  interventions,
+  isLoading,
+  isError,
+  today,
+  technicianNames,
+}: {
+  date: Date;
+  interventions: Intervention[];
+  isLoading: boolean;
+  isError: boolean;
+  today: Date;
+  technicianNames: Map<string, string>;
+}) {
+  const isToday = toISO(date) === toISO(today);
+  if (isLoading) return <PlanningLoading count={4} />;
+  if (isError) {
+    return (
+      <PlanningState
+        icon={AlertCircle}
+        title="Impossible de charger cette journée"
+        description="Une erreur est survenue pendant le chargement du planning."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold tabular-nums text-foreground">{interventions.length}</span>{" "}
+          intervention{interventions.length !== 1 ? "s" : ""}
+        </p>
+        <Button asChild size="sm">
+          <Link to="/interventions/new">
+            <Plus className="h-4 w-4" />
+            Nouvelle
+          </Link>
+        </Button>
+      </div>
+
+      {interventions.length === 0 ? (
+        <PlanningState
+          icon={Sun}
+          title={isToday ? "Journée libre aujourd’hui" : "Aucune intervention ce jour"}
+          description="Aucune intervention n’est planifiée pour cette date."
+        />
       ) : (
-        <div className="space-y-2">
-          {interventions.map((inv) => <PlanningCard key={inv.id} intervention={inv} />)}
+        <div className="grid gap-3">
+          {interventions.map((intervention) => (
+            <PlanningCard
+              key={intervention.id}
+              intervention={intervention}
+              technicianName={
+                intervention.technicien_id
+                  ? technicianNames.get(intervention.technicien_id)
+                  : undefined
+              }
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function WeekView({ wStart, interventions, selectedDate, onSelectDay, today }: {
-  wStart: Date; interventions: Intervention[]; selectedDate: Date;
-  onSelectDay: (d: Date) => void; today: Date;
+function WeekView({
+  weekStartDate,
+  interventions,
+  selectedDate,
+  onSelectDay,
+  today,
+  isLoading,
+  isError,
+  technicianNames,
+}: {
+  weekStartDate: Date;
+  interventions: Intervention[];
+  selectedDate: Date;
+  onSelectDay: (date: Date) => void;
+  today: Date;
+  isLoading: boolean;
+  isError: boolean;
+  technicianNames: Map<string, string>;
 }) {
-  const todayStr = toISO(today);
-  const selectedStr = toISO(selectedDate);
+  const todayString = toISO(today);
+  const selectedString = toISO(selectedDate);
   const byDate = useMemo(() => {
-    const map: Record<string, Intervention[]> = {};
-    for (const inv of interventions) {
-      if (!map[inv.date]) map[inv.date] = [];
-      map[inv.date].push(inv);
+    const grouped: Record<string, Intervention[]> = {};
+    for (const intervention of interventions) {
+      if (!grouped[intervention.date]) grouped[intervention.date] = [];
+      grouped[intervention.date].push(intervention);
     }
-    return map;
+    return grouped;
   }, [interventions]);
+  const days = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
 
-  const days = Array.from({ length: 7 }, (_, i) => addDays(wStart, i));
+  if (isLoading) return <PlanningLoading count={7} />;
+  if (isError) {
+    return (
+      <PlanningState
+        icon={AlertCircle}
+        title="Impossible de charger cette semaine"
+        description="Une erreur est survenue pendant le chargement du planning."
+      />
+    );
+  }
+
   return (
-    <div className="grid grid-cols-7 gap-1">
-      {days.map((day, i) => {
-        const dateStr = toISO(day);
-        const dayInvs = byDate[dateStr] ?? [];
-        const isToday = dateStr === todayStr;
-        const isSelected = dateStr === selectedStr;
-        return (
-          <div key={dateStr}
-            className={cn(
-              "min-h-24 rounded-lg border p-1 cursor-pointer transition-colors",
-              isToday && "border-accent bg-accent/5",
-              isSelected && !isToday && "border-primary/40 bg-primary/5",
-              !isToday && !isSelected && "border-border hover:border-primary/20"
-            )}
-            onClick={() => onSelectDay(day)}
-          >
-            <div className={cn("mb-1 text-center", isToday ? "text-accent" : "text-muted-foreground")}>
-              <div className="text-[9px] uppercase tracking-wide font-medium">{JOURS[i]}</div>
-              <div className={cn("text-xs font-semibold mx-auto w-5 h-5 flex items-center justify-center",
-                isToday && "rounded-full bg-accent text-white")}>
-                {day.getDate()}
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              {dayInvs.slice(0, 3).map((inv) => (
-                <Link key={inv.id} to="/interventions/$id" params={{ id: inv.id }} onClick={(e) => e.stopPropagation()}>
-                  <div className={cn(
-                    "rounded px-1 py-0.5 text-[8px] leading-tight border truncate hover:opacity-80",
-                    STATUT_BADGE[inv.statut] ?? "bg-muted text-muted-foreground"
-                  )}>
-                    {(inv.client as any)?.raison_sociale ?? "Client"}
-                  </div>
-                </Link>
-              ))}
-              {dayInvs.length > 3 && (
-                <div className="text-[8px] text-muted-foreground text-center">+{dayInvs.length - 3}</div>
+    <>
+      <div className="hidden grid-cols-7 gap-3 lg:grid">
+        {days.map((day, index) => {
+          const dateString = toISO(day);
+          const dayInterventions = byDate[dateString] ?? [];
+          const isToday = dateString === todayString;
+          const isSelected = dateString === selectedString;
+          return (
+            <section
+              key={dateString}
+              className={cn(
+                "min-w-0 rounded-2xl border bg-card shadow-soft",
+                isToday
+                  ? "border-accent/50"
+                  : isSelected
+                    ? "border-primary/40"
+                    : "border-border/50",
               )}
+            >
+              <button
+                type="button"
+                onClick={() => onSelectDay(day)}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-t-2xl border-b border-border/50 p-3 text-left transition-colors hover:bg-muted/50",
+                  isToday && "bg-accent/10",
+                )}
+              >
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {JOURS[index]}
+                  </span>
+                  <span className="mt-1 block text-lg font-bold tabular-nums">{day.getDate()}</span>
+                </span>
+                <Badge variant={isToday ? "default" : "secondary"}>{dayInterventions.length}</Badge>
+              </button>
+
+              <div className="min-h-48 space-y-2 p-2">
+                {dayInterventions.length === 0 ? (
+                  <p className="px-2 py-6 text-center text-xs text-muted-foreground">Libre</p>
+                ) : (
+                  dayInterventions.map((intervention) => (
+                    <WeekEventCard key={intervention.id} intervention={intervention} />
+                  ))
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      <div className="space-y-4 lg:hidden">
+        {days.map((day, index) => {
+          const dateString = toISO(day);
+          const dayInterventions = byDate[dateString] ?? [];
+          const isToday = dateString === todayString;
+          return (
+            <section key={dateString} className="space-y-3">
+              <button
+                type="button"
+                onClick={() => onSelectDay(day)}
+                className="flex w-full items-center justify-between gap-4 text-left"
+              >
+                <span className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      "grid h-10 w-10 place-items-center rounded-xl text-sm font-bold tabular-nums",
+                      isToday ? "bg-accent text-accent-foreground" : "bg-primary/10 text-primary",
+                    )}
+                  >
+                    {day.getDate()}
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold">
+                      {day.toLocaleDateString("fr-FR", { weekday: "long" })}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {day.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+                    </span>
+                  </span>
+                </span>
+                <Badge variant="secondary">{dayInterventions.length}</Badge>
+              </button>
+
+              {dayInterventions.length === 0 ? (
+                <Card className="hover:translate-y-0 hover:shadow-soft">
+                  <CardContent className="py-4 text-center text-xs text-muted-foreground">
+                    Aucune intervention
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-3">
+                  {dayInterventions.map((intervention) => (
+                    <PlanningCard
+                      key={intervention.id}
+                      intervention={intervention}
+                      technicianName={
+                        intervention.technicien_id
+                          ? technicianNames.get(intervention.technicien_id)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function WeekEventCard({ intervention }: { intervention: Intervention }) {
+  return (
+    <Link
+      to="/interventions/$id"
+      params={{ id: intervention.id }}
+      className={cn(
+        "block rounded-xl border border-border/50 p-2 transition-colors hover:border-primary/30 hover:bg-muted/40",
+        intervention.statut === "annulee" && "opacity-60",
+      )}
+    >
+      {intervention.heure_debut && (
+        <div className="mb-1 flex items-center gap-1 text-[10px] font-semibold tabular-nums text-primary">
+          <Clock3 className="h-3 w-3" />
+          {intervention.heure_debut.slice(0, 5)}
+        </div>
+      )}
+      <div className="line-clamp-2 text-xs font-semibold leading-4">
+        {intervention.client?.raison_sociale ?? "Client supprimé"}
+      </div>
+      <div className="mt-1 truncate text-[10px] text-muted-foreground">
+        {intervention.type_intervention}
+      </div>
+      <div className="mt-2">
+        <StatusBadge status={intervention.statut} compact />
+      </div>
+    </Link>
+  );
+}
+
+function PlanningCard({
+  intervention,
+  technicianName,
+}: {
+  intervention: Intervention;
+  technicianName?: string;
+}) {
+  const phone = intervention.client?.telephone;
+  return (
+    <Card className="hover:border-primary/30">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-12 shrink-0 text-center">
+            <div className="text-base font-bold tabular-nums">
+              {intervention.heure_debut ? intervention.heure_debut.slice(0, 5) : "—"}
             </div>
+            {intervention.heure_fin && (
+              <div className="mt-1 text-[10px] tabular-nums text-muted-foreground">
+                {intervention.heure_fin.slice(0, 5)}
+              </div>
+            )}
           </div>
-        );
-      })}
+
+          <Link to="/interventions/$id" params={{ id: intervention.id }} className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="min-w-0 truncate text-sm font-semibold">
+                {intervention.client?.raison_sociale ?? "Client supprimé"}
+              </h3>
+              <StatusBadge status={intervention.statut} />
+            </div>
+            <p className="mt-2 truncate text-xs text-muted-foreground">
+              {intervention.type_intervention}
+              {intervention.type_nuisible ? ` · ${intervention.type_nuisible}` : ""}
+            </p>
+            {technicianName && (
+              <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <UserRound className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{technicianName}</span>
+              </p>
+            )}
+            {intervention.adresse_site && (
+              <p className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="line-clamp-2">{intervention.adresse_site}</span>
+              </p>
+            )}
+          </Link>
+
+          {phone ? (
+            <Button asChild variant="outline" size="icon" className="shrink-0">
+              <a href={`tel:${phone}`} aria-label="Appeler le client">
+                <Phone className="h-4 w-4" />
+              </a>
+            </Button>
+          ) : (
+            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusBadge({ status, compact = false }: { status: string; compact?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full font-medium uppercase",
+        compact ? "px-2 py-0.5 text-[9px]" : "px-2 py-1 text-[10px]",
+        STATUT_INTERVENTION_COLORS[status] ?? "bg-muted text-muted-foreground",
+        status === "annulee" && "line-through",
+      )}
+    >
+      {statutInterventionLabel(status)}
+    </span>
+  );
+}
+
+function PlanningLoading({ count = 5 }: { count?: number }) {
+  return (
+    <div className="grid gap-3">
+      {Array.from({ length: count }).map((_, index) => (
+        <Card key={index} className="hover:translate-y-0 hover:shadow-soft">
+          <CardContent className="flex items-center gap-4 p-4">
+            <Skeleton className="h-10 w-12 shrink-0 rounded-xl" />
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
 
-function PlanningCard({ intervention: inv }: { intervention: Intervention }) {
+function PlanningState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: typeof CalendarDays;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <Link to="/interventions/$id" params={{ id: inv.id }}>
-      <Card className="hover:border-primary/40 transition-colors">
-        <CardContent className="p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold text-sm truncate">{(inv.client as any)?.raison_sociale ?? "—"}</div>
-              {inv.adresse_site && (
-                <div className="text-xs text-muted-foreground truncate mt-0.5">{inv.adresse_site}</div>
-              )}
-              {inv.type_intervention && (
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {inv.type_intervention}{inv.type_nuisible ? ` · ${inv.type_nuisible}` : ""}
-                </div>
-              )}
-              {(inv.client as any)?.telephone && (
-                <a href={`tel:${(inv.client as any).telephone}`}
-                  className="flex items-center gap-1 text-xs text-primary mt-0.5"
-                  onClick={(e) => e.stopPropagation()}>
-                  <Phone className="h-3 w-3" />{(inv.client as any).telephone}
-                </a>
-              )}
-            </div>
-            <span className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
-              STATUT_BADGE[inv.statut] ?? "bg-muted text-muted-foreground"
-            )}>
-              {statutLabel(inv.statut)}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+    <Card className="hover:translate-y-0 hover:shadow-soft">
+      <CardContent className="flex flex-col items-center px-6 py-12 text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </span>
+        <h2 className="mt-4 font-semibold">{title}</h2>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
+        {action && <div className="mt-6">{action}</div>}
+      </CardContent>
+    </Card>
   );
 }
