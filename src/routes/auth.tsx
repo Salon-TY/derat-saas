@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
@@ -19,7 +20,9 @@ export const Route = createFileRoute("/auth")({
 // Un technicien atterrit sur son interface dédiée (/tech), tous les autres
 // (owner, bureau) sur le tableau de bord admin (/).
 async function resolveHomeRoute(): Promise<"/tech" | "/"> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return "/";
   const [{ data: role }, { data: member }] = await Promise.all([
     supabase.rpc("current_user_role"),
@@ -106,7 +109,9 @@ function AuthPage() {
             <Bug className="h-7 w-7" />
           </div>
           <CardTitle className="mt-2 text-2xl tracking-tight">{APP_NAME}</CardTitle>
-          <CardDescription>{mode === "login" ? "Connectez-vous à votre espace" : "Créez votre compte société"}</CardDescription>
+          <CardDescription>
+            {mode === "login" ? "Connectez-vous à votre espace" : "Créez votre compte société"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {mode === "login" ? (
@@ -184,7 +189,7 @@ function AuthPage() {
           <button
             type="button"
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="mt-4 min-h-11 w-full rounded-xl px-3 text-center text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {mode === "login" ? "Pas de compte ? Créer un compte" : "Déjà un compte ? Se connecter"}
           </button>

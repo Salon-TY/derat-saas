@@ -452,14 +452,14 @@ export function InterventionForm({
                       placeholder="Nom / Raison sociale *"
                       value={newClientName}
                       onChange={(e) => setNewClientName(e.target.value)}
-                      className="h-8 text-sm"
+                      className="h-11 text-sm"
                     />
                     <Input
                       placeholder="Téléphone"
                       type="tel"
                       value={newClientTel}
                       onChange={(e) => setNewClientTel(e.target.value)}
-                      className="h-8 text-sm"
+                      className="h-11 text-sm"
                     />
                     <Textarea
                       placeholder="Adresse du site"
@@ -471,7 +471,7 @@ export function InterventionForm({
                     <Button
                       type="button"
                       size="sm"
-                      className="w-full h-8"
+                      className="h-11 w-full"
                       onClick={createClient}
                       disabled={creatingClient}
                     >
@@ -619,7 +619,8 @@ export function InterventionForm({
                           onClick={() =>
                             removeItem(item.kind === "stock" ? item.product_id : item.id)
                           }
-                          className="text-destructive/60 hover:text-destructive shrink-0 mt-0.5"
+                          className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-destructive/60 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label={`Retirer ${item.nom}`}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -660,7 +661,7 @@ export function InterventionForm({
                         setPickedQty(p?.type_gestion === "volume" ? 0.5 : 1);
                       }}
                     >
-                      <SelectTrigger className="h-8 text-sm">
+                      <SelectTrigger className="h-11 text-sm">
                         <SelectValue placeholder="Choisir un produit du stock…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -685,12 +686,13 @@ export function InterventionForm({
                             step={isVolume ? "0.001" : "1"}
                             value={pickedQty}
                             onChange={(e) => setPickedQty(Number(e.target.value))}
-                            className="h-8 flex-1 text-sm"
+                            className="h-11 flex-1 text-sm"
                           />
                           <Button
                             type="button"
                             size="sm"
-                            className="h-8 px-3 shrink-0"
+                            className="h-11 shrink-0 px-3"
+                            aria-label="Ajouter le produit sélectionné"
                             onClick={addStockItem}
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -731,7 +733,7 @@ export function InterventionForm({
                         }}
                         onFocus={() => setShowAutoList(true)}
                         onBlur={() => setTimeout(() => setShowAutoList(false), 150)}
-                        className="h-8 text-sm"
+                        className="h-11 text-sm"
                       />
                       {showAutoList && freeAutoComplete.length > 0 && (
                         <div className="absolute top-full left-0 right-0 z-10 mt-0.5 rounded-lg border bg-card shadow-lg overflow-hidden">
@@ -739,7 +741,7 @@ export function InterventionForm({
                             <button
                               key={s.nom}
                               type="button"
-                              className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center justify-between"
+                              className="flex min-h-11 w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
                               onMouseDown={() => {
                                 setFreeNom(s.nom);
                                 setShowAutoList(false);
@@ -756,14 +758,14 @@ export function InterventionForm({
                       placeholder="Quantité (optionnel, ex: 2 sachets, ~50 ml…)"
                       value={freeQty}
                       onChange={(e) => setFreeQty(e.target.value)}
-                      className="h-8 text-sm"
+                      className="h-11 text-sm"
                     />
                     <div className="flex gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="flex-1 h-7 text-xs"
+                        className="min-h-11 flex-1 text-xs"
                         onClick={() => {
                           setShowFreeForm(false);
                           setFreeNom("");
@@ -775,7 +777,7 @@ export function InterventionForm({
                       <Button
                         type="button"
                         size="sm"
-                        className="flex-1 h-7 text-xs"
+                        className="min-h-11 flex-1 text-xs"
                         onClick={addFreeItem}
                       >
                         Ajouter
@@ -789,7 +791,7 @@ export function InterventionForm({
                       setShowFreeForm(true);
                       setTimeout(() => freeInputRef.current?.focus(), 50);
                     }}
-                    className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 text-xs text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground transition-colors"
+                    className="flex min-h-11 w-full items-center gap-1.5 rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-muted-foreground/60 hover:text-foreground"
                   >
                     <Plus className="h-3.5 w-3.5 shrink-0" /> Produit libre (sans suivi stock)
                   </button>

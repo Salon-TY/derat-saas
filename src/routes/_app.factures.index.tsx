@@ -387,7 +387,7 @@ function FacturesPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Link to="/factures/$id" params={{ id: inv.id }}>
-                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                    <Button variant="outline" size="sm" className="min-h-11 text-xs">
                       <FileText className="mr-1 h-3 w-3" />
                       Voir
                     </Button>
@@ -396,7 +396,7 @@ function FacturesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs"
+                      className="min-h-11 text-xs"
                       onClick={() => updateStatut(inv.id, "envoyee")}
                     >
                       Marquer envoyée
@@ -406,7 +406,7 @@ function FacturesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs text-primary"
+                      className="min-h-11 text-xs text-primary"
                       onClick={() => updateStatut(inv.id, "payee")}
                     >
                       Marquer payée
@@ -416,7 +416,7 @@ function FacturesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs text-destructive"
+                      className="min-h-11 text-xs text-destructive"
                       onClick={() => updateStatut(inv.id, "retard")}
                     >
                       En retard

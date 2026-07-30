@@ -578,7 +578,8 @@ function DevisDetail() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setEditing(false)}
-            className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted transition-colors"
+            className="grid h-11 w-11 place-items-center rounded-xl border border-border transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Quitter la modification"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -598,7 +599,8 @@ function DevisDetail() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           onClick={() => navigate({ to: "/devis" })}
-          className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted transition-colors"
+          className="grid h-11 w-11 place-items-center rounded-xl border border-border transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Retour aux devis"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
@@ -611,20 +613,25 @@ function DevisDetail() {
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={exportPDF}
-            className="grid h-9 w-9 place-items-center rounded-xl border hover:bg-muted transition-colors"
+            className="grid h-11 w-11 place-items-center rounded-xl border transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             title="Imprimer / PDF"
+            aria-label="Imprimer ou télécharger le devis"
           >
             <Download className="h-4 w-4" />
           </button>
           <button
             onClick={() => setEditing(true)}
-            className="grid h-9 w-9 place-items-center rounded-xl border hover:bg-muted transition-colors"
+            className="grid h-11 w-11 place-items-center rounded-xl border transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Modifier le devis"
           >
             <Pencil className="h-4 w-4" />
           </button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <button className="grid h-9 w-9 place-items-center rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/5 transition-colors">
+              <button
+                className="grid h-11 w-11 place-items-center rounded-xl border border-destructive/50 text-destructive transition-colors hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Supprimer le devis"
+              >
                 <Trash2 className="h-4 w-4" />
               </button>
             </AlertDialogTrigger>

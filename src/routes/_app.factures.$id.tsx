@@ -870,7 +870,7 @@ function FactureDetail() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Statut :</span>
             <Select value={invoice.statut} onValueChange={updateStatut}>
-              <SelectTrigger className="h-7 text-xs w-36">
+              <SelectTrigger className="h-11 w-40 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

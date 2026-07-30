@@ -1114,7 +1114,7 @@ function CatalogueProductRow({ product }: { product: StockProduct }) {
           <div className="flex shrink-0 gap-1.5">
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
               <DialogTrigger asChild>
-                <Button size="icon" variant="outline" className="h-9 w-9">
+                <Button size="icon" variant="outline" aria-label={`Modifier ${product.nom}`}>
                   <Pencil className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
@@ -1135,7 +1135,8 @@ function CatalogueProductRow({ product }: { product: StockProduct }) {
                 <Button
                   size="icon"
                   variant="outline"
-                  className="h-9 w-9 text-destructive hover:text-destructive border-destructive/30"
+                  className="border-destructive/30 text-destructive hover:text-destructive"
+                  aria-label={`Supprimer ${product.nom}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

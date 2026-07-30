@@ -1155,7 +1155,7 @@ ${
                 Contrat rattaché
               </div>
               <Select value={intervention.contract_id ?? ""} onValueChange={handleContractChange}>
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger className="h-11 text-sm">
                   <SelectValue placeholder="Aucun contrat" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1178,7 +1178,7 @@ ${
               <TechnicianSelect
                 value={intervention.technicien_id ?? "none"}
                 onValueChange={handleTechnicienChange}
-                triggerClassName="h-8 text-sm"
+                triggerClassName="h-11 text-sm"
               />
             </div>
 
@@ -1217,24 +1217,30 @@ ${
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Début</label>
+                <label htmlFor="intervention-start-time" className="text-xs text-muted-foreground">
+                  Début
+                </label>
                 <input
+                  id="intervention-start-time"
                   type="datetime-local"
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-xs"
+                  className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={heureDebutInput}
                   onChange={(e) => setHeureDebutInput(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Fin</label>
+                <label htmlFor="intervention-end-time" className="text-xs text-muted-foreground">
+                  Fin
+                </label>
                 <input
+                  id="intervention-end-time"
                   type="datetime-local"
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-xs"
+                  className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={heureFinInput}
                   onChange={(e) => setHeureFinInput(e.target.value)}
                 />
               </div>
-              <Button variant="outline" className="min-h-10 self-end" onClick={handleSaveTimes}>
+              <Button variant="outline" className="min-h-11 self-end" onClick={handleSaveTimes}>
                 Enregistrer
               </Button>
               {intervention.heure_debut && intervention.heure_fin && (
@@ -1257,7 +1263,7 @@ ${
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 text-xs"
+                  className="min-h-11 text-xs"
                   onClick={() => setEditingCompteRendu(true)}
                 >
                   <Pencil className="mr-1 h-3 w-3" /> Modifier
@@ -1334,7 +1340,7 @@ ${
               {photos.length < 5 && (
                 <label
                   className={cn(
-                    "flex items-center gap-1 text-xs text-primary cursor-pointer",
+                    "flex min-h-11 cursor-pointer items-center gap-1 rounded-xl px-3 text-xs font-semibold text-primary hover:bg-primary/10",
                     uploadingPhotos && "opacity-50 pointer-events-none",
                   )}
                 >
@@ -1355,13 +1361,13 @@ ${
             {photos.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucune photo.</p>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {photos.map((url, i) => (
                   <button
                     key={url}
                     type="button"
                     onClick={() => setLightboxIndex(i)}
-                    className="relative aspect-square rounded-md overflow-hidden border hover:opacity-90 transition-opacity"
+                    className="relative aspect-square min-h-24 overflow-hidden rounded-lg border transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -1397,7 +1403,7 @@ ${
                 <button
                   type="button"
                   onClick={handleDeleteSignature}
-                  className="text-xs text-destructive/70 hover:text-destructive underline"
+                  className="min-h-11 rounded-xl px-2 text-xs font-medium text-destructive/70 underline hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Supprimer la signature
                 </button>
@@ -1414,7 +1420,7 @@ ${
               <Button
                 type="button"
                 variant="outline"
-                className="w-full"
+                className="min-h-11 w-full"
                 onClick={() => setShowSignatureCanvas(true)}
               >
                 <PenLine className="mr-2 h-4 w-4" /> Faire signer le client
@@ -1427,20 +1433,22 @@ ${
       {/* Lightbox */}
       {lightboxIndex !== null && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
           onClick={closeLightbox}
         >
           <button
             type="button"
-            className="absolute top-3 right-3 text-white/80 hover:text-white"
+            className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-black/40 text-white/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={closeLightbox}
+            aria-label="Fermer la photo"
           >
             <X className="h-6 w-6" />
           </button>
           {lightboxIndex > 0 && (
             <button
               type="button"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
+              className="absolute left-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              aria-label="Photo précédente"
               onClick={(e) => {
                 e.stopPropagation();
                 setLightboxIndex((n) => Math.max(0, (n ?? 1) - 1));
@@ -1452,7 +1460,8 @@ ${
           {lightboxIndex < photos.length - 1 && (
             <button
               type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
+              className="absolute right-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              aria-label="Photo suivante"
               onClick={(e) => {
                 e.stopPropagation();
                 setLightboxIndex((n) => Math.min(photos.length - 1, (n ?? 0) + 1));
@@ -1470,7 +1479,7 @@ ${
             <button
               type="button"
               onClick={() => handleDeletePhoto(photos[lightboxIndex])}
-              className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-destructive px-2 py-1 text-xs text-white"
+              className="absolute bottom-2 right-2 flex min-h-11 items-center gap-1 rounded-lg bg-destructive px-3 text-xs font-semibold text-destructive-foreground"
             >
               <Trash2 className="h-3 w-3" /> Supprimer
             </button>

@@ -402,7 +402,8 @@ function DeleteContratButton({ id, nom }: { id: string; nom: string }) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+          className="h-11 w-11 p-0 text-destructive hover:text-destructive"
+          aria-label={`Supprimer le contrat de ${nom}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

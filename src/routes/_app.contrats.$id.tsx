@@ -461,7 +461,7 @@ function ContractDetail() {
                   : ""}
               </span>
               <Link to="/programmation" search={{ contract_id: contract.id }}>
-                <Button size="sm" variant="outline" className="h-7 text-xs shrink-0">
+                <Button size="sm" variant="outline" className="min-h-11 shrink-0 text-xs">
                   <CalendarClock className="mr-1 h-3.5 w-3.5" /> Programmer
                 </Button>
               </Link>

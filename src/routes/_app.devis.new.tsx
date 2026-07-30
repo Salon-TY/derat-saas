@@ -136,7 +136,8 @@ function NewDevisPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate({ to: "/devis" })}
-          className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted transition-colors"
+          className="grid h-11 w-11 place-items-center rounded-xl border border-border transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Retour aux devis"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>

@@ -303,14 +303,14 @@ function NouvelleFacture() {
                         placeholder="Nom / Raison sociale *"
                         value={newClientName}
                         onChange={(e) => setNewClientName(e.target.value)}
-                        className="h-8 text-sm"
+                        className="h-11 text-sm"
                       />
                       <Input
                         placeholder="Téléphone"
                         type="tel"
                         value={newClientTel}
                         onChange={(e) => setNewClientTel(e.target.value)}
-                        className="h-8 text-sm"
+                        className="h-11 text-sm"
                       />
                       <Textarea
                         placeholder="Adresse du site"
@@ -322,7 +322,7 @@ function NouvelleFacture() {
                       <Button
                         type="button"
                         size="sm"
-                        className="w-full h-8"
+                        className="h-11 w-full"
                         onClick={createClient}
                         disabled={creatingClient}
                       >

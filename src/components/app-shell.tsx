@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -363,31 +364,36 @@ function QuickInterventionModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-card shadow-2xl overflow-hidden"
+        className="max-h-[calc(100dvh-2rem-env(safe-area-inset-bottom))] w-full max-w-md overflow-y-auto rounded-2xl bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="font-bold text-base">Intervention rapide</h2>
           <button
             onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-lg hover:bg-muted transition-colors"
+            className="grid h-11 w-11 place-items-center rounded-xl transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Fermer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <label
+              htmlFor="quick-client"
+              className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
               Client *
             </label>
             <select
+              id="quick-client"
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
+              className="min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="">Sélectionner un client…</option>
               {clients.map((c) => (
@@ -398,16 +404,19 @@ function QuickInterventionModal({ onClose }: { onClose: () => void }) {
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <span
+              id="quick-type-label"
+              className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
               Type
-            </label>
-            <div className="flex gap-2">
+            </span>
+            <div className="flex gap-2" role="group" aria-labelledby="quick-type-label">
               {TYPES_INTERVENTION.map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setType(t)}
-                  className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${type === t ? "bg-accent border-accent text-white" : "border-border text-muted-foreground hover:border-accent/50"}`}
+                  className={`min-h-11 flex-1 rounded-xl border px-2 py-2 text-xs font-medium transition-colors ${type === t ? "bg-accent border-accent text-accent-foreground" : "border-border text-muted-foreground hover:border-accent/50"}`}
                 >
                   {t === "Les deux" ? "Les 2" : t}
                 </button>
@@ -415,14 +424,18 @@ function QuickInterventionModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <label
+              htmlFor="quick-date"
+              className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
               Date
             </label>
             <input
+              id="quick-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
+              className="min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
           <button
@@ -544,14 +557,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
 
         {/* Contenu de la page */}
-        <main className="flex-1 bg-muted/20 pb-28 lg:pb-12">
+        <main className="flex-1 bg-muted/20 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-12">
           <div className="mx-auto max-w-3xl px-4 py-5 animate-in-up lg:max-w-7xl lg:px-8 lg:py-6">
             {children}
           </div>
         </main>
 
         {/* FAB — intervention rapide (mobile uniquement ; équivalent desktop : bouton "Nouveau" du Header) */}
-        <div className="fixed bottom-20 right-4 z-40 lg:hidden">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 lg:hidden">
           <button
             onClick={() => setFabOpen(true)}
             className="fab"
@@ -577,7 +590,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="text-sm font-semibold">Plus</span>
                 <button
                   onClick={() => setMoreOpen(false)}
-                  className="grid h-8 w-8 place-items-center rounded-xl transition-all duration-200 hover:bg-muted"
+                  className="grid h-11 w-11 place-items-center rounded-xl transition-all duration-200 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Fermer le menu Plus"
                 >
                   <X className="h-4 w-4" />
                 </button>

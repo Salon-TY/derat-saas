@@ -115,7 +115,7 @@ function ClientsList() {
                 <button
                   type="button"
                   onClick={() => setQ("")}
-                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="Effacer la recherche"
                 >
                   <X className="h-4 w-4" />

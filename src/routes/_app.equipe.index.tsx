@@ -341,7 +341,7 @@ function PermissionsEditor({ member }: { member: TeamMember }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        className="flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Lock className="h-3.5 w-3.5" /> Autorisations {open ? "▲" : "▼"}
       </button>
@@ -352,7 +352,7 @@ function PermissionsEditor({ member }: { member: TeamMember }) {
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
+              className="min-h-11 text-xs"
               onClick={() => applyPreset(PRESET_BUREAU, "bureau")}
             >
               Modèle Bureau
@@ -467,7 +467,7 @@ function EmployeeRow({ member }: { member: TeamMember }) {
               onValueChange={handlePosteChange}
               disabled={posteSaving}
             >
-              <SelectTrigger className="h-6 w-[7.5rem] px-2 text-[11px]">
+              <SelectTrigger className="h-11 w-[7.5rem] px-2 text-[11px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

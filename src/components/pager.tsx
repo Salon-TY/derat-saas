@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export function Pager({ page, pageSize, total, onPageChange }: {
+export function Pager({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+}: {
   page: number;
   pageSize: number;
   total: number;
@@ -20,14 +25,18 @@ export function Pager({ page, pageSize, total, onPageChange }: {
       </span>
       <div className="flex gap-2">
         <Button
-          variant="outline" size="sm" className="h-8 px-2.5"
+          variant="outline"
+          size="sm"
+          className="min-h-11 px-3"
           disabled={page <= 0}
           onClick={() => onPageChange(page - 1)}
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Précédent
         </Button>
         <Button
-          variant="outline" size="sm" className="h-8 px-2.5"
+          variant="outline"
+          size="sm"
+          className="min-h-11 px-3"
           disabled={page >= pageCount - 1}
           onClick={() => onPageChange(page + 1)}
         >
