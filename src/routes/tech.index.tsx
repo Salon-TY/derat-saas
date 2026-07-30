@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMyTodoCount, useMyVanStock } from "@/lib/queries";
 import { STATUTS_INTERVENTION } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, MapPin, Phone, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +19,7 @@ export const Route = createFileRoute("/tech/")({
 
 const STATUT_COLORS: Record<string, string> = {
   planifiee: "bg-accent/15 text-accent",
-  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  en_cours: "bg-warning/15 text-warning-foreground",
   realisee: "bg-primary/15 text-primary",
   rapport_transmis: "bg-success/15 text-success",
   annulee: "bg-muted text-muted-foreground",
@@ -56,15 +58,20 @@ function TechToday() {
   }, []);
 
   const { data: todoCount = 0 } = useMyTodoCount();
-  const { data: todayInterventions = [], isLoading } = useMyTodayInterventions(userId);
+  const { data: todayInterventions = [], isLoading, isError } = useMyTodayInterventions(userId);
   const { data: vanLevels = [] } = useMyVanStock();
   const lowStock = vanLevels.filter((l) => l.product && l.quantite <= l.product.seuil_alerte);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Ma journée</h1>
-        <p className="text-sm text-muted-foreground">Bonne route !</p>
+      <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+          Espace terrain
+        </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Ma journée</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Vos priorités et interventions du jour.
+        </p>
       </div>
 
       {todoCount > 0 && (
@@ -82,16 +89,16 @@ function TechToday() {
 
       {lowStock.length > 0 && (
         <Link to="/tech/camion" className="block">
-          <Card className="border-red-300 bg-red-50 dark:bg-red-950/20 hover:border-red-400 transition-colors">
+          <Card className="border-destructive/35 bg-destructive/5 hover:border-destructive/55 transition-colors">
             <CardContent className="p-3 flex items-start gap-2">
-              <Package className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <span className="font-semibold text-red-700 dark:text-red-400">
+              <Package className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <div className="min-w-0 text-sm">
+                <span className="font-semibold text-destructive">
                   {lowStock.length} produit{lowStock.length > 1 ? "s" : ""} bas sur mon camion
                 </span>
                 <ul className="mt-1 space-y-0.5">
                   {lowStock.map((l) => (
-                    <li key={l.id} className="text-xs text-red-600 dark:text-red-300">
+                    <li key={l.id} className="break-words text-xs text-destructive/85">
                       {l.product?.nom} — {l.quantite} {l.product?.unite}
                     </li>
                   ))}
@@ -106,37 +113,67 @@ function TechToday() {
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Aujourd'hui
         </h2>
-        {isLoading ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Chargement…</div>
+        {isLoading || !userId ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {[0, 1, 2, 3].map((item) => (
+              <Card key={item}>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex justify-between gap-3">
+                    <Skeleton className="h-5 w-2/3" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : isError ? (
+          <Card className="border-destructive/30">
+            <CardContent className="py-10 text-center text-sm text-destructive">
+              Impossible de charger les interventions du jour.
+            </CardContent>
+          </Card>
         ) : todayInterventions.length === 0 ? (
-          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Aucun chantier aujourd'hui.
-          </CardContent></Card>
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Aucun chantier aujourd'hui.
+            </CardContent>
+          </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-2 md:grid-cols-2">
             {todayInterventions.map((inv: any) => (
               <Link key={inv.id} to="/tech/chantiers/$id" params={{ id: inv.id }} className="block">
                 <Card className="hover:border-primary/40 transition-colors">
                   <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="font-medium text-sm truncate">{inv.client?.raison_sociale ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{inv.type_intervention}</div>
+                        <div className="break-words text-sm font-semibold">
+                          {inv.client?.raison_sociale ?? "—"}
+                        </div>
+                        <div className="break-words text-xs text-muted-foreground">
+                          {inv.type_intervention}
+                        </div>
                       </div>
-                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase", STATUT_COLORS[inv.statut] ?? "bg-muted")}>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
+                          STATUT_COLORS[inv.statut] ?? "bg-muted",
+                        )}
+                      >
                         {statutLabel(inv.statut)}
                       </span>
                     </div>
                     {inv.adresse_site && (
                       <div className="flex items-start gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                        <span className="truncate">{inv.adresse_site}</span>
+                        <span className="break-words">{inv.adresse_site}</span>
                       </div>
                     )}
                     {inv.client?.telephone && (
                       <a
                         href={`tel:${inv.client.telephone}`}
-                        className="flex items-center gap-1.5 w-fit rounded-lg bg-primary/10 px-2.5 py-1 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                        className="flex min-h-11 w-fit items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Phone className="h-3 w-3" /> Appeler

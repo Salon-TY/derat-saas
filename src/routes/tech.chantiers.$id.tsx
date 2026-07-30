@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Écran central du technicien — liste blanche stricte : mission (lecture
 // seule), retour du responsable, compte-rendu (démarrer/observations/
 // produits/photos/signature/terminer), historique du site, durée sur site
@@ -7,20 +8,51 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import {
-  useIntervention, useContracts, useSiteHistory, useAssignableMembers,
-  resolveTechnicianName, logStockMovement, syncContractPassageCount, type Intervention,
+  useIntervention,
+  useContracts,
+  useSiteHistory,
+  useAssignableMembers,
+  resolveTechnicianName,
+  logStockMovement,
+  syncContractPassageCount,
+  type Intervention,
 } from "@/lib/queries";
 import { formatDateFR, STATUTS_INTERVENTION } from "@/lib/schemas";
 import type { InterventionForm as IFType } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ArrowLeft, MapPin, Calendar, Bug, FlaskConical, ClipboardList, ClipboardEdit,
-  Camera, X, ChevronLeft, ChevronRight, PenLine, CheckCircle, PlayCircle,
-  MessageSquareWarning, Timer, History, Phone,
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  Bug,
+  FlaskConical,
+  ClipboardList,
+  ClipboardEdit,
+  Camera,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  PenLine,
+  CheckCircle,
+  PlayCircle,
+  MessageSquareWarning,
+  Timer,
+  History,
+  Phone,
 } from "lucide-react";
-import { uploadInterventionPhotos, deleteInterventionPhoto, uploadSignature, deleteSignature } from "@/lib/photos";
-import { InterventionForm, type PhotoFile, type StockUsageItem } from "@/components/intervention-form";
+import {
+  uploadInterventionPhotos,
+  deleteInterventionPhoto,
+  uploadSignature,
+  deleteSignature,
+} from "@/lib/photos";
+import {
+  InterventionForm,
+  type PhotoFile,
+  type StockUsageItem,
+} from "@/components/intervention-form";
 import { SignatureCanvas } from "@/components/signature-canvas";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,7 +71,7 @@ function statutLabel(v: string) {
 
 const STATUT_COLORS: Record<string, string> = {
   planifiee: "bg-accent/15 text-accent",
-  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  en_cours: "bg-warning/15 text-warning-foreground",
   realisee: "bg-primary/15 text-primary",
   rapport_transmis: "bg-success/15 text-success",
   annulee: "bg-muted text-muted-foreground",
@@ -49,10 +81,19 @@ function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function formatDuration(startIso: string | null | undefined, endIso: string | null | undefined): string | null {
+function formatDuration(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+): string | null {
   if (!startIso || !endIso) return null;
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
@@ -67,8 +108,12 @@ function formatDuration(startIso: string | null | undefined, endIso: string | nu
 
 // Récupère le niveau de stock d'un produit sur le camion du technicien.
 async function fetchVanLevel(productId: string, technicienId: string) {
-  const { data } = await db.from("stock_levels").select("id, quantite")
-    .eq("product_id", productId).eq("technicien_id", technicienId).maybeSingle();
+  const { data } = await db
+    .from("stock_levels")
+    .select("id, quantite")
+    .eq("product_id", productId)
+    .eq("technicien_id", technicienId)
+    .maybeSingle();
   return data as { id: string; quantite: number } | null;
 }
 
@@ -76,10 +121,14 @@ function TechChantierDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: intervention, isLoading } = useIntervention(id);
+  const { data: intervention, isLoading, isError } = useIntervention(id);
   const { data: contracts = [] } = useContracts();
   const { data: assignableMembers = [] } = useAssignableMembers();
-  const { data: siteHistory = [] } = useSiteHistory(intervention?.client_id, intervention?.adresse_site, id);
+  const { data: siteHistory = [] } = useSiteHistory(
+    intervention?.client_id,
+    intervention?.adresse_site,
+    id,
+  );
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -113,7 +162,9 @@ function TechChantierDetail() {
     const files = Array.from(e.target.files ?? []);
     if (!files.length || !intervention) return;
     const remaining = 5 - photos.length;
-    const toAdd: PhotoFile[] = files.slice(0, remaining).map((file) => ({ file, preview: URL.createObjectURL(file) }));
+    const toAdd: PhotoFile[] = files
+      .slice(0, remaining)
+      .map((file) => ({ file, preview: URL.createObjectURL(file) }));
     e.target.value = "";
     setUploadingPhotos(true);
     const newUrls = await uploadInterventionPhotos(toAdd, userId ?? "");
@@ -129,7 +180,10 @@ function TechChantierDetail() {
   async function handleDeletePhoto(url: string) {
     await deleteInterventionPhoto(url);
     const merged = photos.filter((u) => u !== url);
-    await db.from("interventions").update({ photos: merged.length > 0 ? merged : null }).eq("id", id);
+    await db
+      .from("interventions")
+      .update({ photos: merged.length > 0 ? merged : null })
+      .eq("id", id);
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     setLightboxIndex(null);
   }
@@ -140,7 +194,10 @@ function TechChantierDetail() {
     setSavingSignature(true);
     const url = await uploadSignature(blob, userId ?? "");
     if (url) {
-      await db.from("interventions").update({ signature_url: url, signature_at: new Date().toISOString() }).eq("id", id);
+      await db
+        .from("interventions")
+        .update({ signature_url: url, signature_at: new Date().toISOString() })
+        .eq("id", id);
       qc.invalidateQueries({ queryKey: ["intervention", id] });
       toast.success("Signature enregistrée");
       setShowSignatureCanvas(false);
@@ -162,7 +219,10 @@ function TechChantierDetail() {
     const updates: Record<string, unknown> = { statut: "en_cours" };
     if (!intervention?.heure_debut) updates.heure_debut = new Date().toISOString();
     const { error } = await db.from("interventions").update(updates).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     qc.invalidateQueries({ queryKey: ["my_todo_count"] });
   }
@@ -177,7 +237,10 @@ function TechChantierDetail() {
     const updates: Record<string, unknown> = { statut: "realisee", retour_admin: null };
     if (!intervention?.heure_fin) updates.heure_fin = new Date().toISOString();
     const { error } = await db.from("interventions").update(updates).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["intervention", id] });
     qc.invalidateQueries({ queryKey: ["interventions"] });
     qc.invalidateQueries({ queryKey: ["my_todo_count"] });
@@ -198,11 +261,15 @@ function TechChantierDetail() {
         const level = await fetchVanLevel(item.product_id, userId);
         const disponible = Number(level?.quantite ?? 0);
         if (disponible < item.quantite) {
-          warnings.push(`Stock insuffisant pour ${item.nom} : il reste seulement ${disponible} ${item.unite} sur le camion`);
+          warnings.push(
+            `Stock insuffisant pour ${item.nom} : il reste seulement ${disponible} ${item.unite} sur le camion`,
+          );
         }
       }
       if (warnings.length > 0) {
-        const proceed = window.confirm(`⚠️ Attention :\n${warnings.join("\n")}\n\nContinuer quand même ?`);
+        const proceed = window.confirm(
+          `⚠️ Attention :\n${warnings.join("\n")}\n\nContinuer quand même ?`,
+        );
         if (!proceed) return;
       }
     }
@@ -214,11 +281,19 @@ function TechChantierDetail() {
       date_prochain_passage: values.date_prochain_passage || null,
     };
     if (isFirstSubmission) {
-      updates.produits_utilises = stockItems.map((i) => ({ product_id: i.product_id, nom: i.nom, quantite: i.quantite, unite: i.unite }));
+      updates.produits_utilises = stockItems.map((i) => ({
+        product_id: i.product_id,
+        nom: i.nom,
+        quantite: i.quantite,
+        unite: i.unite,
+      }));
     }
 
     const { error } = await db.from("interventions").update(updates).eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
     if (isFirstSubmission) {
       for (const item of stockItems) {
@@ -228,9 +303,20 @@ function TechChantierDetail() {
         if (level) {
           await db.from("stock_levels").update({ quantite: next }).eq("id", level.id);
         } else {
-          await db.from("stock_levels").insert({ product_id: item.product_id, technicien_id: userId, quantite: next, user_id: intervention?.user_id });
+          await db.from("stock_levels").insert({
+            product_id: item.product_id,
+            technicien_id: userId,
+            quantite: next,
+            user_id: intervention?.user_id,
+          });
         }
-        await logStockMovement({ product_id: item.product_id, type: "consommation", technicien_id: userId, intervention_id: id, quantite: item.quantite });
+        await logStockMovement({
+          product_id: item.product_id,
+          type: "consommation",
+          technicien_id: userId,
+          intervention_id: id,
+          quantite: item.quantite,
+        });
       }
       if (stockItems.length > 0) {
         qc.invalidateQueries({ queryKey: ["stock_levels"] });
@@ -245,8 +331,30 @@ function TechChantierDetail() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (isLoading) return <div className="text-sm text-muted-foreground py-10 text-center">Chargement…</div>;
-  if (!intervention) return <div className="text-sm text-muted-foreground py-10 text-center">Chantier introuvable.</div>;
+  if (isLoading)
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-11 w-24" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-72 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    );
+  if (isError)
+    return (
+      <Card className="border-destructive/30">
+        <CardContent className="py-10 text-center text-sm text-destructive">
+          Impossible de charger cette intervention.
+        </CardContent>
+      </Card>
+    );
+  if (!intervention)
+    return (
+      <div className="text-sm text-muted-foreground py-10 text-center">Chantier introuvable.</div>
+    );
   if (!isMine) return null;
 
   const assignedContract = contracts.find((c) => c.id === intervention.contract_id);
@@ -257,23 +365,33 @@ function TechChantierDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/tech/chantiers" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+      <div className="sticky top-0 z-20 -mx-3 flex items-center justify-between gap-3 border-b bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:static sm:mx-0 sm:rounded-xl sm:border sm:bg-card sm:p-3">
+        <Link
+          to="/tech/chantiers"
+          className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
           <ArrowLeft className="mr-1 h-4 w-4" /> Retour
         </Link>
-        <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold uppercase", STATUT_COLORS[intervention.statut] ?? "bg-muted")}>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-1 text-xs font-semibold uppercase",
+            STATUT_COLORS[intervention.statut] ?? "bg-muted",
+          )}
+        >
           {statutLabel(intervention.statut)}
         </span>
       </div>
 
       {/* Retour du responsable */}
       {intervention.retour_admin && (
-        <Card className="border-orange-400 bg-orange-50 dark:border-orange-900/60 dark:bg-orange-950/30">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="p-4 flex items-start gap-2.5">
-            <MessageSquareWarning className="h-4 w-4 text-orange-600 dark:text-orange-400 mt-0.5 shrink-0" />
-            <div className="text-sm">
-              <p className="font-semibold text-orange-700 dark:text-orange-400">Retour du responsable</p>
-              <p className="text-orange-700/90 dark:text-orange-400/90 whitespace-pre-wrap mt-0.5">{intervention.retour_admin}</p>
+            <MessageSquareWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
+            <div className="min-w-0 text-sm">
+              <p className="font-semibold text-warning-foreground">Retour du responsable</p>
+              <p className="mt-0.5 whitespace-pre-wrap break-words text-warning-foreground/90">
+                {intervention.retour_admin}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -281,10 +399,12 @@ function TechChantierDetail() {
 
       {/* Workflow */}
       <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="p-4 space-y-2.5">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mon intervention</h2>
+        <CardContent className="space-y-3 p-4 sm:p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Mon intervention
+          </h2>
           {intervention.statut === "planifiee" && (
-            <Button className="w-full" onClick={handleStart}>
+            <Button className="min-h-12 w-full text-base" onClick={handleStart}>
               <PlayCircle className="mr-2 h-4 w-4" /> Démarrer l'intervention
             </Button>
           )}
@@ -314,42 +434,73 @@ function TechChantierDetail() {
           <ClipboardList className="h-4 w-4" /> La mission
         </h2>
         <Card>
-          <CardContent className="p-4 space-y-3">
+          <CardContent className="space-y-4 p-4 sm:p-5">
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Client</div>
-              <p className="text-sm font-semibold">{intervention.client?.raison_sociale ?? "Client supprimé"}</p>
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Client
+              </div>
+              <p className="break-words text-base font-semibold">
+                {intervention.client?.raison_sociale ?? "Client supprimé"}
+              </p>
               {intervention.adresse_site && (
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(intervention.adresse_site)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-start gap-1.5 text-xs text-primary hover:underline mt-1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 flex min-h-11 items-start gap-1.5 rounded-lg bg-primary/5 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10"
                 >
                   <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                  <span className="whitespace-pre-wrap">{intervention.adresse_site}</span>
+                  <span className="whitespace-pre-wrap break-words">
+                    {intervention.adresse_site}
+                  </span>
                 </a>
               )}
               {intervention.client?.telephone && (
-                <a href={`tel:${intervention.client.telephone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                  <Phone className="h-3 w-3 shrink-0" />{intervention.client.telephone}
+                <a
+                  href={`tel:${intervention.client.telephone}`}
+                  className="mt-1 flex min-h-11 w-fit items-center gap-1.5 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted"
+                >
+                  <Phone className="h-3 w-3 shrink-0" />
+                  {intervention.client.telephone}
                 </a>
               )}
             </div>
-            <InfoRow icon={<Calendar className="h-4 w-4" />} label="Date" value={formatDateFR(intervention.date)} />
-            <InfoRow icon={<Bug className="h-4 w-4" />} label="Type de nuisible" value={intervention.type_nuisible || "—"} />
-            <InfoRow icon={<FlaskConical className="h-4 w-4" />} label="Type d'intervention" value={intervention.type_intervention || "—"} />
-            <InfoRow icon={<ClipboardList className="h-4 w-4" />} label="Contrat rattaché" value={contractLabel} />
+            <InfoRow
+              icon={<Calendar className="h-4 w-4" />}
+              label="Date"
+              value={formatDateFR(intervention.date)}
+            />
+            <InfoRow
+              icon={<Bug className="h-4 w-4" />}
+              label="Type de nuisible"
+              value={intervention.type_nuisible || "—"}
+            />
+            <InfoRow
+              icon={<FlaskConical className="h-4 w-4" />}
+              label="Type d'intervention"
+              value={intervention.type_intervention || "—"}
+            />
+            <InfoRow
+              icon={<ClipboardList className="h-4 w-4" />}
+              label="Contrat rattaché"
+              value={contractLabel}
+            />
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <ClipboardEdit className="h-3 w-3" /> Consignes
               </div>
-              <p className="text-sm whitespace-pre-wrap mt-0.5">{intervention.consignes || "—"}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                {intervention.consignes || "—"}
+              </p>
             </div>
           </CardContent>
         </Card>
       </section>
 
       {/* Historique du site (lecture seule) */}
-      {siteHistory.length > 0 && <SiteHistoryList history={siteHistory} assignableMembers={assignableMembers} />}
+      {siteHistory.length > 0 && (
+        <SiteHistoryList history={siteHistory} assignableMembers={assignableMembers} />
+      )}
 
       {/* Mon compte-rendu */}
       <section className="space-y-2">
@@ -367,15 +518,15 @@ function TechChantierDetail() {
               {intervention.heure_debut && intervention.heure_fin
                 ? formatDuration(intervention.heure_debut, intervention.heure_fin)
                 : intervention.heure_debut
-                ? `Démarrée le ${formatDateTime(intervention.heure_debut)}`
-                : "—"}
+                  ? `Démarrée le ${formatDateTime(intervention.heure_debut)}`
+                  : "—"}
             </p>
           </CardContent>
         </Card>
 
         {canEditCompteRendu ? (
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-4 sm:p-5">
               <InterventionForm
                 mode="compte-rendu"
                 defaultValues={{
@@ -389,21 +540,35 @@ function TechChantierDetail() {
                   date_prochain_passage: intervention.date_prochain_passage ?? "",
                 }}
                 onSubmit={handleSaveCompteRendu}
-                submitLabel={hasCompteRendu ? "Enregistrer les modifications" : "Enregistrer le compte-rendu"}
+                submitLabel={
+                  hasCompteRendu ? "Enregistrer les modifications" : "Enregistrer le compte-rendu"
+                }
               />
             </CardContent>
           </Card>
         ) : hasCompteRendu ? (
           <Card>
             <CardContent className="p-4 space-y-3">
-              <InfoRow icon={<ClipboardList className="h-4 w-4" />} label="Produits utilisés" value={intervention.produits || "—"} />
+              <InfoRow
+                icon={<ClipboardList className="h-4 w-4" />}
+                label="Produits utilisés"
+                value={intervention.produits || "—"}
+              />
               {intervention.date_prochain_passage && (
-                <InfoRow icon={<Calendar className="h-4 w-4" />} label="Prochain passage" value={formatDateFR(intervention.date_prochain_passage)} />
+                <InfoRow
+                  icon={<Calendar className="h-4 w-4" />}
+                  label="Prochain passage"
+                  value={formatDateFR(intervention.date_prochain_passage)}
+                />
               )}
               {intervention.observations && (
                 <div className="pt-1 border-t">
-                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mt-2 mb-1">Observations</div>
-                  <p className="text-sm whitespace-pre-wrap">{intervention.observations}</p>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mt-2 mb-1">
+                    Observations
+                  </div>
+                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                    {intervention.observations}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -424,20 +589,37 @@ function TechChantierDetail() {
                 <Camera className="h-4 w-4" /> Photos ({photos.length}/5)
               </h3>
               {photos.length < 5 && (
-                <label className={cn("flex items-center gap-1 text-xs text-primary cursor-pointer", uploadingPhotos && "opacity-50 pointer-events-none")}>
+                <label
+                  className={cn(
+                    "flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-3 text-xs font-semibold text-primary hover:bg-primary/10",
+                    uploadingPhotos && "opacity-50 pointer-events-none",
+                  )}
+                >
                   <Camera className="h-3.5 w-3.5" />
                   {uploadingPhotos ? "Upload…" : "Ajouter"}
-                  <input type="file" accept="image/*" capture="environment" multiple className="sr-only" onChange={handleAddPhotos} disabled={uploadingPhotos} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    multiple
+                    className="sr-only"
+                    onChange={handleAddPhotos}
+                    disabled={uploadingPhotos}
+                  />
                 </label>
               )}
             </div>
             {photos.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucune photo.</p>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {photos.map((url, i) => (
-                  <button key={url} type="button" onClick={() => setLightboxIndex(i)}
-                    className="relative aspect-square rounded-md overflow-hidden border hover:opacity-90 transition-opacity">
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setLightboxIndex(i)}
+                    className="relative aspect-square min-h-24 overflow-hidden rounded-lg border transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
@@ -455,14 +637,21 @@ function TechChantierDetail() {
             {hasSig ? (
               <div className="space-y-2">
                 <div className="rounded-lg border bg-white dark:bg-zinc-900 p-3 text-center">
-                  <img src={intervention.signature_url!} alt="Signature client" className="max-h-20 mx-auto" />
+                  <img
+                    src={intervention.signature_url!}
+                    alt="Signature client"
+                    className="max-h-20 mx-auto"
+                  />
                   <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1">
                     <CheckCircle className="h-3 w-3 text-primary" />
                     Signé — {formatDateTime((intervention as any).signature_at)}
                   </p>
                 </div>
-                <button type="button" onClick={handleDeleteSignature}
-                  className="text-xs text-destructive/70 hover:text-destructive underline">
+                <button
+                  type="button"
+                  onClick={handleDeleteSignature}
+                  className="min-h-11 rounded-lg px-2 text-xs font-medium text-destructive/80 underline hover:bg-destructive/10 hover:text-destructive"
+                >
                   Supprimer la signature
                 </button>
               </div>
@@ -475,7 +664,12 @@ function TechChantierDetail() {
                 )}
               </div>
             ) : (
-              <Button type="button" variant="outline" className="w-full" onClick={() => setShowSignatureCanvas(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-12 w-full"
+                onClick={() => setShowSignatureCanvas(true)}
+              >
                 <PenLine className="mr-2 h-4 w-4" /> Faire signer le client
               </Button>
             )}
@@ -483,7 +677,7 @@ function TechChantierDetail() {
         </Card>
 
         {intervention.statut === "en_cours" && (
-          <Button className="w-full" onClick={handleFinish}>
+          <Button className="min-h-12 w-full text-base" onClick={handleFinish}>
             <CheckCircle className="mr-2 h-4 w-4" /> Marquer terminée
           </Button>
         )}
@@ -491,26 +685,55 @@ function TechChantierDetail() {
 
       {/* Lightbox */}
       {lightboxIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setLightboxIndex(null)}>
-          <button type="button" className="absolute top-3 right-3 text-white/80 hover:text-white" onClick={() => setLightboxIndex(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            type="button"
+            aria-label="Fermer la photo"
+            className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-black/40 text-white/80 hover:text-white"
+            onClick={() => setLightboxIndex(null)}
+          >
             <X className="h-6 w-6" />
           </button>
           {lightboxIndex > 0 && (
-            <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((n) => Math.max(0, (n ?? 1) - 1)); }}>
+            <button
+              type="button"
+              aria-label="Photo précédente"
+              className="absolute left-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white/80 hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((n) => Math.max(0, (n ?? 1) - 1));
+              }}
+            >
               <ChevronLeft className="h-8 w-8" />
             </button>
           )}
           {lightboxIndex < photos.length - 1 && (
-            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((n) => Math.min(photos.length - 1, (n ?? 0) + 1)); }}>
+            <button
+              type="button"
+              aria-label="Photo suivante"
+              className="absolute right-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white/80 hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((n) => Math.min(photos.length - 1, (n ?? 0) + 1));
+              }}
+            >
               <ChevronRight className="h-8 w-8" />
             </button>
           )}
           <div className="relative max-w-[90vw] max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
-            <img src={photos[lightboxIndex]} alt="" className="max-w-full max-h-[80vh] object-contain rounded" />
-            <button type="button" onClick={() => handleDeletePhoto(photos[lightboxIndex])}
-              className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-destructive px-2 py-1 text-xs text-white">
+            <img
+              src={photos[lightboxIndex]}
+              alt=""
+              className="max-w-full max-h-[80vh] object-contain rounded"
+            />
+            <button
+              type="button"
+              onClick={() => handleDeletePhoto(photos[lightboxIndex])}
+              className="absolute bottom-2 right-2 flex min-h-11 items-center gap-1 rounded-lg bg-destructive px-3 text-xs font-semibold text-destructive-foreground"
+            >
               <X className="h-3 w-3" /> Supprimer
             </button>
           </div>
@@ -528,14 +751,22 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
     <div className="flex items-start gap-2">
       <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>
       <div className="min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="text-sm">{value}</div>
+        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
+        <div className="break-words text-sm">{value}</div>
       </div>
     </div>
   );
 }
 
-function SiteHistoryList({ history, assignableMembers }: { history: Intervention[]; assignableMembers: any[] }) {
+function SiteHistoryList({
+  history,
+  assignableMembers,
+}: {
+  history: Intervention[];
+  assignableMembers: any[];
+}) {
   return (
     <Card>
       <CardContent className="p-4 space-y-2">
@@ -547,7 +778,12 @@ function SiteHistoryList({ history, assignableMembers }: { history: Intervention
             <div key={h.id} className="rounded-md border p-2.5 text-xs space-y-1">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">{formatDateFR(h.date)}</span>
-                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase shrink-0", STATUT_COLORS[h.statut] ?? "bg-muted")}>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase shrink-0",
+                    STATUT_COLORS[h.statut] ?? "bg-muted",
+                  )}
+                >
                   {statutLabel(h.statut)}
                 </span>
               </div>
@@ -555,7 +791,9 @@ function SiteHistoryList({ history, assignableMembers }: { history: Intervention
                 {resolveTechnicianName(assignableMembers, h.technicien_id) ?? "Non assigné"}
                 {h.produits ? ` · ${h.produits}` : ""}
               </div>
-              {h.observations && <p className="text-muted-foreground truncate">{h.observations}</p>}
+              {h.observations && (
+                <p className="break-words text-muted-foreground">{h.observations}</p>
+              )}
             </div>
           ))}
         </div>

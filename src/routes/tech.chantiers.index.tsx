@@ -8,6 +8,7 @@ import { useInterventions, type Intervention } from "@/lib/queries";
 import { STATUTS_INTERVENTION, formatDateFR } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin, List as ListIcon, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/tech/chantiers/")({
 
 const STATUT_COLORS: Record<string, string> = {
   planifiee: "bg-accent/15 text-accent",
-  en_cours: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  en_cours: "bg-warning/15 text-warning-foreground",
   realisee: "bg-primary/15 text-primary",
   rapport_transmis: "bg-success/15 text-success",
   annulee: "bg-muted text-muted-foreground",
@@ -70,12 +71,19 @@ function addDays(d: Date, n: number): Date {
 
 // Interventions du technicien courant sur une plage de dates (filtre en dur
 // sur technicien_id — jamais d'option "Tous").
-function useMyRangeInterventions(userId: string | null, start: string, end: string, statut: string | undefined) {
+function useMyRangeInterventions(
+  userId: string | null,
+  start: string,
+  end: string,
+  statut: string | undefined,
+) {
   return useQuery({
     queryKey: ["tech_range_interventions", userId, start, end, statut],
     enabled: !!userId,
     queryFn: async (): Promise<Intervention[]> => {
-      let q = db.from("interventions").select("*, client:clients(raison_sociale, telephone)")
+      let q = db
+        .from("interventions")
+        .select("*, client:clients(raison_sociale, telephone)")
         .eq("technicien_id", userId!)
         .gte("date", start)
         .lte("date", end)
@@ -102,19 +110,27 @@ function TechChantiersList() {
 
   // Filtre en dur sur son propre id — pas d'option "Tous". Tant que l'id
   // n'est pas résolu, on ne lance pas la requête (voir `enabled` ci-dessous).
-  const { data: interventions = [], isLoading } = useInterventions(
+  const {
+    data: interventions = [],
+    isLoading,
+    isError,
+  } = useInterventions(
     statutFilter === "all"
       ? { technicien_id: userId ?? "__none__" }
-      : { technicien_id: userId ?? "__none__", statut: statutFilter }
+      : { technicien_id: userId ?? "__none__", statut: statutFilter },
   );
 
   const wStart = weekStart(selectedDate);
   const wEnd = addDays(wStart, 6);
-  const { data: weekInterventions = [], isLoading: weekLoading } = useMyRangeInterventions(
+  const {
+    data: weekInterventions = [],
+    isLoading: weekLoading,
+    isError: weekError,
+  } = useMyRangeInterventions(
     view === "week" ? userId : null,
     toISO(wStart),
     toISO(wEnd),
-    statutFilter === "all" ? undefined : statutFilter
+    statutFilter === "all" ? undefined : statutFilter,
   );
 
   const byDate = useMemo(() => {
@@ -131,23 +147,43 @@ function TechChantiersList() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Mes chantiers</h1>
+      <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+          Planning terrain
+        </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Mes chantiers</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Retrouvez vos missions et leur état d’avancement.
+        </p>
+      </div>
 
       {/* Sélecteur de vue */}
-      <div className="flex rounded-xl bg-muted p-1 gap-1">
-        {([
-          { v: "list" as View, label: "Liste", icon: ListIcon },
-          { v: "week" as View, label: "Semaine", icon: CalendarDays },
-        ] as const).map(({ v, label, icon: Icon }) => (
+      <div
+        className="flex gap-1 rounded-xl bg-muted p-1"
+        role="tablist"
+        aria-label="Affichage des chantiers"
+      >
+        {(
+          [
+            { v: "list" as View, label: "Liste", icon: ListIcon },
+            { v: "week" as View, label: "Semaine", icon: CalendarDays },
+          ] as const
+        ).map(({ v, label, icon: Icon }) => (
           <button
             key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
             onClick={() => setView(v)}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all",
-              view === v ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all",
+              view === v
+                ? "bg-card shadow text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Icon className="h-3.5 w-3.5" />{label}
+            <Icon className="h-3.5 w-3.5" />
+            {label}
           </button>
         ))}
       </div>
@@ -155,18 +191,30 @@ function TechChantiersList() {
       {/* Filtre statut — s'applique aux deux vues */}
       <div className="flex flex-wrap gap-1.5">
         <button
+          type="button"
+          aria-pressed={statutFilter === "all"}
           onClick={() => setStatutFilter("all")}
-          className={cn("rounded-full px-3 py-1.5 text-xs font-medium border",
-            statutFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
+          className={cn(
+            "min-h-10 rounded-full border px-3 py-1.5 text-xs font-medium",
+            statutFilter === "all"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card text-muted-foreground border-border",
+          )}
         >
           Toutes
         </button>
         {TECH_STATUT_FILTERS.map((s) => (
           <button
             key={s.value}
+            type="button"
+            aria-pressed={statutFilter === s.value}
             onClick={() => setStatutFilter(s.value)}
-            className={cn("rounded-full px-3 py-1.5 text-xs font-medium border",
-              statutFilter === s.value ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border")}
+            className={cn(
+              "min-h-10 rounded-full border px-3 py-1.5 text-xs font-medium",
+              statutFilter === s.value
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-muted-foreground border-border",
+            )}
           >
             {s.label}
           </button>
@@ -175,33 +223,63 @@ function TechChantiersList() {
 
       {view === "list" ? (
         isLoading || !userId ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Chargement…</div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {[0, 1, 2, 3].map((item) => (
+              <Card key={item}>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex justify-between gap-3">
+                    <Skeleton className="h-5 w-2/3" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : isError ? (
+          <Card className="border-destructive/30">
+            <CardContent className="py-10 text-center text-sm text-destructive">
+              Impossible de charger vos chantiers.
+            </CardContent>
+          </Card>
         ) : interventions.length === 0 ? (
-          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Aucun chantier pour ce filtre.
-          </CardContent></Card>
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Aucun chantier pour ce filtre.
+            </CardContent>
+          </Card>
         ) : (
-          <div className="space-y-2">
-            <div className="text-xs text-muted-foreground">{interventions.length} chantier{interventions.length > 1 ? "s" : ""}</div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="text-xs text-muted-foreground md:col-span-2">
+              {interventions.length} chantier{interventions.length > 1 ? "s" : ""}
+            </div>
             {interventions.map((item) => (
               <Link key={item.id} to="/tech/chantiers/$id" params={{ id: item.id }}>
                 <Card className="hover:border-primary/40 transition-colors cursor-pointer">
                   <CardContent className="p-4 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-semibold truncate">{item.client?.raison_sociale ?? "Client supprimé"}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="break-words font-semibold">
+                          {item.client?.raison_sociale ?? "Client supprimé"}
+                        </div>
+                        <div className="break-words text-xs text-muted-foreground">
                           {formatDateFR(item.date)} · {item.type_intervention}
                         </div>
                       </div>
-                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase", STATUT_COLORS[item.statut] ?? "bg-muted")}>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
+                          STATUT_COLORS[item.statut] ?? "bg-muted",
+                        )}
+                      >
                         {statutLabel(item.statut)}
                       </span>
                     </div>
                     {item.adresse_site && (
                       <div className="flex items-start gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                        <span className="truncate">{item.adresse_site}</span>
+                        <span className="break-words">{item.adresse_site}</span>
                       </div>
                     )}
                   </CardContent>
@@ -214,15 +292,34 @@ function TechChantiersList() {
         <>
           {/* Navigation semaine */}
           <div className="flex items-center gap-2">
-            <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => setSelectedDate((d) => addDays(d, -7))}>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-11 w-11 shrink-0"
+              aria-label="Semaine précédente"
+              onClick={() => setSelectedDate((d) => addDays(d, -7))}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex-1 text-center text-sm font-medium truncate">{weekLabel}</div>
-            <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => setSelectedDate((d) => addDays(d, 7))}>
+            <div className="min-w-0 flex-1 text-center text-sm font-medium leading-tight">
+              {weekLabel}
+            </div>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-11 w-11 shrink-0"
+              aria-label="Semaine suivante"
+              onClick={() => setSelectedDate((d) => addDays(d, 7))}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
             {!isCurrentWeek && (
-              <Button size="sm" variant="outline" className="h-9 px-3 text-xs shrink-0" onClick={() => setSelectedDate(today)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-11 shrink-0 px-3 text-xs"
+                onClick={() => setSelectedDate(today)}
+              >
                 Cette semaine
               </Button>
             )}
@@ -230,7 +327,22 @@ function TechChantiersList() {
 
           {/* 7 jours empilés (mobile d'abord) */}
           {weekLoading || !userId ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chargement…</div>
+            <div className="space-y-3">
+              {[0, 1, 2].map((item) => (
+                <Card key={item}>
+                  <CardContent className="space-y-3 p-4">
+                    <Skeleton className="h-5 w-1/2" />
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : weekError ? (
+            <Card className="border-destructive/30">
+              <CardContent className="py-10 text-center text-sm text-destructive">
+                Impossible de charger cette semaine.
+              </CardContent>
+            </Card>
           ) : (
             <div className="space-y-3">
               {Array.from({ length: 7 }, (_, i) => addDays(wStart, i)).map((day, i) => {
@@ -242,8 +354,15 @@ function TechChantiersList() {
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className={cn("text-sm font-semibold", isToday && "text-accent")}>
-                          {JOURS[i]} <span className="font-normal text-muted-foreground">{day.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span>
-                          {isToday && <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase text-white align-middle">Aujourd'hui</span>}
+                          {JOURS[i]}{" "}
+                          <span className="font-normal text-muted-foreground">
+                            {day.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                          </span>
+                          {isToday && (
+                            <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase text-accent-foreground align-middle">
+                              Aujourd'hui
+                            </span>
+                          )}
                         </div>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
                           {dayInvs.length} chantier{dayInvs.length > 1 ? "s" : ""}
@@ -257,22 +376,38 @@ function TechChantiersList() {
                           {dayInvs.map((inv) => {
                             const heure = formatHeure(inv.heure_debut);
                             return (
-                              <Link key={inv.id} to="/tech/chantiers/$id" params={{ id: inv.id }} className="block">
+                              <Link
+                                key={inv.id}
+                                to="/tech/chantiers/$id"
+                                params={{ id: inv.id }}
+                                className="block"
+                              >
                                 <div className="rounded-lg border bg-card p-2.5 text-xs hover:border-primary/40 transition-colors">
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-1.5">
-                                        {heure && <span className="font-mono font-medium text-muted-foreground shrink-0">{heure}</span>}
-                                        <span className="font-semibold truncate">{inv.client?.raison_sociale ?? "Client supprimé"}</span>
+                                        {heure && (
+                                          <span className="font-mono font-medium text-muted-foreground shrink-0">
+                                            {heure}
+                                          </span>
+                                        )}
+                                        <span className="break-words font-semibold">
+                                          {inv.client?.raison_sociale ?? "Client supprimé"}
+                                        </span>
                                       </div>
                                       {inv.adresse_site && (
                                         <div className="flex items-start gap-1 text-muted-foreground mt-0.5">
                                           <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                                          <span className="truncate">{inv.adresse_site}</span>
+                                          <span className="break-words">{inv.adresse_site}</span>
                                         </div>
                                       )}
                                     </div>
-                                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium uppercase", STATUT_COLORS[inv.statut] ?? "bg-muted")}>
+                                    <span
+                                      className={cn(
+                                        "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium uppercase",
+                                        STATUT_COLORS[inv.statut] ?? "bg-muted",
+                                      )}
+                                    >
                                       {statutLabel(inv.statut)}
                                     </span>
                                   </div>

@@ -12,11 +12,12 @@ import { useSettings, useMyTodoCount } from "@/lib/queries";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 
-const techNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
-  { to: "/tech", label: "Ma journée", icon: LayoutDashboard, exact: true },
-  { to: "/tech/chantiers", label: "Mes chantiers", icon: ClipboardList },
-  { to: "/tech/camion", label: "Mon camion", icon: Truck },
-];
+const techNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }[] =
+  [
+    { to: "/tech", label: "Ma journée", icon: LayoutDashboard, exact: true },
+    { to: "/tech/chantiers", label: "Mes chantiers", icon: ClipboardList },
+    { to: "/tech/camion", label: "Mon camion", icon: Truck },
+  ];
 
 export function TechShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
@@ -39,16 +40,10 @@ export function TechShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header
-        settings={settings}
-        tagline="Espace technicien"
-        onSignOut={handleSignOut}
-      />
+      <Header settings={settings} tagline="Espace technicien" onSignOut={handleSignOut} />
 
-      <main className="flex-1 pb-24">
-        <div className="mx-auto max-w-3xl px-4 py-6 animate-in-up">
-          {children}
-        </div>
+      <main className="flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+        <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4 sm:py-6 animate-in-up">{children}</div>
       </main>
 
       <BottomNav items={navItems} />
