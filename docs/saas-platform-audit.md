@@ -19,7 +19,7 @@ contient actuellement aucun framework de tests automatisés ni script `test`.
 
 ### Routes actuelles
 
-Les routes sont enregistrées dans un arbre maintenu manuellement :
+Les routes sont enregistrées dans l'arbre généré automatiquement par TanStack Router :
 
 - `/auth` : connexion et création directe d'un compte propriétaire ;
 - `/` : Dashboard protégé de l'application cliente ;
@@ -281,9 +281,10 @@ exécutées côté serveur dans une transaction ou un RPC atomique qui écrit
 Ce flux réutilise Supabase Auth, n'expose aucun mot de passe à l'administration
 de plateforme et évite les comptes en attente inutiles.
 
-## Migrations nécessaires
+## Migration préparée localement
 
-Une migration future devra :
+La migration locale `supabase/migrations/20260731013000_saas_platform_foundation.sql`
+prépare les éléments suivants sans les appliquer au projet distant :
 
 1. créer les quatre tables de plateforme et leurs contraintes ;
 2. activer la RLS et refuser tout accès direct anonyme ;
@@ -297,12 +298,11 @@ Une migration future devra :
    `company-logos`, `intervention-photos` et
    `intervention-signatures` ;
 7. ajouter les RPC atomiques de décision et de journalisation ;
-8. supprimer l'inscription publique directe ou la rendre inaccessible ;
-9. adapter les types Supabase locaux après validation du schéma réel.
+8. supprimer l'inscription publique directe ou la rendre inaccessible.
 
-Aucune migration n'a été créée à ce stade, car le dépôt ne contient qu'une
-migration historique de `stock_products`. `schema.sql` est plus complet, mais
-ne prouve pas à lui seul l'état exact de la base distante.
+Cette migration reste à relire et à valider séparément avant application.
+`schema.sql` est plus complet que l'historique de migrations, mais ne prouve pas
+à lui seul l'état exact de la base distante.
 
 ## Création sécurisée du premier `platform_admin`
 
@@ -376,37 +376,29 @@ mais ils sont importants avant une commercialisation.
 - conserver toutes les routes `/tech` et leur navigation réelle ;
 - ne pas appliquer de migration depuis Codex.
 
-## Décisions nécessitant une confirmation
+## Décisions confirmées après l'audit
 
-### 1. Modification de `src/routeTree.gen.ts` — bloquante
+- le Dashboard est déplacé vers `/app` afin de libérer `/` pour le site public ;
+- les redirections après connexion dépendent du rôle plateforme et du statut
+  d'accès ;
+- `src/routeTree.gen.ts` ne doit jamais être modifié manuellement ; il est
+  régénéré par la commande officielle ;
+- le projet Supabase attendu est `ysmkhdwjvlgmduipuaqs`.
 
-`CLAUDE.md` confirme que ce fichier est maintenu manuellement et que toute
-nouvelle route doit y être ajoutée. Le cahier des charges interdit pourtant sa
-modification. Sans exception explicite, il est techniquement impossible
-d'enregistrer le site public, `/connexion`, les pages de statut et
-`/platform/*`.
+La référence a été vérifiée en lecture seule contre les URL Supabase configurées
+dans l'environnement local : les deux références correspondent exactement.
+Aucune clé ni URL complète n'a été affichée. `supabase/config.toml` est aligné
+localement sur cette référence, sans liaison ni commande distante.
 
-### 2. Nouvelle URL du Dashboard
+## Décision restant nécessaire avant mise en service
 
-Pour libérer `/`, l'option recommandée est `/app`. Les autres routes métier
-resteraient inchangées. Une redirection de `/auth` vers `/connexion` préserverait
-les anciens favoris.
-
-### 3. Projet Supabase cible avant toute application SQL
-
-Le projet attendu semble être `ysmkhdwjvlgmduipuaqs`, mais
-`supabase/config.toml` désigne l'ancien projet `dawwepdqqzrdyyadhmtw`. Il faut
-confirmer la cible avant d'appliquer une migration ou de tester des données
-réelles. La préparation locale de SQL peut continuer sans application.
-
-### 4. Bootstrap du premier administrateur
-
-Il faudra fournir l'email réel de l'utilisateur Auth au moment de l'opération
-manuelle. Aucun identifiant ne sera inventé ou commité.
+Le premier `platform_admin` doit être un véritable utilisateur Supabase Auth.
+Son email réel sera fourni uniquement lors de l'opération manuelle, après
+validation de la migration. Aucun identifiant, UUID ou mot de passe n'est
+inventé ou commité.
 
 ## Critère de reprise
 
-Le développement peut commencer après autorisation explicite de modifier
-manuellement `src/routeTree.gen.ts` pour les seules routes de cette fondation,
-validation de `/app` comme nouvelle URL du Dashboard et confirmation que le
-projet Supabase cible est bien `ysmkhdwjvlgmduipuaqs`.
+Le développement local peut continuer. L'application de la migration distante,
+la création du premier administrateur, le push GitHub et le déploiement restent
+hors périmètre sans validation séparée.
