@@ -10,16 +10,29 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TechRouteImport } from './routes/tech'
+import { Route as PlatformRouteImport } from './routes/platform'
+import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
+import { Route as DemandeEnAttenteRouteImport } from './routes/demande-en-attente'
+import { Route as DemandeAccesRouteImport } from './routes/demande-acces'
+import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
+import { Route as ConditionsRouteImport } from './routes/conditions'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AccesSuspenduRouteImport } from './routes/acces-suspendu'
+import { Route as AccesRefuseRouteImport } from './routes/acces-refuse'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as TechIndexRouteImport } from './routes/tech.index'
-import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as PlatformIndexRouteImport } from './routes/platform.index'
 import { Route as TechCamionRouteImport } from './routes/tech.camion'
+import { Route as PlatformEntreprisesRouteImport } from './routes/platform.entreprises'
+import { Route as PlatformDemandesRouteImport } from './routes/platform.demandes'
 import { Route as AppTresorerieRouteImport } from './routes/_app.tresorerie'
 import { Route as AppStatsRouteImport } from './routes/_app.stats'
 import { Route as AppPlanningRouteImport } from './routes/_app.planning'
 import { Route as AppParametresRouteImport } from './routes/_app.parametres'
+import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
+import { Route as AppAppRouteImport } from './routes/_app.app'
 import { Route as TechChantiersIndexRouteImport } from './routes/tech.chantiers.index'
 import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
 import { Route as AppReapproIndexRouteImport } from './routes/_app.reappro.index'
@@ -46,34 +59,89 @@ const TechRoute = TechRouteImport.update({
   path: '/tech',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformRoute = PlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
+  id: '/mentions-legales',
+  path: '/mentions-legales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemandeEnAttenteRoute = DemandeEnAttenteRouteImport.update({
+  id: '/demande-en-attente',
+  path: '/demande-en-attente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemandeAccesRoute = DemandeAccesRouteImport.update({
+  id: '/demande-acces',
+  path: '/demande-acces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
+  id: '/confidentialite',
+  path: '/confidentialite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConditionsRoute = ConditionsRouteImport.update({
+  id: '/conditions',
+  path: '/conditions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccesSuspenduRoute = AccesSuspenduRouteImport.update({
+  id: '/acces-suspendu',
+  path: '/acces-suspendu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccesRefuseRoute = AccesRefuseRouteImport.update({
+  id: '/acces-refuse',
+  path: '/acces-refuse',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppOnboardingRoute = AppOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AppRoute,
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TechIndexRoute = TechIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => TechRoute,
 } as any)
-const AppIndexRoute = AppIndexRouteImport.update({
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => PlatformRoute,
 } as any)
 const TechCamionRoute = TechCamionRouteImport.update({
   id: '/camion',
   path: '/camion',
   getParentRoute: () => TechRoute,
+} as any)
+const PlatformEntreprisesRoute = PlatformEntreprisesRouteImport.update({
+  id: '/entreprises',
+  path: '/entreprises',
+  getParentRoute: () => PlatformRoute,
+} as any)
+const PlatformDemandesRoute = PlatformDemandesRouteImport.update({
+  id: '/demandes',
+  path: '/demandes',
+  getParentRoute: () => PlatformRoute,
 } as any)
 const AppTresorerieRoute = AppTresorerieRouteImport.update({
   id: '/tresorerie',
@@ -93,6 +161,16 @@ const AppPlanningRoute = AppPlanningRouteImport.update({
 const AppParametresRoute = AppParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAppRoute = AppAppRouteImport.update({
+  id: '/app',
+  path: '/app',
   getParentRoute: () => AppRoute,
 } as any)
 const TechChantiersIndexRoute = TechChantiersIndexRouteImport.update({
@@ -197,15 +275,28 @@ const AppClientsIdRoute = AppClientsIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
+  '/acces-refuse': typeof AccesRefuseRoute
+  '/acces-suspendu': typeof AccesSuspenduRoute
   '/auth': typeof AuthRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion': typeof ConnexionRoute
+  '/demande-acces': typeof DemandeAccesRoute
+  '/demande-en-attente': typeof DemandeEnAttenteRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/tech': typeof TechRouteWithChildren
+  '/app': typeof AppAppRoute
   '/onboarding': typeof AppOnboardingRoute
   '/parametres': typeof AppParametresRoute
   '/planning': typeof AppPlanningRoute
   '/stats': typeof AppStatsRoute
   '/tresorerie': typeof AppTresorerieRoute
+  '/platform/demandes': typeof PlatformDemandesRoute
+  '/platform/entreprises': typeof PlatformEntreprisesRoute
   '/tech/camion': typeof TechCamionRoute
+  '/platform/': typeof PlatformIndexRoute
   '/tech/': typeof TechIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
@@ -229,14 +320,26 @@ export interface FileRoutesByFullPath {
   '/tech/chantiers/': typeof TechChantiersIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/acces-refuse': typeof AccesRefuseRoute
+  '/acces-suspendu': typeof AccesSuspenduRoute
   '/auth': typeof AuthRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion': typeof ConnexionRoute
+  '/demande-acces': typeof DemandeAccesRoute
+  '/demande-en-attente': typeof DemandeEnAttenteRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
+  '/app': typeof AppAppRoute
   '/onboarding': typeof AppOnboardingRoute
   '/parametres': typeof AppParametresRoute
   '/planning': typeof AppPlanningRoute
   '/stats': typeof AppStatsRoute
   '/tresorerie': typeof AppTresorerieRoute
+  '/platform/demandes': typeof PlatformDemandesRoute
+  '/platform/entreprises': typeof PlatformEntreprisesRoute
   '/tech/camion': typeof TechCamionRoute
-  '/': typeof AppIndexRoute
+  '/platform': typeof PlatformIndexRoute
   '/tech': typeof TechIndexRoute
   '/clients/$id': typeof AppClientsIdRoute
   '/clients/new': typeof AppClientsNewRoute
@@ -261,16 +364,29 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/acces-refuse': typeof AccesRefuseRoute
+  '/acces-suspendu': typeof AccesSuspenduRoute
   '/auth': typeof AuthRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion': typeof ConnexionRoute
+  '/demande-acces': typeof DemandeAccesRoute
+  '/demande-en-attente': typeof DemandeEnAttenteRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
+  '/platform': typeof PlatformRouteWithChildren
   '/tech': typeof TechRouteWithChildren
+  '/_app/app': typeof AppAppRoute
   '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/parametres': typeof AppParametresRoute
   '/_app/planning': typeof AppPlanningRoute
   '/_app/stats': typeof AppStatsRoute
   '/_app/tresorerie': typeof AppTresorerieRoute
+  '/platform/demandes': typeof PlatformDemandesRoute
+  '/platform/entreprises': typeof PlatformEntreprisesRoute
   '/tech/camion': typeof TechCamionRoute
-  '/_app/': typeof AppIndexRoute
+  '/platform/': typeof PlatformIndexRoute
   '/tech/': typeof TechIndexRoute
   '/_app/clients/$id': typeof AppClientsIdRoute
   '/_app/clients/new': typeof AppClientsNewRoute
@@ -297,14 +413,27 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acces-refuse'
+    | '/acces-suspendu'
     | '/auth'
+    | '/conditions'
+    | '/confidentialite'
+    | '/connexion'
+    | '/demande-acces'
+    | '/demande-en-attente'
+    | '/mentions-legales'
+    | '/platform'
     | '/tech'
+    | '/app'
     | '/onboarding'
     | '/parametres'
     | '/planning'
     | '/stats'
     | '/tresorerie'
+    | '/platform/demandes'
+    | '/platform/entreprises'
     | '/tech/camion'
+    | '/platform/'
     | '/tech/'
     | '/clients/$id'
     | '/clients/new'
@@ -328,14 +457,26 @@ export interface FileRouteTypes {
     | '/tech/chantiers/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
+    | '/acces-refuse'
+    | '/acces-suspendu'
     | '/auth'
+    | '/conditions'
+    | '/confidentialite'
+    | '/connexion'
+    | '/demande-acces'
+    | '/demande-en-attente'
+    | '/mentions-legales'
+    | '/app'
     | '/onboarding'
     | '/parametres'
     | '/planning'
     | '/stats'
     | '/tresorerie'
+    | '/platform/demandes'
+    | '/platform/entreprises'
     | '/tech/camion'
-    | '/'
+    | '/platform'
     | '/tech'
     | '/clients/$id'
     | '/clients/new'
@@ -359,16 +500,29 @@ export interface FileRouteTypes {
     | '/tech/chantiers'
   id:
     | '__root__'
+    | '/'
     | '/_app'
+    | '/acces-refuse'
+    | '/acces-suspendu'
     | '/auth'
+    | '/conditions'
+    | '/confidentialite'
+    | '/connexion'
+    | '/demande-acces'
+    | '/demande-en-attente'
+    | '/mentions-legales'
+    | '/platform'
     | '/tech'
+    | '/_app/app'
     | '/_app/onboarding'
     | '/_app/parametres'
     | '/_app/planning'
     | '/_app/stats'
     | '/_app/tresorerie'
+    | '/platform/demandes'
+    | '/platform/entreprises'
     | '/tech/camion'
-    | '/_app/'
+    | '/platform/'
     | '/tech/'
     | '/_app/clients/$id'
     | '/_app/clients/new'
@@ -393,8 +547,18 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  AccesRefuseRoute: typeof AccesRefuseRoute
+  AccesSuspenduRoute: typeof AccesSuspenduRoute
   AuthRoute: typeof AuthRoute
+  ConditionsRoute: typeof ConditionsRoute
+  ConfidentialiteRoute: typeof ConfidentialiteRoute
+  ConnexionRoute: typeof ConnexionRoute
+  DemandeAccesRoute: typeof DemandeAccesRoute
+  DemandeEnAttenteRoute: typeof DemandeEnAttenteRoute
+  MentionsLegalesRoute: typeof MentionsLegalesRoute
+  PlatformRoute: typeof PlatformRouteWithChildren
   TechRoute: typeof TechRouteWithChildren
 }
 
@@ -407,11 +571,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TechRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mentions-legales': {
+      id: '/mentions-legales'
+      path: '/mentions-legales'
+      fullPath: '/mentions-legales'
+      preLoaderRoute: typeof MentionsLegalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demande-en-attente': {
+      id: '/demande-en-attente'
+      path: '/demande-en-attente'
+      fullPath: '/demande-en-attente'
+      preLoaderRoute: typeof DemandeEnAttenteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demande-acces': {
+      id: '/demande-acces'
+      path: '/demande-acces'
+      fullPath: '/demande-acces'
+      preLoaderRoute: typeof DemandeAccesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confidentialite': {
+      id: '/confidentialite'
+      path: '/confidentialite'
+      fullPath: '/confidentialite'
+      preLoaderRoute: typeof ConfidentialiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conditions': {
+      id: '/conditions'
+      path: '/conditions'
+      fullPath: '/conditions'
+      preLoaderRoute: typeof ConditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acces-suspendu': {
+      id: '/acces-suspendu'
+      path: '/acces-suspendu'
+      fullPath: '/acces-suspendu'
+      preLoaderRoute: typeof AccesSuspenduRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acces-refuse': {
+      id: '/acces-refuse'
+      path: '/acces-refuse'
+      fullPath: '/acces-refuse'
+      preLoaderRoute: typeof AccesRefuseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -421,12 +648,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/onboarding': {
-      id: '/_app/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AppOnboardingRouteImport
-      parentRoute: typeof AppRoute
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/tech/': {
       id: '/tech/'
@@ -435,12 +662,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TechIndexRouteImport
       parentRoute: typeof TechRoute
     }
-    '/_app/': {
-      id: '/_app/'
+    '/platform/': {
+      id: '/platform/'
       path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof PlatformRoute
     }
     '/tech/camion': {
       id: '/tech/camion'
@@ -448,6 +675,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/tech/camion'
       preLoaderRoute: typeof TechCamionRouteImport
       parentRoute: typeof TechRoute
+    }
+    '/platform/entreprises': {
+      id: '/platform/entreprises'
+      path: '/entreprises'
+      fullPath: '/platform/entreprises'
+      preLoaderRoute: typeof PlatformEntreprisesRouteImport
+      parentRoute: typeof PlatformRoute
+    }
+    '/platform/demandes': {
+      id: '/platform/demandes'
+      path: '/demandes'
+      fullPath: '/platform/demandes'
+      preLoaderRoute: typeof PlatformDemandesRouteImport
+      parentRoute: typeof PlatformRoute
     }
     '/_app/tresorerie': {
       id: '/_app/tresorerie'
@@ -475,6 +716,20 @@ declare module '@tanstack/react-router' {
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof AppParametresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/app': {
+      id: '/_app/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppAppRouteImport
       parentRoute: typeof AppRoute
     }
     '/tech/chantiers/': {
@@ -621,12 +876,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAppRoute: typeof AppAppRoute
   AppOnboardingRoute: typeof AppOnboardingRoute
   AppParametresRoute: typeof AppParametresRoute
   AppPlanningRoute: typeof AppPlanningRoute
   AppStatsRoute: typeof AppStatsRoute
   AppTresorerieRoute: typeof AppTresorerieRoute
-  AppIndexRoute: typeof AppIndexRoute
   AppClientsIdRoute: typeof AppClientsIdRoute
   AppClientsNewRoute: typeof AppClientsNewRoute
   AppContratsIdRoute: typeof AppContratsIdRoute
@@ -648,12 +903,12 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAppRoute: AppAppRoute,
   AppOnboardingRoute: AppOnboardingRoute,
   AppParametresRoute: AppParametresRoute,
   AppPlanningRoute: AppPlanningRoute,
   AppStatsRoute: AppStatsRoute,
   AppTresorerieRoute: AppTresorerieRoute,
-  AppIndexRoute: AppIndexRoute,
   AppClientsIdRoute: AppClientsIdRoute,
   AppClientsNewRoute: AppClientsNewRoute,
   AppContratsIdRoute: AppContratsIdRoute,
@@ -676,6 +931,22 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface PlatformRouteChildren {
+  PlatformDemandesRoute: typeof PlatformDemandesRoute
+  PlatformEntreprisesRoute: typeof PlatformEntreprisesRoute
+  PlatformIndexRoute: typeof PlatformIndexRoute
+}
+
+const PlatformRouteChildren: PlatformRouteChildren = {
+  PlatformDemandesRoute: PlatformDemandesRoute,
+  PlatformEntreprisesRoute: PlatformEntreprisesRoute,
+  PlatformIndexRoute: PlatformIndexRoute,
+}
+
+const PlatformRouteWithChildren = PlatformRoute._addFileChildren(
+  PlatformRouteChildren,
+)
+
 interface TechRouteChildren {
   TechCamionRoute: typeof TechCamionRoute
   TechIndexRoute: typeof TechIndexRoute
@@ -693,8 +964,18 @@ const TechRouteChildren: TechRouteChildren = {
 const TechRouteWithChildren = TechRoute._addFileChildren(TechRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  AccesRefuseRoute: AccesRefuseRoute,
+  AccesSuspenduRoute: AccesSuspenduRoute,
   AuthRoute: AuthRoute,
+  ConditionsRoute: ConditionsRoute,
+  ConfidentialiteRoute: ConfidentialiteRoute,
+  ConnexionRoute: ConnexionRoute,
+  DemandeAccesRoute: DemandeAccesRoute,
+  DemandeEnAttenteRoute: DemandeEnAttenteRoute,
+  MentionsLegalesRoute: MentionsLegalesRoute,
+  PlatformRoute: PlatformRouteWithChildren,
   TechRoute: TechRouteWithChildren,
 }
 export const routeTree = rootRouteImport
