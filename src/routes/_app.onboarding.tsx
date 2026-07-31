@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useEffect } from "react";
@@ -20,10 +21,20 @@ export const Route = createFileRoute("/_app/onboarding")({
   component: OnboardingPage,
 });
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
@@ -55,11 +66,17 @@ function OnboardingPage() {
 
   async function onSubmit(values: OnboardingForm) {
     if (!settings?.user_id) return;
-    const { error } = await db.from("company_settings").update(values).eq("user_id", settings.user_id);
-    if (error) { toast.error(error.message); return; }
+    const { error } = await db
+      .from("company_settings")
+      .update(values)
+      .eq("user_id", settings.user_id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["settings"] });
     toast.success("Société configurée");
-    navigate({ to: "/", replace: true });
+    navigate({ to: "/app", replace: true });
   }
 
   return (
@@ -78,11 +95,19 @@ function OnboardingPage() {
               <Input {...form.register("nom")} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="SIRET"><Input {...form.register("siret")} /></Field>
-              <Field label="N° TVA"><Input {...form.register("tva_number")} /></Field>
+              <Field label="SIRET">
+                <Input {...form.register("siret")} />
+              </Field>
+              <Field label="N° TVA">
+                <Input {...form.register("tva_number")} />
+              </Field>
             </div>
-            <Field label="Téléphone"><Input {...form.register("telephone")} /></Field>
-            <Field label="Adresse"><Textarea rows={2} {...form.register("adresse")} /></Field>
+            <Field label="Téléphone">
+              <Input {...form.register("telephone")} />
+            </Field>
+            <Field label="Adresse">
+              <Textarea rows={2} {...form.register("adresse")} />
+            </Field>
             <Field label="Email de contact" error={form.formState.errors.email?.message}>
               <Input type="email" {...form.register("email")} />
             </Field>
