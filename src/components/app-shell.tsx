@@ -1,24 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  FileText,
-  FileSignature,
-  Settings,
-  Plus,
-  Package,
-  Search,
-  X,
-  TrendingUp,
-  FileCheck,
-  MoreHorizontal,
-  BarChart2,
-  UserCog,
-  PackagePlus,
-  CalendarClock,
-} from "lucide-react";
+import { Plus, Search, X, MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -33,40 +15,15 @@ import {
   useMyPoste,
   useMyTodoCount,
 } from "@/lib/queries";
-import type { PermissionKey } from "@/lib/permissions";
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
-
-const mainNavItems: {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  exact?: boolean;
-  perm?: PermissionKey;
-}[] = [
-  { to: "/", label: "Accueil", icon: LayoutDashboard, exact: true, perm: "accueil" },
-  { to: "/clients", label: "Clients", icon: Users, perm: "clients" },
-  { to: "/interventions", label: "Terrain", icon: ClipboardList }, // toujours visible
-  { to: "/factures", label: "Factures", icon: FileText, perm: "factures" },
-  { to: "/stock", label: "Stock", icon: Package, perm: "stock" },
-];
-
-const moreNavItems: {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  perm?: PermissionKey;
-}[] = [
-  { to: "/devis", label: "Devis", icon: FileCheck, perm: "devis" },
-  { to: "/tresorerie", label: "Trésorerie", icon: TrendingUp, perm: "tresorerie" },
-  { to: "/contrats", label: "Contrats", icon: FileSignature, perm: "contrats" },
-  { to: "/reappro", label: "Réappro", icon: PackagePlus, perm: "reappro" },
-  { to: "/programmation", label: "À programmer", icon: CalendarClock, perm: "programmation" },
-  { to: "/stats", label: "Statistiques", icon: BarChart2, perm: "stats" },
-  { to: "/parametres", label: "Paramètres", icon: Settings, perm: "parametres" },
-];
+import {
+  APP_PRIMARY_NAV_ITEMS,
+  APP_SECONDARY_NAV_ITEMS,
+  APP_TEAM_NAV_ITEM,
+} from "@/lib/navigation";
 
 type SearchResult = {
   type: "client" | "facture" | "intervention";
@@ -491,14 +448,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Tant que l'accès n'est pas résolu, on masque les onglets à permission
   // (Terrain reste toujours visible) pour éviter un flash "tout est affiché".
-  const mainItems = mainNavItems.filter((item) => !item.perm || (!accessLoading && can(item.perm)));
-  const filteredMore = moreNavItems.filter(
+  const mainItems = APP_PRIMARY_NAV_ITEMS.filter(
+    (item) => !item.perm || (!accessLoading && can(item.perm)),
+  );
+  const filteredMore = APP_SECONDARY_NAV_ITEMS.filter(
     (item) => !item.perm || (!accessLoading && can(item.perm)),
   );
   const moreItems =
-    !accessLoading && can("equipe")
-      ? [...filteredMore, { to: "/equipe", label: "Équipe", icon: UserCog }]
-      : filteredMore;
+    !accessLoading && can("equipe") ? [...filteredMore, APP_TEAM_NAV_ITEM] : filteredMore;
   // Sur mobile, quatre accès directs + "Plus" gardent une barre lisible à une
   // main. Factures reste directement visible dans la sidebar desktop.
   const mobileMainItems = mainItems.filter((item) => item.to !== "/factures");
@@ -515,7 +472,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     qc.clear();
     await supabase.auth.signOut({ scope: "local" });
     toast.success("Déconnecté");
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/connexion", replace: true });
   }
 
   const mobileMoreActive = mobileMoreItems.some(
@@ -545,7 +502,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Header
           settings={settings}
           tagline="Dératisation · Désinsectisation"
-          brandHref="/"
+          brandHref="/app"
           onSearchClick={searchAllowed ? () => setSearchOpen(true) : undefined}
           showSettingsLink
           onSignOut={handleSignOut}

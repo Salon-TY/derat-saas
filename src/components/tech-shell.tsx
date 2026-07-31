@@ -4,20 +4,13 @@
 // Toujours en navigation du bas, y compris sur grand écran : outil de terrain
 // dédié, pas de sidebar (cf. décision d'architecture Phase B).
 import { useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, ClipboardList, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSettings, useMyTodoCount } from "@/lib/queries";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
-
-const techNavItems: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }[] =
-  [
-    { to: "/tech", label: "Ma journée", icon: LayoutDashboard, exact: true },
-    { to: "/tech/chantiers", label: "Mes chantiers", icon: ClipboardList },
-    { to: "/tech/camion", label: "Mon camion", icon: Truck },
-  ];
+import { TECH_NAV_ITEMS } from "@/lib/navigation";
 
 export function TechShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
@@ -30,10 +23,10 @@ export function TechShell({ children }: { children: React.ReactNode }) {
     qc.clear();
     await supabase.auth.signOut({ scope: "local" });
     toast.success("Déconnecté");
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/connexion", replace: true });
   }
 
-  const navItems = techNavItems.map((item) => ({
+  const navItems = TECH_NAV_ITEMS.map((item) => ({
     ...item,
     badgeCount: item.to === "/tech/chantiers" ? todoCount : undefined,
   }));

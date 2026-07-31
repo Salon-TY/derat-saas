@@ -7,6 +7,7 @@
 // en dessous de lg (≥1024px) et n'a donc pas besoin de logique de repli.
 // Purement présentationnel : reçoit ses entrées en props (déjà filtrées par
 // permission par le shell appelant), ne décide d'aucune permission.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useLocation } from "@tanstack/react-router";
 import { Bug, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -74,7 +75,7 @@ export function Sidebar({
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-border/60 bg-card lg:sticky lg:top-0 lg:flex lg:h-screen">
-      <Link to="/" className="flex h-[72px] items-center gap-3 border-b border-border/60 px-5">
+      <Link to="/app" className="flex h-[72px] items-center gap-3 border-b border-border/60 px-5">
         <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent shadow-soft">
           {logoUrl ? (
             <img src={logoUrl} alt="" className="h-full w-full object-contain" />
