@@ -38,3 +38,8 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Config MCP — contient le token d'accès Supabase (sbp_...) en clair.
+# NE JAMAIS committer. (.claude/launch.json reste suivi, lui.)
+.mcp.json
+.claude/mcp.json
