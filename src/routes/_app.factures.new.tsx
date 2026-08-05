@@ -164,12 +164,15 @@ function NouvelleFacture() {
       return;
     }
 
-    // Récupérer le prochain numéro
-    const { data: settingsData } = await db
-      .from("company_settings")
-      .select("next_invoice_number, user_id")
-      .maybeSingle();
-    const numero = settingsData?.next_invoice_number ?? 1;
+    // Numéro généré côté base par une RPC atomique scopée par compte
+    // (account_owner()), pas par un select+update client bloqué en silence
+    // par la RLS pour tout non-owner — voir migration
+    // 20260805110000_bug2_numero_sequences.sql.
+    const { data: numero, error: numeroError } = await db.rpc("next_invoice_number");
+    if (numeroError || numero == null) {
+      toast.error(numeroError?.message ?? "Impossible de générer le numéro de facture.");
+      return;
+    }
 
     const linesCalc = values.lines.map((l) => ({
       quantite: Number(l.quantite),
@@ -218,14 +221,6 @@ function NouvelleFacture() {
     if (e2) {
       toast.error(e2.message);
       return;
-    }
-
-    // Incrémenter le numéro suivant
-    if (settingsData) {
-      await db
-        .from("company_settings")
-        .update({ next_invoice_number: numero + 1 })
-        .eq("user_id", settingsData.user_id);
     }
 
     qc.invalidateQueries({ queryKey: ["invoices"] });

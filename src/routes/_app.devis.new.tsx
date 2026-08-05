@@ -76,14 +76,14 @@ function NewDevisPage() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Generate numero DEV-YYYY-NNN
-    const year = new Date().getFullYear();
-    const { count } = await db
-      .from("devis")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-    const n = (count ?? 0) + 1;
-    const numero = `DEV-${year}-${String(n).padStart(3, "0")}`;
+    // Numéro généré côté base par une RPC atomique scopée par compte
+    // (account_owner()), pas par un comptage client filtré sur l'UID de la
+    // session courante — voir migration 20260805110000_bug2_numero_sequences.sql.
+    const { data: numero, error: numeroError } = await db.rpc("next_devis_number");
+    if (numeroError || !numero) {
+      toast.error(numeroError?.message ?? "Impossible de générer le numéro de devis.");
+      return;
+    }
 
     const linesData = values.lines.map((l, i) => ({
       description: l.description,
