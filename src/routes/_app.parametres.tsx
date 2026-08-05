@@ -243,7 +243,7 @@ function ParametresPage() {
   async function handleSaveRelance() {
     if (!settings?.user_id) return;
     setSavingRelance(true);
-    const { error } = await db
+    const { data, error } = await db
       .from("company_settings")
       .update({
         relance_delai_n1: relanceN1,
@@ -251,10 +251,12 @@ function ParametresPage() {
         relance_delai_n3: relanceN3,
         relance_signature: relanceSignature.trim(),
       })
-      .eq("user_id", settings.user_id);
+      .eq("user_id", settings.user_id)
+      .select()
+      .single();
     setSavingRelance(false);
-    if (error) {
-      toast.error(error.message);
+    if (error || !data) {
+      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -264,16 +266,18 @@ function ParametresPage() {
   async function handleSavePro() {
     if (!settings?.user_id) return;
     setSavingPro(true);
-    const { error } = await db
+    const { data, error } = await db
       .from("company_settings")
       .update({
         nom_technicien: nomTechnicien.trim() || null,
         numero_certibiocide: numeroCertibiocide.trim() || null,
       })
-      .eq("user_id", settings.user_id);
+      .eq("user_id", settings.user_id)
+      .select()
+      .single();
     setSavingPro(false);
-    if (error) {
-      toast.error(error.message);
+    if (error || !data) {
+      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -289,12 +293,14 @@ function ParametresPage() {
     try {
       const url = await uploadCompanyLogo(file, user.id);
       if (!url) return;
-      const { error } = await db
+      const { data, error } = await db
         .from("company_settings")
         .update({ logo_url: url })
-        .eq("user_id", user.id);
-      if (error) {
-        toast.error(error.message);
+        .eq("user_id", user.id)
+        .select()
+        .single();
+      if (error || !data) {
+        toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
         return;
       }
       qc.invalidateQueries({ queryKey: ["settings"] });
@@ -307,12 +313,14 @@ function ParametresPage() {
   async function handleLogoDelete() {
     if (!settings?.logo_url) return;
     await deleteCompanyLogo(settings.logo_url);
-    const { error } = await db
+    const { data, error } = await db
       .from("company_settings")
       .update({ logo_url: null })
-      .eq("user_id", settings.user_id);
-    if (error) {
-      toast.error(error.message);
+      .eq("user_id", settings.user_id)
+      .select()
+      .single();
+    if (error || !data) {
+      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -490,12 +498,14 @@ function ParametresPage() {
   }, [settings, form]);
 
   async function onSubmit(values: SettingsForm) {
-    const { error } = await db
+    const { data, error } = await db
       .from("company_settings")
       .update(values)
-      .eq("user_id", settings?.user_id);
-    if (error) {
-      toast.error(error.message);
+      .eq("user_id", settings?.user_id)
+      .select()
+      .single();
+    if (error || !data) {
+      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
