@@ -75,6 +75,15 @@
 --    suivi (voir bilan de session), pas fait à l'aveugle ici.
 
 -- ── invoices ────────────────────────────────────────────────────────────────
+-- `req_perm_factures` : policy RESTRICTIVE trouvée en base au moment d'appliquer
+-- cette migration (2026-08-06), absente de tout fichier versionné (même
+-- classe de dérive "SQL Editor" que `has_permission()`, cf. migration 090000).
+-- Elle exigeait `has_permission('factures')` seul (AND, car restrictive), ce
+-- qui aurait neutralisé silencieusement le `OR tresorerie` ci-dessous : un
+-- employé bureau avec uniquement "Trésorerie" coché serait resté bloqué sur
+-- `invoices` malgré la policy permissive voulue ici. Supprimée : la nouvelle
+-- policy permissive porte seule la restriction désormais.
+DROP POLICY IF EXISTS "req_perm_factures" ON public.invoices;
 DROP POLICY IF EXISTS "account members full access" ON public.invoices;
 
 CREATE POLICY "account members full access" ON public.invoices
@@ -89,6 +98,8 @@ CREATE POLICY "account members full access" ON public.invoices
   );
 
 -- ── invoice_lines ───────────────────────────────────────────────────────────
+-- Même dérive `req_perm_factures` trouvée sur invoice_lines, même correctif.
+DROP POLICY IF EXISTS "req_perm_factures" ON public.invoice_lines;
 DROP POLICY IF EXISTS "account members full access" ON public.invoice_lines;
 
 CREATE POLICY "account members full access" ON public.invoice_lines
