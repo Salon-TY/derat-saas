@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -10,7 +11,14 @@ import { normalizeUsername, usernameToEmail, USERNAME_RE } from "@/lib/team";
 // *.server.ts importé dynamiquement à l'intérieur d'un handler est exclu du
 // bundle client (voir le commentaire dans client.server.ts).
 
-async function requireOwner(context: { supabase: any }) {
+async function requireOwner(context: { supabase: SupabaseClient }) {
+  const { data: accessStatus, error: accessError } = await context.supabase.rpc(
+    "current_account_access_status",
+  );
+  if (accessError || accessStatus !== "active") {
+    throw new Error("Le compte de l’entreprise n’est pas actif.");
+  }
+
   const { data, error } = await context.supabase.rpc("current_user_role");
   if (error || data !== "owner") {
     throw new Error("Action réservée au propriétaire du compte.");
@@ -19,12 +27,14 @@ async function requireOwner(context: { supabase: any }) {
 
 export const createEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
-    displayName: z.string().trim().min(1, "Nom requis"),
-    username: z.string().trim().min(1, "Identifiant requis"),
-    password: z.string().min(8, "8 caractères minimum"),
-    poste: z.enum(["bureau", "technicien"]).default("technicien"),
-  }))
+  .inputValidator(
+    z.object({
+      displayName: z.string().trim().min(1, "Nom requis"),
+      username: z.string().trim().min(1, "Identifiant requis"),
+      password: z.string().min(8, "8 caractères minimum"),
+      poste: z.enum(["bureau", "technicien"]).default("technicien"),
+    }),
+  )
   .handler(async ({ data, context }) => {
     await requireOwner(context);
 
@@ -74,10 +84,12 @@ export const createEmployee = createServerFn({ method: "POST" })
 
 export const resetEmployeePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
-    memberId: z.string().uuid(),
-    newPassword: z.string().min(8, "8 caractères minimum"),
-  }))
+  .inputValidator(
+    z.object({
+      memberId: z.string().uuid(),
+      newPassword: z.string().min(8, "8 caractères minimum"),
+    }),
+  )
   .handler(async ({ data, context }) => {
     await requireOwner(context);
     const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
@@ -101,10 +113,12 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
 
 export const setEmployeeActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
-    memberId: z.string().uuid(),
-    active: z.boolean(),
-  }))
+  .inputValidator(
+    z.object({
+      memberId: z.string().uuid(),
+      active: z.boolean(),
+    }),
+  )
   .handler(async ({ data, context }) => {
     await requireOwner(context);
     const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
@@ -134,9 +148,11 @@ export const setEmployeeActive = createServerFn({ method: "POST" })
 
 export const deleteEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
-    memberId: z.string().uuid(),
-  }))
+  .inputValidator(
+    z.object({
+      memberId: z.string().uuid(),
+    }),
+  )
   .handler(async ({ data, context }) => {
     await requireOwner(context);
     const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
@@ -153,7 +169,10 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const { error: deleteAuthErr } = await admin.auth.admin.deleteUser(member.user_id);
     if (deleteAuthErr) throw new Error(deleteAuthErr.message);
 
-    const { error: deleteRowErr } = await admin.from("team_members").delete().eq("id", data.memberId);
+    const { error: deleteRowErr } = await admin
+      .from("team_members")
+      .delete()
+      .eq("id", data.memberId);
     if (deleteRowErr) throw new Error(deleteRowErr.message);
 
     return { ok: true };

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import {
@@ -36,7 +37,7 @@ import { AlertCard } from "@/components/alert-card";
 import { TaskCard } from "@/components/task-card";
 import { QuickActionCard } from "@/components/quick-action-card";
 
-export const Route = createFileRoute("/_app/")({
+export const Route = createFileRoute("/_app/app")({
   head: () => ({ meta: [{ title: `Tableau de bord — ${APP_NAME}` }] }),
   component: () => (
     <PermissionGate perm="accueil">
