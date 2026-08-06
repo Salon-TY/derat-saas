@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TechRouteImport } from './routes/tech'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as TechIndexRouteImport } from './routes/tech.index'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as TechCamionRouteImport } from './routes/tech.camion'
@@ -20,6 +19,7 @@ import { Route as AppTresorerieRouteImport } from './routes/_app.tresorerie'
 import { Route as AppStatsRouteImport } from './routes/_app.stats'
 import { Route as AppPlanningRouteImport } from './routes/_app.planning'
 import { Route as AppParametresRouteImport } from './routes/_app.parametres'
+import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as TechChantiersIndexRouteImport } from './routes/tech.chantiers.index'
 import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
 import { Route as AppReapproIndexRouteImport } from './routes/_app.reappro.index'
@@ -55,11 +55,6 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppOnboardingRoute = AppOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AppRoute,
-} as any)
 const TechIndexRoute = TechIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -93,6 +88,11 @@ const AppPlanningRoute = AppPlanningRouteImport.update({
 const AppParametresRoute = AppParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => AppRoute,
 } as any)
 const TechChantiersIndexRoute = TechChantiersIndexRouteImport.update({
@@ -421,13 +421,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/onboarding': {
-      id: '/_app/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AppOnboardingRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/tech/': {
       id: '/tech/'
       path: '/'
@@ -475,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof AppParametresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
       parentRoute: typeof AppRoute
     }
     '/tech/chantiers/': {

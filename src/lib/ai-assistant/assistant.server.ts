@@ -152,7 +152,7 @@ export async function runAiAssistant({
     };
   }
 
-  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.6-sol";
+  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.6-terra";
   const tools = getAvailableToolDefinitions(access);
   const input: unknown[] = [
     ...request.history.map((message) => ({
