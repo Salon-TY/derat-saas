@@ -199,6 +199,7 @@ export type Database = {
           created_at: string
           date: string
           date_prochain_passage: string | null
+          devis_id: string | null
           heure_debut: string | null
           heure_fin: string | null
           id: string
@@ -221,6 +222,7 @@ export type Database = {
           created_at?: string
           date: string
           date_prochain_passage?: string | null
+          devis_id?: string | null
           heure_debut?: string | null
           heure_fin?: string | null
           id?: string
@@ -243,6 +245,7 @@ export type Database = {
           created_at?: string
           date?: string
           date_prochain_passage?: string | null
+          devis_id?: string | null
           heure_debut?: string | null
           heure_fin?: string | null
           id?: string
@@ -270,6 +273,13 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_devis_id_fkey"
+            columns: ["devis_id"]
+            isOneToOne: false
+            referencedRelation: "devis"
             referencedColumns: ["id"]
           },
         ]

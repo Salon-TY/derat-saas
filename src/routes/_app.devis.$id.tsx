@@ -423,40 +423,12 @@ function DevisDetail() {
     navigate({ to: "/factures/$id", params: { id: inv.id } });
   }
 
-  async function convertToIntervention() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const today = localDateStr(new Date());
-    const { data: inv, error } = await db
-      .from("interventions")
-      .insert({
-        user_id: user.id,
-        client_id: quote.client_id,
-        date: today,
-        type_intervention: "Les deux",
-        statut: "planifiee",
-        adresse_site: quote.client?.adresse_site ?? "",
-        type_nuisible: "",
-        produits: "",
-        quantite: "",
-        observations: quote.notes ?? "",
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    await db.from("devis").update({ statut: "converti" }).eq("id", id);
-
-    qc.invalidateQueries({ queryKey: ["devis"] });
-    qc.invalidateQueries({ queryKey: ["interventions"] });
-    toast.success("Converti en intervention");
-    navigate({ to: "/interventions/$id", params: { id: inv.id } });
+  // Ouvre le formulaire de création d'intervention préremplie depuis ce devis
+  // (client, adresse, prestations des devis_lines) — jamais d'écriture directe
+  // en base : l'utilisateur relit et valide sur /interventions/new avant toute
+  // création (voir buildConsignesFromDevis dans _app.interventions.new.tsx).
+  function convertToIntervention() {
+    navigate({ to: "/interventions/new", search: { from_devis: quote.id } });
   }
 
   function exportPDF() {
@@ -687,14 +659,16 @@ function DevisDetail() {
             >
               <FileText className="h-4 w-4" /> Convertir en facture
             </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="gap-1.5"
-              onClick={convertToIntervention}
-            >
-              <ClipboardList className="h-4 w-4" /> Convertir en intervention
-            </Button>
+            {quote.statut === "accepte" && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1.5"
+                onClick={convertToIntervention}
+              >
+                <ClipboardList className="h-4 w-4" /> Créer l'intervention
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

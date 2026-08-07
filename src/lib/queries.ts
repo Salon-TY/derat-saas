@@ -32,6 +32,7 @@ export type Intervention = {
   user_id: string;
   client_id: string;
   contract_id?: string | null;
+  devis_id?: string | null;
   technicien_id?: string | null;
   date: string;
   adresse_site: string;
