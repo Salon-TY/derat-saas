@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SignatureCanvas } from "@/components/signature-canvas";
 import { uploadSignature, deleteSignature } from "@/lib/photos";
-import { printDocument } from "@/lib/print";
+import { createPrintStyles, printDocument } from "@/lib/print";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -179,27 +179,21 @@ function ContractDetail() {
     const sigCompanyHtml = `<div class="sig-line">${nomSociete}</div>`;
     const sigClientHtml = contract.signature_url
       ? `<div class="sig-img-block">
-           <img src="${contract.signature_url}" alt="Signature" style="max-height:60px;border-bottom:1px solid #ccc;padding-bottom:4px;">
-           <div style="font-size:9px;color:#555;margin-top:3px;">Signé le ${formatDateTime(contract.signature_at)}</div>
+           <img src="${contract.signature_url}" alt="Signature" style="max-height:60px;border-bottom:1px solid var(--pdf-border);padding-bottom:4px;">
+           <div style="font-size:9px;color:color-mix(in oklch,var(--pdf-foreground) 60%,transparent);margin-top:3px;">Signé le ${formatDateTime(contract.signature_at)}</div>
          </div>`
       : `<div class="sig-line">${clientNom}</div>`;
 
-    const css = `
-  body { font-family:Arial,sans-serif; font-size:11px; color:#222; }
-  .header { display:flex; justify-content:space-between; margin-bottom:24px; border-bottom:2px solid #1a3c2e; padding-bottom:16px; }
-  .prestataire strong { font-size:15px; display:block; margin-bottom:4px; color:#1a3c2e; }
-  .prestataire { line-height:1.7; }
-  .client-block { text-align:right; line-height:1.7; }
-  .titre { text-align:center; margin:16px 0 4px; font-size:18px; font-weight:bold; color:#1a3c2e; }
-  .sous-titre { text-align:center; font-size:10px; font-style:italic; color:#555; margin-bottom:20px; }
+    const css = `${createPrintStyles()}
+  .contract-heading { margin-bottom:18px;padding:14px 16px;border:1px solid var(--pdf-border);border-radius:10px;background:linear-gradient(135deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 55%,var(--pdf-card)));text-align:center; }
+  .contract-kicker { color:color-mix(in oklch,var(--pdf-gold) 82%,var(--pdf-primary));font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase; }
+  .titre { margin:5px 0 4px; font-size:18px; font-weight:bold; color:var(--pdf-primary); }
+  .sous-titre { font-size:10px; font-style:italic; color:color-mix(in oklch,var(--pdf-foreground) 65%,transparent); }
+  .contract-body { padding:15px 17px;border:1px solid var(--pdf-border);border-radius:10px;background:var(--pdf-card); }
   .para { text-align:justify; line-height:1.8; margin-bottom:14px; }
   .date-line { margin:24px 0 8px; }
-  .signature-zone { display:flex; justify-content:space-between; margin-top:32px; gap:20px; }
-  .sig-box { flex:1; text-align:center; }
-  .sig-box .sig-label { font-size:10px; color:#555; margin-bottom:45px; font-weight:bold; }
-  .sig-line { border-top:1px solid #ccc; margin-top:50px; padding-top:5px; font-size:9px; color:#777; }
-  .sig-img-block { padding-top:6px; }
-  .footer { margin-top:24px; font-size:8px; color:#aaa; text-align:center; border-top:1px solid #eee; padding-top:8px; }
+  .sig-box { padding:13px 15px;border:1px solid var(--pdf-border);border-radius:9px;background:linear-gradient(145deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 45%,var(--pdf-card))); }
+  .sig-box .sig-label { margin-bottom:45px;color:color-mix(in oklch,var(--pdf-gold) 80%,var(--pdf-primary)); }
 `;
 
     const bodyHtml = `
@@ -219,9 +213,13 @@ function ContractDetail() {
     </div>
   </div>
 
-  <div class="titre">CONTRAT D'ENGAGEMENT ANTI-NUISIBLES</div>
-  <div class="sous-titre">${adresseEtablissement}</div>
+  <div class="contract-heading">
+    <div class="contract-kicker">Engagement professionnel</div>
+    <div class="titre">CONTRAT D'ENGAGEMENT ANTI-NUISIBLES</div>
+    <div class="sous-titre">${adresseEtablissement}</div>
+  </div>
 
+  <div class="contract-body">
   <p class="para">
     La société ${nomSociete} immatriculée sous le ${companySirenPhrase(s?.siret)} et la société ${clientNomAvecForme}, immatriculée sous le ${clientLegalIdPhrase(client ?? {})},
     s'engagent pour un contrat de ${contract.type_prestation} dans l'établissement nommé ${contract.nom_etablissement} situé au ${adresseEtablissement}.
@@ -233,6 +231,7 @@ function ContractDetail() {
   </p>
 
   <p class="date-line">Fait à ${ville}, le ${formatDateFR(contract.date_debut)}</p>
+  </div>
 
   <div class="signature-zone">
     <div class="sig-box">
@@ -245,8 +244,9 @@ function ContractDetail() {
     </div>
   </div>
 
-  <div class="footer">
-    ${[contract.numero ?? "", `Généré le ${new Date().toLocaleString("fr-FR")}`, nomSociete].filter(Boolean).join(" &nbsp;·&nbsp; ")}
+  <div class="document-signoff">
+    <div class="document-origin">${[contract.numero ?? "", `Généré le ${new Date().toLocaleString("fr-FR")}`, nomSociete].filter(Boolean).join(" &nbsp;·&nbsp; ")}</div>
+    <div class="document-thanks">Un engagement durable contre les nuisibles<small>${nomSociete}</small></div>
   </div>
 `;
 

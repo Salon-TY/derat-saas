@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
-import { printDocument } from "@/lib/print";
+import { createPrintStyles, printDocument } from "@/lib/print";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -83,10 +83,19 @@ const STATUT_COLORS: Record<string, string> = {
 
 // PDF badge colours (inline, no Tailwind)
 const PDF_BADGE: Record<string, { bg: string; color: string }> = {
-  brouillon: { bg: "#e5e7eb", color: "#374151" },
-  envoyee: { bg: "#fff3e0", color: "#ea6c0a" },
-  payee: { bg: "#e6f4ef", color: "#1a3c2e" },
-  retard: { bg: "#fee2e2", color: "#b91c1c" },
+  brouillon: { bg: "var(--pdf-muted)", color: "var(--pdf-foreground)" },
+  envoyee: {
+    bg: "color-mix(in oklch,var(--pdf-warning) 18%,var(--pdf-card))",
+    color: "var(--pdf-foreground)",
+  },
+  payee: {
+    bg: "color-mix(in oklch,var(--pdf-success) 16%,var(--pdf-card))",
+    color: "var(--pdf-primary)",
+  },
+  retard: {
+    bg: "color-mix(in oklch,var(--pdf-destructive) 14%,var(--pdf-card))",
+    color: "var(--pdf-destructive)",
+  },
 };
 
 function statutLabel(v: string) {
@@ -483,7 +492,7 @@ function FactureDetail() {
     const rowsHtml = (invoice.lines ?? [])
       .map(
         (l, i) => `
-      <tr style="background:${i % 2 === 0 ? "#fff" : "#f8faf8"}">
+      <tr>
         <td style="padding:8px 10px">${l.description}</td>
         <td style="padding:8px 10px;text-align:center">${l.quantite}</td>
         <td style="padding:8px 10px;text-align:right">${formatEUR(l.prix_unitaire_ht)}</td>
@@ -492,85 +501,79 @@ function FactureDetail() {
       )
       .join("");
 
-    const css = `
-  body { font-family:Arial,sans-serif; font-size:11px; color:#1f2937; background:#fff; }
-
-  /* ── En-tête bandeau vert ── */
-  .header {
-    background:#1a3c2e;
-    padding:22px 32px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
+    const css = `${createPrintStyles()}
+  .meta-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; margin-bottom:20px; align-items:stretch; }
+  .meta-left {
+    position:relative; min-height:33mm; padding:15px 16px 15px 58px;
+    border:1px solid var(--pdf-border); border-radius:11px; background:var(--pdf-card);
+    box-shadow:0 6px 18px oklch(0.16 0.05 155 / .06);
   }
-  .logo-block { display:flex; align-items:center; gap:14px; }
-  .logo-icon {
-    width:46px; height:46px;
-    background:#f97316;
-    border-radius:10px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:22px;
-    flex-shrink:0;
+  .meta-left::before {
+    content:""; position:absolute; left:16px; top:16px; width:28px; height:28px;
+    border:1.5px solid var(--pdf-gold); border-radius:50%;
+    background:
+      radial-gradient(circle at 50% 35%,transparent 0 3px,var(--pdf-gold) 3.5px 4.5px,transparent 5px),
+      radial-gradient(ellipse at 50% 78%,transparent 0 7px,var(--pdf-gold) 7.5px 8.5px,transparent 9px);
   }
-  .logo-text { color:#fff; }
-  .logo-text .name { font-size:20px; font-weight:bold; letter-spacing:1px; }
-  .logo-text .sub  { font-size:10px; opacity:.75; margin-top:2px; }
-  .header-coords { text-align:right; color:#d1fae5; font-size:10px; line-height:1.8; }
-
-  /* ── Corps ── */
-  .body { padding:28px 32px; }
-
-  /* ── Client / Facture ── */
-  .meta-row { display:flex; justify-content:space-between; gap:20px; margin-bottom:20px; }
-  .meta-left .lbl  { font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:#6b7280; margin-bottom:4px; }
-  .meta-left .name { font-size:14px; font-weight:bold; color:#1a3c2e; margin-bottom:3px; }
-  .meta-left .addr { font-size:10px; color:#6b7280; line-height:1.6; }
-  .meta-right      { text-align:right; }
-  .meta-right .num { font-size:28px; font-weight:bold; color:#1a3c2e; line-height:1; }
+  .meta-left .lbl  { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:color-mix(in oklch,var(--pdf-foreground) 55%,transparent); margin-bottom:4px; }
+  .meta-left .name { font-size:14px; font-weight:bold; color:var(--pdf-primary); margin-bottom:3px; }
+  .meta-left .addr { font-size:10px; color:color-mix(in oklch,var(--pdf-foreground) 60%,transparent); line-height:1.6; }
+  .meta-right      { display:flex; flex-direction:column; justify-content:center; text-align:right; padding:8px 0; }
+  .meta-right .num { font-size:25px; font-weight:bold; color:var(--pdf-primary); line-height:1; }
   .badge {
-    display:inline-block; margin-top:5px; padding:3px 10px;
-    border-radius:20px; font-size:10px; font-weight:bold;
+    margin-top:5px;
+    align-self:flex-end;
     background:${badge.bg}; color:${badge.color};
   }
-  .meta-right .dates { font-size:10px; color:#6b7280; margin-top:6px; line-height:1.7; }
-
-  /* ── Objet ── */
+  .meta-right .dates { font-size:10px; color:color-mix(in oklch,var(--pdf-foreground) 60%,transparent); margin-top:6px; line-height:1.7; }
   .objet {
-    background:#f3f4f6; border-radius:6px;
-    padding:9px 14px; font-size:10px; color:#374151;
+    position:relative; min-height:17mm;
+    border:1px solid var(--pdf-border); border-radius:10px;
+    background:var(--pdf-card);
+    padding:13px 16px 13px 58px; font-size:10px; color:var(--pdf-foreground);
     margin-bottom:18px;
   }
-
-  /* ── Tableau ── */
-  table { width:100%; border-collapse:collapse; margin-bottom:18px; }
-  thead tr th {
-    background:#1a3c2e; color:#fff;
-    padding:9px 10px; font-size:10px; font-weight:600;
-    text-transform:uppercase; letter-spacing:.5px;
+  .objet::before {
+    content:"✓"; position:absolute; left:16px; top:11px;
+    display:flex; width:28px; height:28px; align-items:center; justify-content:center;
+    border-radius:8px; background:var(--pdf-primary); color:var(--pdf-gold);
+    font-size:15px; font-weight:800;
   }
-  tbody td { font-size:11px; border-bottom:1px solid #e5e7eb; }
-
-  /* ── Totaux ── */
-  .totaux { margin-left:auto; width:240px; }
-  .t-row  { display:flex; justify-content:space-between; padding:4px 0; font-size:11px; color:#374151; }
-  .t-row.ttc {
-    font-weight:bold; font-size:14px; color:#1a3c2e;
-    border-top:2px solid #1a3c2e; padding-top:8px; margin-top:4px;
+  .objet strong {
+    display:block; margin-bottom:3px; color:color-mix(in oklch,var(--pdf-gold) 82%,var(--pdf-primary));
+    font-size:9px; text-transform:uppercase; letter-spacing:.7px;
   }
-
-  /* ── RIB ── */
+  table { margin-bottom:18px; }
   .rib {
-    margin-top:24px; background:#f9fafb; border-radius:6px;
-    padding:12px 14px; font-size:10px; color:#374151; line-height:1.8;
+    margin-top:24px; background:var(--pdf-muted); border-radius:6px;
+    padding:12px 14px; font-size:10px; color:var(--pdf-foreground); line-height:1.8;
   }
-  .rib strong { display:block; color:#1a3c2e; font-size:11px; margin-bottom:3px; }
-
-  /* ── Pied de page ── */
-  .footer {
-    margin-top:24px; padding-top:10px;
-    border-top:3px solid #f97316;
-    font-size:9px; color:#6b7280; line-height:1.7;
+  .rib strong { display:block; color:var(--pdf-primary); font-size:11px; margin-bottom:3px; }
+  .conditions-card {
+    position:relative; margin-top:22px; padding:14px 16px 14px 58px;
+    border:1px solid var(--pdf-border); border-radius:10px;
+    background:linear-gradient(135deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 58%,var(--pdf-card)));
+    color:color-mix(in oklch,var(--pdf-foreground) 72%,transparent);
+    font-size:9px; line-height:1.65;
   }
+  .conditions-card::before {
+    content:"%"; position:absolute; left:16px; top:14px;
+    display:flex; width:29px; height:29px; align-items:center; justify-content:center;
+    border-radius:50%; background:var(--pdf-gold); color:var(--pdf-primary);
+    font-size:13px; font-weight:800;
+  }
+  .conditions-title {
+    margin-bottom:3px; color:color-mix(in oklch,var(--pdf-gold) 78%,var(--pdf-primary));
+    font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.8px;
+  }
+  .document-signoff {
+    display:flex; justify-content:space-between; align-items:flex-end; gap:18px;
+    margin-top:22px; padding-top:12px;
+    border-top:1px solid color-mix(in oklch,var(--pdf-gold) 72%,var(--pdf-border));
+  }
+  .document-origin { color:color-mix(in oklch,var(--pdf-foreground) 50%,transparent); font-size:8px; line-height:1.55; }
+  .thank-you { color:var(--pdf-primary); font-family:Georgia,serif; font-size:16px; font-style:italic; text-align:right; }
+  .thank-you small { display:block; margin-top:2px; color:color-mix(in oklch,var(--pdf-gold) 78%,var(--pdf-primary)); font-family:Arial,sans-serif; font-size:7px; font-style:normal; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; }
 `;
 
     const bodyHtml = `
@@ -588,8 +591,6 @@ function FactureDetail() {
       ${s?.telephone ? `Tél : ${s.telephone}` : ""}
     </div>
   </div>
-
-  <div class="body">
 
     <div class="meta-row">
       <div class="meta-left">
@@ -628,10 +629,12 @@ function FactureDetail() {
       <tbody>${rowsHtml}</tbody>
     </table>
 
-    <div class="totaux">
-      <div class="t-row"><span>Total HT</span><span>${formatEUR(invoice.total_ht)}</span></div>
-      <div class="t-row"><span>TVA (${invoice.tva_taux ?? 20} %)</span><span>${formatEUR(invoice.tva)}</span></div>
-      <div class="t-row ttc"><span>Total TTC</span><span>${formatEUR(invoice.total_ttc)}</span></div>
+    <div class="totals">
+      <div class="totals-box">
+        <div class="t-row"><span>Total HT</span><span>${formatEUR(invoice.total_ht)}</span></div>
+        <div class="t-row"><span>TVA (${invoice.tva_taux ?? 20} %)</span><span>${formatEUR(invoice.tva)}</span></div>
+        <div class="t-row ttc"><span>Total TTC</span><span>${formatEUR(invoice.total_ttc)}</span></div>
+      </div>
     </div>
 
     ${
@@ -646,14 +649,23 @@ function FactureDetail() {
         : ""
     }
 
-    <div class="footer">
+    <div class="conditions-card">
+      <div class="conditions-title">Conditions de paiement</div>
       En cas de retard de paiement, une pénalité au taux annuel de 5 % sera appliquée,
       à laquelle s'ajoutera une indemnité forfaitaire pour frais de recouvrement de 40 €
-      (Art. L441-10 du Code de commerce).<br>
-      Document émis par ${s?.nom ?? ""} — Généré le ${new Date().toLocaleDateString("fr-FR")}
+      (Art. L441-10 du Code de commerce).
     </div>
 
-  </div>
+    <div class="document-signoff">
+      <div class="document-origin">
+        Document émis par ${s?.nom ?? ""}<br>
+        Généré le ${new Date().toLocaleDateString("fr-FR")}
+      </div>
+      <div class="thank-you">
+        Merci pour votre confiance
+        <small>${s?.nom ?? ""}</small>
+      </div>
+    </div>
 `;
 
     const ok = printDocument({ title: `Facture N°${invoice.numero}`, bodyHtml, css, ...printOpts });
