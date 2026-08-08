@@ -1357,11 +1357,11 @@ function TechnicienGrid({
                     key={intervention.id}
                     to="/interventions/$id"
                     params={{ id: intervention.id }}
+                    title={`${formatHeure(intervention.heure_prevue) ?? ""} · ${intervention.client?.raison_sociale ?? "Client supprimé"}${intervention.adresse_site ? ` · ${intervention.adresse_site}` : ""}`}
                     className={cn(
-                      "absolute overflow-hidden rounded-md border p-1 text-[10px] leading-tight transition-colors hover:z-10 hover:shadow-soft",
-                      isConflict
-                        ? "border-destructive bg-destructive/10"
-                        : "border-primary/40 bg-primary/10",
+                      "absolute overflow-hidden rounded-md border p-1 text-[10px] leading-tight shadow-sm transition-all hover:z-10 hover:shadow-elevated",
+                      STATUT_INTERVENTION_COLORS[intervention.statut] ?? "bg-muted text-muted-foreground",
+                      isConflict ? "border-destructive" : "border-transparent",
                     )}
                     style={{
                       top,
@@ -1370,12 +1370,21 @@ function TechnicienGrid({
                       width: `calc(${widthPct}% - 4px)`,
                     }}
                   >
-                    <div className="font-mono font-semibold text-primary">
+                    <div className="flex items-center gap-1 font-mono font-semibold">
                       {formatHeure(intervention.heure_prevue)}
+                      {isConflict && (
+                        <TriangleAlert
+                          className="h-2.5 w-2.5 shrink-0 text-destructive"
+                          aria-label="Chevauche un autre créneau"
+                        />
+                      )}
                     </div>
-                    <div className="truncate">
+                    <div className="truncate font-medium">
                       {intervention.client?.raison_sociale ?? "Client supprimé"}
                     </div>
+                    {intervention.adresse_site && (
+                      <div className="truncate opacity-80">{intervention.adresse_site}</div>
+                    )}
                   </Link>
                 );
               })}
