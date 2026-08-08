@@ -230,6 +230,7 @@ function InterventionsPage() {
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [technicienFilter, setTechnicienFilter] = useState("all");
+  const [technicienPeriod, setTechnicienPeriod] = useState<"day" | "week">("day");
   const [page, setPage] = useState(0);
 
   useEffect(() => {
@@ -295,7 +296,8 @@ function InterventionsPage() {
 
   const currentWeekStart = weekStart(selectedDate);
   const currentWeekEnd = addDays(currentWeekStart, 6);
-  const isDayGranularity = view === "day" || view === "technicien";
+  const isDayGranularity =
+    view === "day" || (view === "technicien" && technicienPeriod === "day");
   const rangeStart = isDayGranularity ? toISO(selectedDate) : toISO(currentWeekStart);
   const rangeEnd = isDayGranularity ? toISO(selectedDate) : toISO(currentWeekEnd);
   const {
@@ -528,6 +530,9 @@ function InterventionsPage() {
           assignableMembers={assignableMembers}
           isLoading={rangeLoading}
           isError={rangeError}
+          period={technicienPeriod}
+          onPeriodChange={setTechnicienPeriod}
+          weekStartDate={currentWeekStart}
         />
       )}
     </PageContainer>
@@ -1133,44 +1138,56 @@ function WeekView({
   );
 }
 
+type TechnicienColumn = { id: string; label: string; items: Intervention[] };
+
+// Regroupe une liste d'interventions (d'un seul jour) par technicien —
+// factorisé pour être appelé une fois en vue Jour, ou une fois par jour de
+// la semaine en vue Semaine.
+function buildTechnicienColumns(
+  items: Intervention[],
+  assignableMembers: AssignableMember[],
+): TechnicienColumn[] {
+  const byTech = new Map<string, Intervention[]>();
+  const unassigned: Intervention[] = [];
+  for (const intervention of items) {
+    if (intervention.technicien_id) {
+      const arr = byTech.get(intervention.technicien_id) ?? [];
+      arr.push(intervention);
+      byTech.set(intervention.technicien_id, arr);
+    } else {
+      unassigned.push(intervention);
+    }
+  }
+  const techCols = assignableMembers.map((member) => ({
+    id: member.user_id,
+    label: member.display_name,
+    items: (byTech.get(member.user_id) ?? []).slice().sort(sortBySlot),
+  }));
+  return [
+    ...techCols,
+    { id: "none", label: "Non attribué", items: unassigned.slice().sort(sortBySlot) },
+  ];
+}
+
 function TechnicienView({
   interventions,
   assignableMembers,
   isLoading,
   isError,
+  period,
+  onPeriodChange,
+  weekStartDate,
 }: {
   interventions: Intervention[];
   assignableMembers: AssignableMember[];
   isLoading: boolean;
   isError: boolean;
+  period: "day" | "week";
+  onPeriodChange: (period: "day" | "week") => void;
+  weekStartDate: Date;
 }) {
   const qc = useQueryClient();
   const [subView, setSubView] = useState<"liste" | "grille">("liste");
-
-  const columns = useMemo(() => {
-    const byTech = new Map<string, Intervention[]>();
-    const unassigned: Intervention[] = [];
-    for (const intervention of interventions) {
-      if (intervention.technicien_id) {
-        const arr = byTech.get(intervention.technicien_id) ?? [];
-        arr.push(intervention);
-        byTech.set(intervention.technicien_id, arr);
-      } else {
-        unassigned.push(intervention);
-      }
-    }
-    const techCols = assignableMembers.map((member) => ({
-      id: member.user_id,
-      label: member.display_name,
-      items: (byTech.get(member.user_id) ?? []).slice().sort(sortBySlot),
-    }));
-    return [
-      ...techCols,
-      { id: "none", label: "Non attribué", items: unassigned.slice().sort(sortBySlot) },
-    ];
-  }, [interventions, assignableMembers]);
-
-  const hourRange = useMemo(() => computeHourRange(interventions), [interventions]);
 
   async function updateHeurePrevue(id: string, value: string) {
     const { error } = await db
@@ -1190,110 +1207,196 @@ function TechnicienView({
     return (
       <PlanningState
         icon={AlertCircle}
-        title="Impossible de charger cette journée"
+        title="Impossible de charger cette période"
         description="Une erreur est survenue pendant le chargement du planning."
       />
     );
   }
 
+  const weekDays = period === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)) : null;
+
   return (
     <div className="space-y-3">
-      <div
-        className="inline-flex gap-1 rounded-xl bg-muted p-1"
-        role="tablist"
-        aria-label="Affichage du planning technicien"
-      >
-        {(
-          [
-            { v: "liste" as const, label: "Liste" },
-            { v: "grille" as const, label: "Grille horaire" },
-          ] as const
-        ).map(({ v, label }) => (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={subView === v}
-            onClick={() => setSubView(v)}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-              subView === v
-                ? "bg-card text-foreground shadow-soft"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="inline-flex gap-1 rounded-xl bg-muted p-1"
+          role="tablist"
+          aria-label="Affichage du planning technicien"
+        >
+          {(
+            [
+              { v: "liste" as const, label: "Liste" },
+              { v: "grille" as const, label: "Grille horaire" },
+            ] as const
+          ).map(({ v, label }) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={subView === v}
+              onClick={() => setSubView(v)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                subView === v
+                  ? "bg-card text-foreground shadow-soft"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className="inline-flex gap-1 rounded-xl bg-muted p-1"
+          role="tablist"
+          aria-label="Période du planning technicien"
+        >
+          {(
+            [
+              { v: "day" as const, label: "Jour" },
+              { v: "week" as const, label: "Semaine" },
+            ] as const
+          ).map(({ v, label }) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={period === v}
+              onClick={() => onPeriodChange(v)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                period === v
+                  ? "bg-card text-foreground shadow-soft"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {subView === "liste" ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {columns.map((col) => {
-            const conflicts = findConflicts(col.items);
+      {weekDays ? (
+        <div className="space-y-6">
+          {weekDays.map((date) => {
+            const iso = toISO(date);
+            const dayItems = interventions.filter((i) => i.date === iso);
             return (
-              <Card key={col.id}>
-                <CardContent className="space-y-2 p-3">
-                  <h3 className="text-sm font-semibold">{col.label}</h3>
-                  {col.items.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Aucun créneau</p>
-                  )}
-                  {col.items.map((intervention) => {
-                    const isConflict = conflicts.has(intervention.id);
-                    const currentHeure = formatHeure(intervention.heure_prevue) ?? "";
-                    return (
-                      <div
-                        key={intervention.id}
-                        className={cn(
-                          "space-y-1 rounded-lg border p-2",
-                          isConflict ? "border-destructive/50 bg-destructive/5" : "border-border",
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <Input
-                            type="time"
-                            defaultValue={currentHeure}
-                            onBlur={(e) => {
-                              if (e.target.value !== currentHeure) {
-                                updateHeurePrevue(intervention.id, e.target.value);
-                              }
-                            }}
-                            className="h-8 w-24 text-xs"
-                            aria-label="Heure prévue"
-                          />
-                          {isConflict && (
-                            <TriangleAlert
-                              className="h-4 w-4 shrink-0 text-destructive"
-                              aria-label="Chevauche un autre créneau"
-                            />
-                          )}
-                        </div>
-                        <Link
-                          to="/interventions/$id"
-                          params={{ id: intervention.id }}
-                          className="block truncate text-xs font-medium hover:underline"
-                        >
-                          {intervention.client?.raison_sociale ?? "Client supprimé"}
-                        </Link>
-                        {intervention.adresse_site && (
-                          <p className="truncate text-xs text-muted-foreground">
-                            {intervention.adresse_site}
-                          </p>
-                        )}
-                        <StatusBadge status={intervention.statut} compact />
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
+              <div key={iso}>
+                <h3 className="mb-2 text-sm font-semibold">
+                  {date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                </h3>
+                <DaySchedule
+                  items={dayItems}
+                  assignableMembers={assignableMembers}
+                  subView={subView}
+                  onUpdateHeure={updateHeurePrevue}
+                />
+              </div>
             );
           })}
         </div>
       ) : (
-        <TechnicienGrid columns={columns} hourRange={hourRange} onUpdateHeure={updateHeurePrevue} />
+        <DaySchedule
+          items={interventions}
+          assignableMembers={assignableMembers}
+          subView={subView}
+          onUpdateHeure={updateHeurePrevue}
+        />
       )}
     </div>
   );
+}
+
+function DaySchedule({
+  items,
+  assignableMembers,
+  subView,
+  onUpdateHeure,
+}: {
+  items: Intervention[];
+  assignableMembers: AssignableMember[];
+  subView: "liste" | "grille";
+  onUpdateHeure: (id: string, value: string) => void;
+}) {
+  const columns = useMemo(
+    () => buildTechnicienColumns(items, assignableMembers),
+    [items, assignableMembers],
+  );
+  const hourRange = useMemo(() => computeHourRange(items), [items]);
+
+  if (items.length === 0) {
+    return <p className="text-xs text-muted-foreground">Aucune intervention planifiée.</p>;
+  }
+
+  if (subView === "liste") {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {columns.map((col) => {
+          const conflicts = findConflicts(col.items);
+          return (
+            <Card key={col.id}>
+              <CardContent className="space-y-2 p-3">
+                <h4 className="text-sm font-semibold">{col.label}</h4>
+                {col.items.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Aucun créneau</p>
+                )}
+                {col.items.map((intervention) => {
+                  const isConflict = conflicts.has(intervention.id);
+                  const currentHeure = formatHeure(intervention.heure_prevue) ?? "";
+                  return (
+                    <div
+                      key={intervention.id}
+                      className={cn(
+                        "space-y-1 rounded-lg border p-2",
+                        isConflict ? "border-destructive/50 bg-destructive/5" : "border-border",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Input
+                          type="time"
+                          defaultValue={currentHeure}
+                          onBlur={(e) => {
+                            if (e.target.value !== currentHeure) {
+                              onUpdateHeure(intervention.id, e.target.value);
+                            }
+                          }}
+                          className="h-8 w-24 text-xs"
+                          aria-label="Heure prévue"
+                        />
+                        {isConflict && (
+                          <TriangleAlert
+                            className="h-4 w-4 shrink-0 text-destructive"
+                            aria-label="Chevauche un autre créneau"
+                          />
+                        )}
+                      </div>
+                      <Link
+                        to="/interventions/$id"
+                        params={{ id: intervention.id }}
+                        className="block truncate text-xs font-medium hover:underline"
+                      >
+                        {intervention.client?.raison_sociale ?? "Client supprimé"}
+                      </Link>
+                      {intervention.adresse_site && (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {intervention.adresse_site}
+                        </p>
+                      )}
+                      <StatusBadge status={intervention.statut} compact />
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return <TechnicienGrid columns={columns} hourRange={hourRange} onUpdateHeure={onUpdateHeure} />;
 }
 
 function TechnicienGrid({
