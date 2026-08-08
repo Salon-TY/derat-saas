@@ -63,7 +63,7 @@ import {
 } from "@/components/intervention-form";
 import { SignatureCanvas } from "@/components/signature-canvas";
 import { TechnicianSelect } from "@/components/technician-select";
-import { printDocument } from "@/lib/print";
+import { createPrintStyles, printDocument } from "@/lib/print";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -545,40 +545,31 @@ function InterventionDetail() {
             .slice(0, 3)
             .map(
               (url) =>
-                `<img src="${url}" alt="Photo" style="width:100%;height:100px;object-fit:cover;border-radius:4px;border:1px solid #eee;">`,
+                `<img src="${url}" alt="Photo" style="width:100%;height:100px;object-fit:cover;border-radius:4px;border:1px solid var(--pdf-border);">`,
             )
             .join("")}</div>`
         : "";
     const sigHtml = intervention.signature_url
       ? `<div class="sig-img-block">
-           <img src="${intervention.signature_url}" alt="Signature" style="max-height:60px;border-bottom:1px solid #ccc;padding-bottom:4px;">
-           <div style="font-size:9px;color:#555;margin-top:3px;">Signé par le client — ${formatDateTime((intervention as Intervention & { signature_at?: string | null }).signature_at)}</div>
+           <img src="${intervention.signature_url}" alt="Signature" style="max-height:60px;border-bottom:1px solid var(--pdf-border);padding-bottom:4px;">
+           <div style="font-size:9px;color:color-mix(in oklch,var(--pdf-foreground) 60%,transparent);margin-top:3px;">Signé par le client — ${formatDateTime((intervention as Intervention & { signature_at?: string | null }).signature_at)}</div>
          </div>`
       : `<div class="sig-line">Signature du client (bon pour accord)</div>`;
 
-    const css = `
-  body { font-family:Arial,sans-serif; font-size:11px; color:#222; }
-  .header { display:flex; justify-content:space-between; margin-bottom:24px; border-bottom:2px solid #1a3c2e; padding-bottom:16px; }
-  .prestataire strong { font-size:15px; display:block; margin-bottom:4px; color:#1a3c2e; }
-  .prestataire { line-height:1.7; }
-  .client-block { text-align:right; line-height:1.7; }
-  .rapport-num { font-size:9px; color:#888; margin-bottom:2px; }
-  .titre { text-align:center; margin:16px 0 4px; font-size:18px; font-weight:bold; color:#1a3c2e; }
-  .sous-titre { text-align:center; font-size:10px; color:#555; margin-bottom:16px; }
-  .badge { display:inline-block; background:#e6f4ef; color:#1a3c2e; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; }
-  .section { margin-bottom:14px; }
-  .section-title { font-size:10px; font-weight:bold; text-transform:uppercase; color:#1a3c2e; border-bottom:1px solid #c8ddd5; padding-bottom:2px; margin-bottom:6px; letter-spacing:.5px; }
+    const css = `${createPrintStyles()}
+  .rapport-num { font-size:9px; color:color-mix(in oklch,var(--pdf-foreground) 55%,transparent); margin-bottom:2px; }
+  .report-heading { margin-bottom:16px;padding:13px 16px;border:1px solid var(--pdf-border);border-radius:10px;background:linear-gradient(135deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 55%,var(--pdf-card)));text-align:center; }
+  .report-kicker { color:color-mix(in oklch,var(--pdf-gold) 82%,var(--pdf-primary));font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase; }
+  .titre { margin:5px 0 4px; font-size:18px; font-weight:bold; color:var(--pdf-primary); }
+  .sous-titre { font-size:10px; color:color-mix(in oklch,var(--pdf-foreground) 65%,transparent); }
+  .section { padding:12px 14px;border:1px solid var(--pdf-border);border-radius:9px;background:var(--pdf-card); }
   .row { display:flex; gap:8px; margin-bottom:3px; }
-  .lbl { color:#666; min-width:155px; }
+  .lbl { color:color-mix(in oklch,var(--pdf-foreground) 62%,transparent); min-width:155px; }
   .val { font-weight:500; }
-  .obs { white-space:pre-wrap; background:#f9faf8; border:1px solid #e0ebe6; padding:8px; border-radius:4px; line-height:1.7; }
+  .obs { white-space:pre-wrap; background:var(--pdf-muted); border:1px solid var(--pdf-border); padding:8px; border-radius:4px; line-height:1.7; }
   .photos-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
-  .signature-zone { display:flex; justify-content:space-between; margin-top:32px; gap:20px; }
-  .sig-box { flex:1; text-align:center; }
-  .sig-line { border-top:1px solid #ccc; margin-top:50px; padding-top:5px; font-size:9px; color:#777; }
-  .sig-img-block { padding-top:6px; }
-  .mention { margin-top:24px; padding:8px; background:#f5f5f5; border-radius:4px; font-size:9px; color:#666; line-height:1.6; }
-  .footer { margin-top:16px; font-size:8px; color:#aaa; text-align:center; border-top:1px solid #eee; padding-top:8px; }
+  .mention { margin-top:20px; padding:12px 14px 12px 48px; position:relative;background:linear-gradient(135deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 60%,var(--pdf-card)));border:1px solid var(--pdf-border);border-radius:9px;font-size:9px;color:color-mix(in oklch,var(--pdf-foreground) 62%,transparent);line-height:1.6; }
+  .mention::before { content:"!";position:absolute;left:14px;top:11px;display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;background:var(--pdf-gold);color:var(--pdf-primary);font-weight:800; }
 `;
 
     const bodyHtml = `
@@ -600,10 +591,13 @@ function InterventionDetail() {
     </div>
   </div>
 
-  <div class="titre">Rapport d'intervention</div>
-  <div class="sous-titre">
+  <div class="report-heading">
+    <div class="report-kicker">Compte-rendu de prestation</div>
+    <div class="titre">Rapport d'intervention</div>
+    <div class="sous-titre">
     N° ${num} &nbsp;·&nbsp; ${dateHeure}
     &nbsp;·&nbsp; <span class="badge">${statutLabel(intervention.statut)}</span>
+    </div>
   </div>
 
   <div class="section">
@@ -641,8 +635,9 @@ function InterventionDetail() {
     En cas de litige, ce document fait foi de l'intervention réalisée par ${s?.nom ?? ""}.
   </div>
 
-  <div class="footer">
-    ${num} &nbsp;·&nbsp; Généré le ${new Date().toLocaleString("fr-FR")} &nbsp;·&nbsp; ${s?.nom ?? ""}
+  <div class="document-signoff">
+    <div class="document-origin">${num} &nbsp;·&nbsp; Généré le ${new Date().toLocaleString("fr-FR")} &nbsp;·&nbsp; ${s?.nom ?? ""}</div>
+    <div class="document-thanks">Votre site, suivi avec précision<small>${s?.nom ?? ""}</small></div>
   </div>
 `;
 
@@ -677,56 +672,48 @@ function InterventionDetail() {
           matchedIds.add(pb.id);
           produitsLignes.push(
             `<tr>
-              <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${pb.nom}</td>
-              <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#6b7280">${pb.numero_homologation || "—"}</td>
-              <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#6b7280">${pb.type}</td>
-              <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#6b7280">${pb.dose_habituelle || "—"}</td>
+              <td>${pb.nom}</td>
+              <td class="muted-cell">${pb.numero_homologation || "—"}</td>
+              <td class="muted-cell">${pb.type}</td>
+              <td class="muted-cell">${pb.dose_habituelle || "—"}</td>
             </tr>`,
           );
         }
       }
       if (produitsLignes.length === 0) {
         // Fallback: just list the raw text
-        produitsLignes.push(
-          `<tr><td colspan="4" style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${produitsTexte}</td></tr>`,
-        );
+        produitsLignes.push(`<tr><td colspan="4">${produitsTexte}</td></tr>`);
       }
     } else {
       produitsLignes.push(
-        `<tr><td colspan="4" style="padding:5px 8px;color:#9ca3af;font-style:italic">Aucun produit renseigné</td></tr>`,
+        `<tr><td colspan="4" class="empty-cell">Aucun produit renseigné</td></tr>`,
       );
     }
 
     const sigHtml = intervention.signature_url
       ? `<div style="text-align:center">
-           <img src="${intervention.signature_url}" alt="Signature" style="max-height:50px;border-bottom:1px solid #ccc;padding-bottom:4px;">
-           <div style="font-size:9px;color:#6b7280;margin-top:3px;">Signature du client</div>
+           <img src="${intervention.signature_url}" alt="Signature" style="max-height:50px;border-bottom:1px solid var(--pdf-border);padding-bottom:4px;">
+           <div class="signature-caption">Signature du client</div>
          </div>`
-      : `<div style="border-top:1px solid #ccc;margin-top:40px;padding-top:4px;font-size:9px;color:#9ca3af;text-align:center">Signature du client (bon pour accord)</div>`;
+      : `<div class="sig-line">Signature du client (bon pour accord)</div>`;
 
-    const css = `
-  body { font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:11px;color:#1e293b; }
-  .header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid #1a3c2e; }
-  .logo-block { display:flex;align-items:center;gap:10px; }
-  .logo-text .name { font-size:16px;font-weight:800;color:#1a3c2e; }
-  .logo-text .sub { font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-top:2px; }
-  .header-coords { font-size:10px;color:#64748b;text-align:right;line-height:1.6; }
-  .cert-title { font-size:18px;font-weight:800;color:#1a3c2e;text-align:center;margin:16px 0 4px; text-transform:uppercase;letter-spacing:1px; }
-  .cert-num { text-align:center;font-size:10px;color:#94a3b8;margin-bottom:16px; }
-  .section { margin-bottom:14px; }
-  .section-title { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#1a3c2e;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:8px; }
+    const css = `${createPrintStyles()}
+  .certificate-heading { margin-bottom:16px;padding:13px 16px;border:1px solid var(--pdf-border);border-radius:10px;background:linear-gradient(135deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 55%,var(--pdf-card)));text-align:center; }
+  .certificate-kicker { color:color-mix(in oklch,var(--pdf-gold) 82%,var(--pdf-primary));font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase; }
+  .cert-title { font-size:18px;font-weight:800;color:var(--pdf-primary);margin:5px 0 4px;text-transform:uppercase;letter-spacing:1px; }
+  .cert-num { font-size:10px;color:color-mix(in oklch,var(--pdf-foreground) 50%,transparent); }
+  .section { padding:12px 14px;border:1px solid var(--pdf-border);border-radius:9px;background:var(--pdf-card); }
   .grid2 { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
-  .info-box { background:#f8fafc;border-radius:6px;padding:8px 10px; }
-  .info-box .lbl { font-size:9px;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;margin-bottom:2px; }
-  .info-box .val { font-size:11px;font-weight:600;color:#1e293b; }
-  table { width:100%;border-collapse:collapse; }
-  thead th { background:#1a3c2e;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;padding:6px 8px;text-align:left; }
-  .reco-box { background:#f0fdf4;border-left:3px solid #16a34a;border-radius:0 6px 6px 0;padding:8px 12px;font-size:10px;color:#166534;line-height:1.6; }
-  .mention { font-size:9px;color:#94a3b8;text-align:center;margin-top:12px;font-style:italic; }
-  .footer { margin-top:16px;padding-top:8px;border-top:2px solid #f1f5f9;font-size:8px;color:#cbd5e1;text-align:center; }
-  .sig-row { display:flex;justify-content:space-between;gap:20px;margin-top:16px; }
-  .sig-col { flex:1;text-align:center; }
-  .sig-label { font-size:9px;color:#94a3b8;text-transform:uppercase;margin-bottom:8px; }
+  .info-box { background:linear-gradient(145deg,var(--pdf-card),color-mix(in oklch,var(--pdf-muted) 58%,var(--pdf-card)));border:1px solid var(--pdf-border);border-radius:8px;padding:10px 12px; }
+  .info-box .lbl { font-size:9px;text-transform:uppercase;letter-spacing:0.6px;color:color-mix(in oklch,var(--pdf-foreground) 50%,transparent);margin-bottom:2px; }
+  .info-box .val { font-size:11px;font-weight:600;color:var(--pdf-foreground); }
+  .reco-box { background:color-mix(in oklch,var(--pdf-success) 8%,var(--pdf-card));border:1px solid color-mix(in oklch,var(--pdf-success) 30%,var(--pdf-border));border-left:3px solid var(--pdf-success);border-radius:0 8px 8px 0;padding:10px 12px;font-size:10px;color:var(--pdf-primary);line-height:1.6; }
+  .mention { font-size:9px;color:color-mix(in oklch,var(--pdf-foreground) 50%,transparent);text-align:center;margin-top:12px;font-style:italic; }
+  .sig-row { margin-top:16px; }
+  .muted-cell, .meta-detail, .signature-caption { color:color-mix(in oklch,var(--pdf-foreground) 60%,transparent); }
+  .meta-detail, .signature-caption { margin-top:3px;font-size:9px; }
+  .empty-cell { color:color-mix(in oklch,var(--pdf-foreground) 48%,transparent);font-style:italic; }
+  .observations { color:var(--pdf-foreground);font-size:10px;line-height:1.6;white-space:pre-wrap; }
 `;
 
     const bodyHtml = `
@@ -746,8 +733,11 @@ function InterventionDetail() {
   </div>
 </div>
 
-<div class="cert-title">Certificat de traitement biocide</div>
-<div class="cert-num">N° ${certNum}</div>
+<div class="certificate-heading">
+  <div class="certificate-kicker">Traçabilité professionnelle</div>
+  <div class="cert-title">Certificat de traitement biocide</div>
+  <div class="cert-num">N° ${certNum}</div>
+</div>
 
 <div class="section">
   <div class="section-title">Informations de l'intervention</div>
@@ -777,7 +767,7 @@ function InterventionDetail() {
     <div class="info-box">
       <div class="lbl">Client</div>
       <div class="val">${intervention.client?.raison_sociale ?? "—"}</div>
-      ${intervention.client?.telephone ? `<div style="font-size:10px;color:#64748b;margin-top:2px">Tél : ${intervention.client.telephone}</div>` : ""}
+      ${intervention.client?.telephone ? `<div class="meta-detail">Tél : ${intervention.client.telephone}</div>` : ""}
     </div>
     <div class="info-box">
       <div class="lbl">Site traité</div>
@@ -801,7 +791,7 @@ function InterventionDetail() {
       ${produitsLignes.join("")}
     </tbody>
   </table>
-  ${intervention.quantite ? `<div style="margin-top:6px;font-size:10px;color:#64748b">Quantités : ${intervention.quantite}</div>` : ""}
+  ${intervention.quantite ? `<div class="meta-detail">Quantités : ${intervention.quantite}</div>` : ""}
 </div>
 
 ${
@@ -809,7 +799,7 @@ ${
     ? `
 <div class="section">
   <div class="section-title">Zones traitées / Observations</div>
-  <div style="font-size:10px;color:#374151;line-height:1.6;white-space:pre-wrap">${intervention.observations}</div>
+  <div class="observations">${intervention.observations}</div>
 </div>`
     : ""
 }
@@ -826,7 +816,7 @@ ${
 <div class="sig-row">
   <div class="sig-col">
     <div class="sig-label">Signature du technicien</div>
-    <div style="border-top:1px solid #ccc;margin-top:40px;padding-top:4px;font-size:9px;color:#9ca3af">${technicienName || ""}</div>
+    <div class="sig-line">${technicienName || ""}</div>
   </div>
   <div class="sig-col">
     <div class="sig-label">Signature du client</div>
@@ -836,8 +826,9 @@ ${
 
 <p class="mention">Traitement réalisé conformément à la réglementation en vigueur relative aux produits biocides (Règlement UE 528/2012)</p>
 
-<div class="footer">
-  Certificat N° ${certNum} · Généré le ${dateGeneration} · ${[s?.nom ?? "", s?.siret ? `SIRET ${s.siret}` : ""].filter(Boolean).join(" · ")}
+<div class="document-signoff">
+  <div class="document-origin">Certificat N° ${certNum} · Généré le ${dateGeneration} · ${[s?.nom ?? "", s?.siret ? `SIRET ${s.siret}` : ""].filter(Boolean).join(" · ")}</div>
+  <div class="document-thanks">Traitement documenté, site protégé<small>${s?.nom ?? ""}</small></div>
 </div>
 `;
 

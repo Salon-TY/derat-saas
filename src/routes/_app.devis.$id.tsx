@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Download, Trash2, Pencil, Plus, FileText, ClipboardList } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
-import { printDocument } from "@/lib/print";
+import { createPrintStyles, printDocument } from "@/lib/print";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -443,39 +443,31 @@ function DevisDetail() {
       .map(
         (l) => `
       <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9">${l.description}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center">${l.quantite}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:right">${formatEUR(l.prix_unitaire_ht)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600">${formatEUR(l.total_ht)}</td>
+        <td>${l.description}</td>
+        <td style="text-align:center">${l.quantite}</td>
+        <td style="text-align:right">${formatEUR(l.prix_unitaire_ht)}</td>
+        <td style="text-align:right;font-weight:600">${formatEUR(l.total_ht)}</td>
       </tr>
     `,
       )
       .join("");
 
-    const css = `
-  body { font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:11px;color:#1e293b;background:#fff; }
-  .header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #f97316; }
-  .logo-block { display:flex;align-items:center;gap:12px; }
-  .logo-icon { font-size:28px; }
-  .logo-text .name { font-size:18px;font-weight:800;color:#1e293b;letter-spacing:-0.3px; }
-  .logo-text .sub { font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-top:2px; }
-  .header-coords { font-size:10px;color:#64748b;text-align:right;line-height:1.6; }
-  .devis-title { font-size:22px;font-weight:800;color:#f97316;margin-bottom:4px; }
-  .devis-num { font-size:13px;color:#64748b;margin-bottom:18px; }
-  .meta { display:flex;justify-content:space-between;gap:24px;margin-bottom:18px; }
-  .meta-box { background:#f8fafc;border-radius:8px;padding:10px 14px;flex:1; }
-  .meta-box .lbl { font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;margin-bottom:4px; }
-  .meta-box .val { font-size:12px;font-weight:600;color:#1e293b; }
-  table { width:100%;border-collapse:collapse;margin-top:16px; }
-  thead th { background:#f97316;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;padding:8px;text-align:left; }
+    const css = `${createPrintStyles("quote")}
+  .document-intro { display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;margin-bottom:18px; }
+  .document-title-panel::before { content:"Proposition commerciale";display:block;margin-bottom:5px;color:var(--pdf-document-accent);font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase; }
+  .devis-title { font-size:24px;font-weight:800;color:var(--pdf-primary);margin-bottom:4px; }
+  .devis-num { font-size:10px;color:color-mix(in oklch,var(--pdf-foreground) 65%,transparent);line-height:1.65; }
+  .meta-box { background:var(--pdf-card);border:1px solid var(--pdf-border);border-radius:10px;padding:14px 16px 14px 54px;position:relative; }
+  .meta-box::before { content:"";position:absolute;left:15px;top:15px;width:26px;height:26px;border:1.5px solid var(--pdf-gold);border-radius:50%;background:radial-gradient(circle at 50% 35%,transparent 0 3px,var(--pdf-gold) 3.5px 4.5px,transparent 5px),radial-gradient(ellipse at 50% 78%,transparent 0 7px,var(--pdf-gold) 7.5px 8.5px,transparent 9px); }
+  .meta-box .lbl { font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:color-mix(in oklch,var(--pdf-foreground) 50%,transparent);margin-bottom:4px; }
+  .meta-box .val { font-size:12px;font-weight:600;color:var(--pdf-foreground); }
+  .meta-detail { margin-top:2px;color:color-mix(in oklch,var(--pdf-foreground) 65%,transparent);font-size:10px; }
+  table { margin-top:16px; }
   thead th:last-child, thead th:nth-child(2), thead th:nth-child(3) { text-align:right; }
-  .totals { margin-top:16px;display:flex;justify-content:flex-end; }
-  .totals-box { width:220px; }
-  .total-row { display:flex;justify-content:space-between;font-size:11px;padding:3px 0; }
-  .total-row.big { font-size:14px;font-weight:800;border-top:2px solid #f97316;margin-top:6px;padding-top:6px;color:#f97316; }
-  .validity { margin-top:16px;padding:8px 12px;background:#fff7ed;border-left:3px solid #f97316;font-size:10px;color:#c2410c; }
-  .notes { margin-top:16px;padding:10px;background:#f8fafc;border-radius:6px;font-size:10px;color:#64748b;line-height:1.6; }
-  .footer { margin-top:24px;padding-top:10px;border-top:2px solid #f1f5f9;font-size:9px;color:#94a3b8;text-align:center; }
+  .total-row.big { color:var(--pdf-primary);border-top-color:var(--pdf-document-accent); }
+  .validity { margin-top:16px;padding:12px 14px 12px 50px;position:relative;background:color-mix(in oklch,var(--pdf-accent) 7%,var(--pdf-card));border:1px solid color-mix(in oklch,var(--pdf-accent) 32%,var(--pdf-border));border-radius:9px;font-size:10px;color:color-mix(in oklch,var(--pdf-accent) 75%,var(--pdf-foreground)); }
+  .validity::before { content:"✓";position:absolute;left:14px;top:10px;display:flex;width:25px;height:25px;align-items:center;justify-content:center;border-radius:7px;background:var(--pdf-document-accent);color:var(--pdf-card);font-weight:800; }
+  .notes { margin-top:16px;padding:12px 14px;background:var(--pdf-card);border:1px solid var(--pdf-border);border-radius:9px;font-size:10px;color:color-mix(in oklch,var(--pdf-foreground) 68%,transparent);line-height:1.6; }
 `;
 
     const bodyHtml = `
@@ -494,15 +486,16 @@ function DevisDetail() {
     </div>
   </div>
 
-  <div class="devis-title">DEVIS N° ${quote.numero}</div>
-  <div class="devis-num">Établi le ${formatDateFR(quote.date_devis)} — Valable jusqu'au ${formatDateFR(quote.date_validite)}</div>
-
-  <div class="meta">
+  <div class="document-intro">
     <div class="meta-box">
       <div class="lbl">Proposé à</div>
       <div class="val">${quote.client?.raison_sociale ?? "—"}</div>
-      ${quote.client?.adresse_site ? `<div style="font-size:10px;color:#64748b;margin-top:2px">${quote.client.adresse_site}</div>` : ""}
-      ${quote.client?.telephone ? `<div style="font-size:10px;color:#64748b">Tél : ${quote.client.telephone}</div>` : ""}
+      ${quote.client?.adresse_site ? `<div class="meta-detail">${quote.client.adresse_site}</div>` : ""}
+      ${quote.client?.telephone ? `<div class="meta-detail">Tél : ${quote.client.telephone}</div>` : ""}
+    </div>
+    <div class="document-title-panel">
+      <div class="devis-title">DEVIS N° ${quote.numero}</div>
+      <div class="devis-num">Établi le ${formatDateFR(quote.date_devis)}<br>Valable jusqu'au ${formatDateFR(quote.date_validite)}</div>
     </div>
   </div>
 
@@ -532,8 +525,9 @@ function DevisDetail() {
 
   ${quote.notes ? `<div class="notes"><strong>Notes :</strong> ${quote.notes}</div>` : ""}
 
-  <div class="footer">
-    Document généré le ${dateHeure} — ${[s?.nom ?? "", s?.siret ? `SIRET ${s.siret}` : "", s?.tva_number ? `TVA ${s.tva_number}` : ""].filter(Boolean).join(" · ")}
+  <div class="document-signoff">
+    <div class="document-origin">Document généré le ${dateHeure}<br>${[s?.nom ?? "", s?.siret ? `SIRET ${s.siret}` : "", s?.tva_number ? `TVA ${s.tva_number}` : ""].filter(Boolean).join(" · ")}</div>
+    <div class="document-thanks">Une proposition claire, un traitement maîtrisé<small>${s?.nom ?? ""}</small></div>
   </div>
 `;
 
