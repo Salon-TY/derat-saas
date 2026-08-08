@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyTodoCount, useMyVanStock } from "@/lib/queries";
-import { STATUTS_INTERVENTION } from "@/lib/schemas";
+import { STATUTS_INTERVENTION, formatHeure } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, MapPin, Phone, Package } from "lucide-react";
@@ -44,7 +44,7 @@ function useMyTodayInterventions(userId: string | null) {
         .select("*, client:clients(raison_sociale, telephone)")
         .eq("technicien_id", userId!)
         .eq("date", today)
-        .order("created_at");
+        .order("heure_prevue", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -148,6 +148,11 @@ function TechToday() {
                   <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
+                        {inv.heure_prevue && (
+                          <div className="font-mono text-xs font-bold text-primary">
+                            {formatHeure(inv.heure_prevue)}
+                          </div>
+                        )}
                         <div className="break-words text-sm font-semibold">
                           {inv.client?.raison_sociale ?? "—"}
                         </div>

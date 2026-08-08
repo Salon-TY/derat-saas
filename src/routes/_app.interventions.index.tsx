@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,11 +22,13 @@ import {
   useInterventionsCountByStatut,
   useInterventionNuisibleTypes,
   type Intervention,
+  type AssignableMember,
 } from "@/lib/queries";
 import {
   STATUTS_INTERVENTION,
   STATUT_INTERVENTION_COLORS,
   formatDateFR,
+  formatHeure,
   statutInterventionLabel,
 } from "@/lib/schemas";
 import {
@@ -35,6 +38,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Clock3,
+  Columns3,
   Filter,
   List as ListIcon,
   MapPin,
@@ -42,6 +46,7 @@ import {
   Plus,
   Search,
   Sun,
+  TriangleAlert,
   UserRound,
   X,
 } from "lucide-react";
@@ -57,7 +62,116 @@ export const Route = createFileRoute("/_app/interventions/")({
   component: InterventionsPage,
 });
 
-type View = "list" | "day" | "week";
+type View = "list" | "day" | "week" | "technicien";
+
+// Hypothèse fixe pour la détection de chevauchement visuel dans la vue
+// Technicien — pas de durée estimée par type d'intervention en V1 (cahier
+// des charges : idée à évaluer séparément). Non persistée, non configurable.
+const SLOT_DURATION_MIN = 60;
+
+function timeToMinutes(t: string): number | null {
+  const m = /^(\d{2}):(\d{2})/.exec(t);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function sortBySlot(a: Intervention, b: Intervention) {
+  const ta = a.heure_prevue ? timeToMinutes(a.heure_prevue) : null;
+  const tb = b.heure_prevue ? timeToMinutes(b.heure_prevue) : null;
+  if (ta === null && tb === null) return 0;
+  if (ta === null) return 1;
+  if (tb === null) return -1;
+  return ta - tb;
+}
+
+const DEFAULT_GRID_START_HOUR = 7;
+const DEFAULT_GRID_END_HOUR = 19;
+const GRID_HOUR_HEIGHT_PX = 56;
+
+// Plage d'heures affichée par la grille horaire — 7h-19h par défaut, étendue
+// si un créneau planifié tombe en dehors (jamais de donnée cachée).
+function computeHourRange(items: Intervention[]): { start: number; end: number } {
+  let start = DEFAULT_GRID_START_HOUR;
+  let end = DEFAULT_GRID_END_HOUR;
+  for (const intervention of items) {
+    if (!intervention.heure_prevue) continue;
+    const mins = timeToMinutes(intervention.heure_prevue);
+    if (mins === null) continue;
+    const hourStart = Math.floor(mins / 60);
+    const hourEnd = Math.ceil((mins + SLOT_DURATION_MIN) / 60);
+    if (hourStart < start) start = hourStart;
+    if (hourEnd > end) end = hourEnd;
+  }
+  return { start, end };
+}
+
+// Regroupe les créneaux d'une colonne qui se chevauchent (même logique de
+// fenêtre que findConflicts) et attribue à chacun sa position/largeur
+// relative dans son groupe, pour un affichage côte à côte façon agenda.
+function layoutTimelineItems(
+  items: Intervention[],
+): { intervention: Intervention; start: number; slot: number; slotCount: number }[] {
+  const withStart = items
+    .map((intervention) => ({
+      intervention,
+      start: intervention.heure_prevue ? timeToMinutes(intervention.heure_prevue) : null,
+    }))
+    .filter(
+      (x): x is { intervention: Intervention; start: number } => x.start !== null,
+    )
+    .sort((a, b) => a.start - b.start);
+
+  const result: { intervention: Intervention; start: number; slot: number; slotCount: number }[] =
+    [];
+  let cluster: typeof withStart = [];
+  let clusterEnd = -Infinity;
+
+  function flushCluster() {
+    if (cluster.length === 0) return;
+    const n = cluster.length;
+    cluster.forEach((entry, index) => {
+      result.push({ intervention: entry.intervention, start: entry.start, slot: index, slotCount: n });
+    });
+    cluster = [];
+  }
+
+  for (const entry of withStart) {
+    if (cluster.length === 0 || entry.start < clusterEnd) {
+      cluster.push(entry);
+      clusterEnd = Math.max(clusterEnd, entry.start + SLOT_DURATION_MIN);
+    } else {
+      flushCluster();
+      cluster = [entry];
+      clusterEnd = entry.start + SLOT_DURATION_MIN;
+    }
+  }
+  flushCluster();
+  return result;
+}
+
+// Créneaux dont la fenêtre [début, début + SLOT_DURATION_MIN[ chevauche un
+// autre créneau du même technicien.
+function findConflicts(items: Intervention[]): Set<string> {
+  const withStart = items
+    .map((intervention) => ({
+      intervention,
+      start: intervention.heure_prevue ? timeToMinutes(intervention.heure_prevue) : null,
+    }))
+    .filter(
+      (x): x is { intervention: Intervention; start: number } => x.start !== null,
+    )
+    .sort((a, b) => a.start - b.start);
+  const conflicts = new Set<string>();
+  for (let i = 1; i < withStart.length; i++) {
+    const prev = withStart[i - 1];
+    const curr = withStart[i];
+    if (curr.start < prev.start + SLOT_DURATION_MIN) {
+      conflicts.add(prev.intervention.id);
+      conflicts.add(curr.intervention.id);
+    }
+  }
+  return conflicts;
+}
 
 function toISO(date: Date) {
   const year = date.getFullYear();
@@ -95,6 +209,7 @@ function useRangeInterventions(start: string, end: string) {
         .gte("date", start)
         .lte("date", end)
         .order("date")
+        .order("heure_prevue", { ascending: true, nullsFirst: false })
         .order("created_at");
       if (error) throw error;
       return data ?? [];
@@ -180,8 +295,9 @@ function InterventionsPage() {
 
   const currentWeekStart = weekStart(selectedDate);
   const currentWeekEnd = addDays(currentWeekStart, 6);
-  const rangeStart = view === "day" ? toISO(selectedDate) : toISO(currentWeekStart);
-  const rangeEnd = view === "day" ? toISO(selectedDate) : toISO(currentWeekEnd);
+  const isDayGranularity = view === "day" || view === "technicien";
+  const rangeStart = isDayGranularity ? toISO(selectedDate) : toISO(currentWeekStart);
+  const rangeEnd = isDayGranularity ? toISO(selectedDate) : toISO(currentWeekEnd);
   const {
     data: rangeInterventions = [],
     isLoading: rangeLoading,
@@ -202,26 +318,24 @@ function InterventionsPage() {
   );
 
   function previousPeriod() {
-    setSelectedDate((date) => addDays(date, view === "day" ? -1 : -7));
+    setSelectedDate((date) => addDays(date, isDayGranularity ? -1 : -7));
   }
 
   function nextPeriod() {
-    setSelectedDate((date) => addDays(date, view === "day" ? 1 : 7));
+    setSelectedDate((date) => addDays(date, isDayGranularity ? 1 : 7));
   }
 
-  const isCurrentPeriod =
-    view === "day"
-      ? toISO(selectedDate) === toISO(today)
-      : toISO(currentWeekStart) === toISO(weekStart(today));
+  const isCurrentPeriod = isDayGranularity
+    ? toISO(selectedDate) === toISO(today)
+    : toISO(currentWeekStart) === toISO(weekStart(today));
 
-  const headerLabel =
-    view === "day"
-      ? selectedDate.toLocaleDateString("fr-FR", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })
-      : `Semaine du ${currentWeekStart.toLocaleDateString("fr-FR", {
+  const headerLabel = isDayGranularity
+    ? selectedDate.toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      })
+    : `Semaine du ${currentWeekStart.toLocaleDateString("fr-FR", {
           day: "numeric",
           month: "short",
         })} au ${currentWeekEnd.toLocaleDateString("fr-FR", {
@@ -282,13 +396,14 @@ function InterventionsPage() {
         <CardContent className="space-y-4 p-4 lg:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div
-              className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 lg:w-80"
+              className="grid grid-cols-4 gap-1 rounded-xl bg-muted p-1 lg:w-96"
               aria-label="Choisir la vue du planning"
             >
               {[
                 { value: "list" as View, label: "Liste", icon: ListIcon },
                 { value: "day" as View, label: "Jour", icon: Sun },
                 { value: "week" as View, label: "Semaine", icon: CalendarDays },
+                { value: "technicien" as View, label: "Technicien", icon: Columns3 },
               ].map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
@@ -338,7 +453,7 @@ function InterventionsPage() {
             />
           )}
 
-          {(view === "day" || view === "week") && (
+          {view !== "list" && (
             <PeriodNavigation
               label={headerLabel}
               isCurrentPeriod={isCurrentPeriod}
@@ -404,6 +519,15 @@ function InterventionsPage() {
           isLoading={rangeLoading}
           isError={rangeError}
           technicianNames={technicianNames}
+        />
+      )}
+
+      {view === "technicien" && (
+        <TechnicienView
+          interventions={filteredRangeInterventions}
+          assignableMembers={assignableMembers}
+          isLoading={rangeLoading}
+          isError={rangeError}
         />
       )}
     </PageContainer>
@@ -742,10 +866,10 @@ function InterventionListCard({
             <div className="text-sm font-semibold tabular-nums">
               {formatDateFR(intervention.date)}
             </div>
-            {intervention.heure_debut && (
+            {formatHeure(intervention.heure_prevue) && (
               <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <Clock3 className="h-3.5 w-3.5" />
-                {intervention.heure_debut.slice(0, 5)}
+                {formatHeure(intervention.heure_prevue)}
               </div>
             )}
           </div>
@@ -757,10 +881,10 @@ function InterventionListCard({
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span className="lg:hidden">{formatDateFR(intervention.date)}</span>
-              {intervention.heure_debut && (
+              {formatHeure(intervention.heure_prevue) && (
                 <span className="flex items-center gap-1 lg:hidden">
                   <Clock3 className="h-3.5 w-3.5" />
-                  {intervention.heure_debut.slice(0, 5)}
+                  {formatHeure(intervention.heure_prevue)}
                 </span>
               )}
               <span>{intervention.type_intervention}</span>
@@ -1009,6 +1133,289 @@ function WeekView({
   );
 }
 
+function TechnicienView({
+  interventions,
+  assignableMembers,
+  isLoading,
+  isError,
+}: {
+  interventions: Intervention[];
+  assignableMembers: AssignableMember[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  const qc = useQueryClient();
+  const [subView, setSubView] = useState<"liste" | "grille">("liste");
+
+  const columns = useMemo(() => {
+    const byTech = new Map<string, Intervention[]>();
+    const unassigned: Intervention[] = [];
+    for (const intervention of interventions) {
+      if (intervention.technicien_id) {
+        const arr = byTech.get(intervention.technicien_id) ?? [];
+        arr.push(intervention);
+        byTech.set(intervention.technicien_id, arr);
+      } else {
+        unassigned.push(intervention);
+      }
+    }
+    const techCols = assignableMembers.map((member) => ({
+      id: member.user_id,
+      label: member.display_name,
+      items: (byTech.get(member.user_id) ?? []).slice().sort(sortBySlot),
+    }));
+    return [
+      ...techCols,
+      { id: "none", label: "Non attribué", items: unassigned.slice().sort(sortBySlot) },
+    ];
+  }, [interventions, assignableMembers]);
+
+  const hourRange = useMemo(() => computeHourRange(interventions), [interventions]);
+
+  async function updateHeurePrevue(id: string, value: string) {
+    const { error } = await db
+      .from("interventions")
+      .update({ heure_prevue: value || null })
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["interventions_range"] });
+    qc.invalidateQueries({ queryKey: ["interventions"] });
+  }
+
+  if (isLoading) return <PlanningLoading count={4} />;
+  if (isError) {
+    return (
+      <PlanningState
+        icon={AlertCircle}
+        title="Impossible de charger cette journée"
+        description="Une erreur est survenue pendant le chargement du planning."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div
+        className="inline-flex gap-1 rounded-xl bg-muted p-1"
+        role="tablist"
+        aria-label="Affichage du planning technicien"
+      >
+        {(
+          [
+            { v: "liste" as const, label: "Liste" },
+            { v: "grille" as const, label: "Grille horaire" },
+          ] as const
+        ).map(({ v, label }) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={subView === v}
+            onClick={() => setSubView(v)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+              subView === v
+                ? "bg-card text-foreground shadow-soft"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {subView === "liste" ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {columns.map((col) => {
+            const conflicts = findConflicts(col.items);
+            return (
+              <Card key={col.id}>
+                <CardContent className="space-y-2 p-3">
+                  <h3 className="text-sm font-semibold">{col.label}</h3>
+                  {col.items.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Aucun créneau</p>
+                  )}
+                  {col.items.map((intervention) => {
+                    const isConflict = conflicts.has(intervention.id);
+                    const currentHeure = formatHeure(intervention.heure_prevue) ?? "";
+                    return (
+                      <div
+                        key={intervention.id}
+                        className={cn(
+                          "space-y-1 rounded-lg border p-2",
+                          isConflict ? "border-destructive/50 bg-destructive/5" : "border-border",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <Input
+                            type="time"
+                            defaultValue={currentHeure}
+                            onBlur={(e) => {
+                              if (e.target.value !== currentHeure) {
+                                updateHeurePrevue(intervention.id, e.target.value);
+                              }
+                            }}
+                            className="h-8 w-24 text-xs"
+                            aria-label="Heure prévue"
+                          />
+                          {isConflict && (
+                            <TriangleAlert
+                              className="h-4 w-4 shrink-0 text-destructive"
+                              aria-label="Chevauche un autre créneau"
+                            />
+                          )}
+                        </div>
+                        <Link
+                          to="/interventions/$id"
+                          params={{ id: intervention.id }}
+                          className="block truncate text-xs font-medium hover:underline"
+                        >
+                          {intervention.client?.raison_sociale ?? "Client supprimé"}
+                        </Link>
+                        {intervention.adresse_site && (
+                          <p className="truncate text-xs text-muted-foreground">
+                            {intervention.adresse_site}
+                          </p>
+                        )}
+                        <StatusBadge status={intervention.statut} compact />
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <TechnicienGrid columns={columns} hourRange={hourRange} onUpdateHeure={updateHeurePrevue} />
+      )}
+    </div>
+  );
+}
+
+function TechnicienGrid({
+  columns,
+  hourRange,
+  onUpdateHeure,
+}: {
+  columns: { id: string; label: string; items: Intervention[] }[];
+  hourRange: { start: number; end: number };
+  onUpdateHeure: (id: string, value: string) => void;
+}) {
+  const gridHeight = (hourRange.end - hourRange.start) * GRID_HOUR_HEIGHT_PX;
+  const hours = Array.from(
+    { length: hourRange.end - hourRange.start + 1 },
+    (_, i) => hourRange.start + i,
+  );
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="sticky left-0 z-10 w-10 shrink-0 bg-background">
+        <div className="h-7" />
+        <div className="relative" style={{ height: gridHeight }}>
+          {hours.map((h) => (
+            <div
+              key={h}
+              className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground"
+              style={{ top: (h - hourRange.start) * GRID_HOUR_HEIGHT_PX }}
+            >
+              {String(h).padStart(2, "0")}h
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {columns.map((col) => {
+        const laid = layoutTimelineItems(col.items);
+        const unplanned = col.items.filter((i) => !i.heure_prevue);
+        const conflicts = findConflicts(col.items);
+        return (
+          <div key={col.id} className="w-44 shrink-0">
+            <h3 className="h-7 truncate text-xs font-semibold">{col.label}</h3>
+            <div
+              className="relative rounded-lg border border-border bg-muted/10"
+              style={{ height: gridHeight }}
+            >
+              {hours.slice(0, -1).map((h) => (
+                <div
+                  key={h}
+                  className="absolute inset-x-0 border-t border-border/40"
+                  style={{ top: (h - hourRange.start) * GRID_HOUR_HEIGHT_PX }}
+                />
+              ))}
+              {laid.map(({ intervention, start, slot, slotCount }) => {
+                const top = ((start - hourRange.start * 60) / 60) * GRID_HOUR_HEIGHT_PX;
+                const height = Math.max((SLOT_DURATION_MIN / 60) * GRID_HOUR_HEIGHT_PX, 20);
+                const widthPct = 100 / slotCount;
+                const leftPct = slot * widthPct;
+                const isConflict = conflicts.has(intervention.id);
+                return (
+                  <Link
+                    key={intervention.id}
+                    to="/interventions/$id"
+                    params={{ id: intervention.id }}
+                    className={cn(
+                      "absolute overflow-hidden rounded-md border p-1 text-[10px] leading-tight transition-colors hover:z-10 hover:shadow-soft",
+                      isConflict
+                        ? "border-destructive bg-destructive/10"
+                        : "border-primary/40 bg-primary/10",
+                    )}
+                    style={{
+                      top,
+                      height,
+                      left: `calc(${leftPct}% + 2px)`,
+                      width: `calc(${widthPct}% - 4px)`,
+                    }}
+                  >
+                    <div className="font-mono font-semibold text-primary">
+                      {formatHeure(intervention.heure_prevue)}
+                    </div>
+                    <div className="truncate">
+                      {intervention.client?.raison_sociale ?? "Client supprimé"}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {unplanned.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-[10px] font-medium text-muted-foreground">Non planifiés</p>
+                {unplanned.map((intervention) => (
+                  <div
+                    key={intervention.id}
+                    className="flex items-center gap-1.5 rounded border border-border p-1"
+                  >
+                    <Input
+                      type="time"
+                      defaultValue=""
+                      onBlur={(e) => {
+                        if (e.target.value) onUpdateHeure(intervention.id, e.target.value);
+                      }}
+                      className="h-6 w-16 px-1 text-[10px]"
+                      aria-label="Heure prévue"
+                    />
+                    <Link
+                      to="/interventions/$id"
+                      params={{ id: intervention.id }}
+                      className="truncate text-[10px] hover:underline"
+                    >
+                      {intervention.client?.raison_sociale ?? "Client supprimé"}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function WeekEventCard({ intervention }: { intervention: Intervention }) {
   return (
     <Link
@@ -1019,10 +1426,10 @@ function WeekEventCard({ intervention }: { intervention: Intervention }) {
         intervention.statut === "annulee" && "opacity-60",
       )}
     >
-      {intervention.heure_debut && (
+      {formatHeure(intervention.heure_prevue) && (
         <div className="mb-1 flex items-center gap-1 text-[10px] font-semibold tabular-nums text-primary">
           <Clock3 className="h-3 w-3" />
-          {intervention.heure_debut.slice(0, 5)}
+          {formatHeure(intervention.heure_prevue)}
         </div>
       )}
       <div className="line-clamp-2 text-xs font-semibold leading-4">
@@ -1052,11 +1459,11 @@ function PlanningCard({
         <div className="flex items-start gap-3">
           <div className="w-12 shrink-0 text-center">
             <div className="text-base font-bold tabular-nums">
-              {intervention.heure_debut ? intervention.heure_debut.slice(0, 5) : "—"}
+              {formatHeure(intervention.heure_prevue) ?? "—"}
             </div>
-            {intervention.heure_fin && (
+            {formatHeure(intervention.heure_fin) && (
               <div className="mt-1 text-[10px] tabular-nums text-muted-foreground">
-                {intervention.heure_fin.slice(0, 5)}
+                {formatHeure(intervention.heure_fin)}
               </div>
             )}
           </div>

@@ -202,6 +202,7 @@ export type Database = {
           devis_id: string | null
           heure_debut: string | null
           heure_fin: string | null
+          heure_prevue: string | null
           id: string
           observations: string | null
           produits: string | null
@@ -225,6 +226,7 @@ export type Database = {
           devis_id?: string | null
           heure_debut?: string | null
           heure_fin?: string | null
+          heure_prevue?: string | null
           id?: string
           observations?: string | null
           produits?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           devis_id?: string | null
           heure_debut?: string | null
           heure_fin?: string | null
+          heure_prevue?: string | null
           id?: string
           observations?: string | null
           produits?: string | null

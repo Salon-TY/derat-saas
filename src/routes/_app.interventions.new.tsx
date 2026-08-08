@@ -63,6 +63,7 @@ function NewIntervention() {
       contract_id: values.contract_id || null,
       technicien_id: values.technicien_id || null,
       date_prochain_passage: values.date_prochain_passage || null,
+      heure_prevue: values.heure_prevue || null,
       devis_id: search.from_devis ?? null,
       user_id: userId,
     };

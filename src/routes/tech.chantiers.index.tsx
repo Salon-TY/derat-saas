@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { useInterventions, type Intervention } from "@/lib/queries";
-import { STATUTS_INTERVENTION, formatDateFR } from "@/lib/schemas";
+import { STATUTS_INTERVENTION, formatDateFR, formatHeure } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,13 +30,6 @@ const TECH_STATUT_FILTERS = STATUTS_INTERVENTION.filter((s) => s.value !== "annu
 
 function statutLabel(v: string) {
   return STATUTS_INTERVENTION.find((s) => s.value === v)?.label ?? v;
-}
-
-function formatHeure(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 type View = "list" | "week";
@@ -88,6 +81,7 @@ function useMyRangeInterventions(
         .gte("date", start)
         .lte("date", end)
         .order("date")
+        .order("heure_prevue", { ascending: true, nullsFirst: false })
         .order("created_at");
       if (statut) q = q.eq("statut", statut);
       const { data, error } = await q;
@@ -260,8 +254,15 @@ function TechChantiersList() {
                   <CardContent className="p-4 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="break-words font-semibold">
-                          {item.client?.raison_sociale ?? "Client supprimé"}
+                        <div className="flex items-center gap-1.5">
+                          {formatHeure(item.heure_prevue) && (
+                            <span className="shrink-0 font-mono text-xs font-bold text-primary">
+                              {formatHeure(item.heure_prevue)}
+                            </span>
+                          )}
+                          <div className="break-words font-semibold">
+                            {item.client?.raison_sociale ?? "Client supprimé"}
+                          </div>
                         </div>
                         <div className="break-words text-xs text-muted-foreground">
                           {formatDateFR(item.date)} · {item.type_intervention}
@@ -374,7 +375,7 @@ function TechChantiersList() {
                       ) : (
                         <div className="space-y-1.5">
                           {dayInvs.map((inv) => {
-                            const heure = formatHeure(inv.heure_debut);
+                            const heure = formatHeure(inv.heure_prevue);
                             return (
                               <Link
                                 key={inv.id}
