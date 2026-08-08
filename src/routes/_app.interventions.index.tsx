@@ -287,13 +287,15 @@ function InterventionsPage() {
     [assignableMembers],
   );
 
-  const activeFiltersCount = [
+  const sharedActiveFiltersCount = [
     q.trim() ? 1 : 0,
     statutFilter !== "all" ? 1 : 0,
     typeFilter !== "all" ? 1 : 0,
-    periodFilter !== "all" ? 1 : 0,
     technicienFilter !== "all" ? 1 : 0,
   ].reduce((sum, value) => sum + value, 0);
+  const activeFiltersCount =
+    sharedActiveFiltersCount +
+    (view === "list" ? (periodFilter !== "all" ? 1 : 0) + (sortDir !== "desc" ? 1 : 0) : 0);
 
   const currentWeekStart = weekStart(selectedDate);
   const currentWeekEnd = addDays(currentWeekStart, 6);
@@ -317,11 +319,7 @@ function InterventionsPage() {
       if (statutFilter !== "all" && intervention.statut !== statutFilter) return false;
       if (typeFilter !== "all" && intervention.type_nuisible !== typeFilter) return false;
       if (!term) return true;
-      return [
-        intervention.client?.raison_sociale,
-        intervention.adresse_site,
-        intervention.type_intervention,
-      ]
+      return [intervention.adresse_site, intervention.type_nuisible, intervention.produits]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term));
     });
@@ -486,6 +484,7 @@ function InterventionsPage() {
           nuisibleTypes={nuisibleTypes}
           sortDir={sortDir}
           onSortChange={setSortDir}
+          showListOnlyControls={view === "list"}
           activeFiltersCount={activeFiltersCount}
           onReset={resetFilters}
         />
@@ -658,6 +657,7 @@ function FilterPanel({
   nuisibleTypes,
   sortDir,
   onSortChange,
+  showListOnlyControls,
   activeFiltersCount,
   onReset,
 }: {
@@ -670,28 +670,31 @@ function FilterPanel({
   nuisibleTypes: string[];
   sortDir: "desc" | "asc";
   onSortChange: (value: "desc" | "asc") => void;
+  showListOnlyControls: boolean;
   activeFiltersCount: number;
   onReset: () => void;
 }) {
   return (
     <Card className="hover:translate-y-0 hover:shadow-soft">
       <CardContent className="grid gap-6 p-4 md:grid-cols-2 lg:p-6 xl:grid-cols-4">
-        <FilterGroup label="Période">
-          {[
-            { value: "all", label: "Toutes" },
-            { value: "today", label: "Aujourd’hui" },
-            { value: "week", label: "Cette semaine" },
-            { value: "month", label: "Ce mois" },
-          ].map((option) => (
-            <FilterChip
-              key={option.value}
-              active={periodFilter === option.value}
-              onClick={() => onPeriodChange(option.value)}
-            >
-              {option.label}
-            </FilterChip>
-          ))}
-        </FilterGroup>
+        {showListOnlyControls && (
+          <FilterGroup label="Période">
+            {[
+              { value: "all", label: "Toutes" },
+              { value: "today", label: "Aujourd’hui" },
+              { value: "week", label: "Cette semaine" },
+              { value: "month", label: "Ce mois" },
+            ].map((option) => (
+              <FilterChip
+                key={option.value}
+                active={periodFilter === option.value}
+                onClick={() => onPeriodChange(option.value)}
+              >
+                {option.label}
+              </FilterChip>
+            ))}
+          </FilterGroup>
+        )}
 
         <FilterGroup label="Statut">
           {[{ value: "all", label: "Tous" }, ...STATUTS_INTERVENTION].map((option) => (
@@ -723,14 +726,16 @@ function FilterPanel({
         )}
 
         <div className="space-y-4">
-          <FilterGroup label="Tri">
-            <FilterChip active={sortDir === "desc"} onClick={() => onSortChange("desc")}>
-              Plus récentes
-            </FilterChip>
-            <FilterChip active={sortDir === "asc"} onClick={() => onSortChange("asc")}>
-              Plus anciennes
-            </FilterChip>
-          </FilterGroup>
+          {showListOnlyControls && (
+            <FilterGroup label="Tri">
+              <FilterChip active={sortDir === "desc"} onClick={() => onSortChange("desc")}>
+                Plus récentes
+              </FilterChip>
+              <FilterChip active={sortDir === "asc"} onClick={() => onSortChange("asc")}>
+                Plus anciennes
+              </FilterChip>
+            </FilterGroup>
+          )}
           {activeFiltersCount > 0 && (
             <Button type="button" variant="ghost" size="sm" onClick={onReset}>
               <X className="h-4 w-4" />

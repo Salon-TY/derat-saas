@@ -559,294 +559,316 @@ function ParametresPage() {
   }
 
   return (
-    <PageContainer className="flex flex-col">
+    <PageContainer>
       <PageHeader
         title="Paramètres"
         subtitle="Gérez l’identité de votre société, vos documents et vos préférences."
       />
 
-      <PageSection title="Outils" className="order-4">
-        <div className="grid gap-3 lg:grid-cols-2">
-          <Link to="/stats">
-            <Card className="h-full cursor-pointer transition-colors hover:border-primary/40">
-              <CardContent className="p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-                    <BarChart2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm">Statistiques mensuelles</div>
-                    <div className="text-xs text-muted-foreground">
-                      CA, interventions, top clients
+      {(() => {
+        const toolsSection = (
+          <PageSection title="Outils">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Link to="/stats">
+                <Card className="h-full cursor-pointer transition-colors hover:border-primary/40">
+                  <CardContent className="p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                        <BarChart2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm">Statistiques mensuelles</div>
+                        <div className="text-xs text-muted-foreground">
+                          CA, interventions, top clients
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+
+              {can("export") && (
+                <Card className="h-full">
+                  <CardContent className="p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                        <Download className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm">Sauvegarde des données</div>
+                        <div className="text-xs text-muted-foreground">
+                          Clients, interventions, factures, contrats, stock
+                        </div>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
+                      {exporting ? "Export…" : "Exporter Excel"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </PageSection>
+        );
+
+        const identityAutomationSection = (
+          <PageSection title="Identité et automatisation">
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              {/* Logo société */}
+              <Card className="h-full">
+                <CardContent className="space-y-4 p-4 sm:p-6">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Logo société
+                  </h2>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-border overflow-hidden bg-muted/30">
+                      {settings?.logo_url ? (
+                        <img
+                          src={settings.logo_url}
+                          alt="Logo"
+                          className="h-full w-full object-contain p-1"
+                        />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleLogoUpload(f);
+                          e.target.value = "";
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-11 w-full"
+                        disabled={logoUploading}
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {logoUploading
+                          ? "Upload…"
+                          : settings?.logo_url
+                            ? "Changer le logo"
+                            : "Importer un logo"}
+                      </Button>
+                      {settings?.logo_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="min-h-11 w-full text-destructive hover:text-destructive"
+                          onClick={handleLogoDelete}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                        </Button>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        PNG ou JPG — apparaît sur les factures et rapports
+                      </p>
                     </div>
                   </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </CardContent>
-            </Card>
-          </Link>
+                </CardContent>
+              </Card>
 
-          {can("export") && (
-            <Card className="h-full">
-              <CardContent className="p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                    <Download className="h-5 w-5" />
+              {/* Relances automatiques */}
+              <Card className="h-full">
+                <CardContent className="space-y-4 p-4 sm:p-6">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Relances automatiques
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Définissez les délais (en jours) pour chaque niveau de relance.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Field label="Rappel avant (J-)">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={relanceN1}
+                        onChange={(e) => setRelanceN1(Number(e.target.value))}
+                      />
+                    </Field>
+                    <Field label="Relance amiable (J+)">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={relanceN2}
+                        onChange={(e) => setRelanceN2(Number(e.target.value))}
+                      />
+                    </Field>
+                    <Field label="Mise en demeure (J+)">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={90}
+                        value={relanceN3}
+                        onChange={(e) => setRelanceN3(Number(e.target.value))}
+                      />
+                    </Field>
                   </div>
-                  <div>
-                    <div className="font-semibold text-sm">Sauvegarde des données</div>
-                    <div className="text-xs text-muted-foreground">
-                      Clients, interventions, factures, contrats, stock
-                    </div>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
-                  {exporting ? "Export…" : "Exporter Excel"}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </PageSection>
-
-      <PageSection title="Identité et automatisation" className="order-3">
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          {/* Logo société */}
-          <Card className="h-full">
-            <CardContent className="space-y-4 p-4 sm:p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Logo société
-              </h2>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-border overflow-hidden bg-muted/30">
-                  {settings?.logo_url ? (
-                    <img
-                      src={settings.logo_url}
-                      alt="Logo"
-                      className="h-full w-full object-contain p-1"
+                  <Field label="Signature email">
+                    <Textarea
+                      rows={3}
+                      placeholder={"Cordialement,\nMon Entreprise\nTéléphone : 06 XX XX XX XX"}
+                      value={relanceSignature}
+                      onChange={(e) => setRelanceSignature(e.target.value)}
                     />
-                  ) : (
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="space-y-2 flex-1">
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleLogoUpload(f);
-                      e.target.value = "";
-                    }}
-                  />
+                  </Field>
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-h-11 w-full"
-                    disabled={logoUploading}
-                    onClick={() => logoInputRef.current?.click()}
+                    className="min-h-11 w-full sm:w-auto"
+                    disabled={savingRelance}
+                    onClick={handleSaveRelance}
                   >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {logoUploading
-                      ? "Upload…"
-                      : settings?.logo_url
-                        ? "Changer le logo"
-                        : "Importer un logo"}
+                    {savingRelance ? "Enregistrement…" : "Enregistrer"}
                   </Button>
-                  {settings?.logo_url && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="min-h-11 w-full text-destructive hover:text-destructive"
-                      onClick={handleLogoDelete}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Supprimer
-                    </Button>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    PNG ou JPG — apparaît sur les factures et rapports
-                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </PageSection>
+        );
+
+        const professionalActivitySection = (
+          <PageSection title="Activité professionnelle">
+            <Card>
+              <CardContent className="space-y-6 p-4 sm:p-6">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-accent shrink-0" />
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Informations professionnelles{" "}
+                    <span className="normal-case font-normal text-muted-foreground/70">
+                      (optionnel)
+                    </span>
+                  </h2>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Relances automatiques */}
-          <Card className="h-full">
-            <CardContent className="space-y-4 p-4 sm:p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Relances automatiques
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Définissez les délais (en jours) pour chaque niveau de relance.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Rappel avant (J-)">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={relanceN1}
-                    onChange={(e) => setRelanceN1(Number(e.target.value))}
-                  />
-                </Field>
-                <Field label="Relance amiable (J+)">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={relanceN2}
-                    onChange={(e) => setRelanceN2(Number(e.target.value))}
-                  />
-                </Field>
-                <Field label="Mise en demeure (J+)">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={90}
-                    value={relanceN3}
-                    onChange={(e) => setRelanceN3(Number(e.target.value))}
-                  />
-                </Field>
-              </div>
-              <Field label="Signature email">
-                <Textarea
-                  rows={3}
-                  placeholder={"Cordialement,\nMon Entreprise\nTéléphone : 06 XX XX XX XX"}
-                  value={relanceSignature}
-                  onChange={(e) => setRelanceSignature(e.target.value)}
-                />
-              </Field>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11 w-full sm:w-auto"
-                disabled={savingRelance}
-                onClick={handleSaveRelance}
-              >
-                {savingRelance ? "Enregistrement…" : "Enregistrer"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </PageSection>
+                <div className="space-y-3">
+                  <Field label="Nom du technicien">
+                    <Input
+                      placeholder="ex: Jean Dupont"
+                      value={nomTechnicien}
+                      onChange={(e) => setNomTechnicien(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Numéro Certibiocide">
+                    <Input
+                      placeholder="ex: CB-12345-2024"
+                      value={numeroCertibiocide}
+                      onChange={(e) => setNumeroCertibiocide(e.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 w-full sm:w-auto"
+                    disabled={savingPro}
+                    onClick={handleSavePro}
+                  >
+                    {savingPro ? "Enregistrement…" : "Enregistrer"}
+                  </Button>
+                </div>
 
-      {/* Informations professionnelles */}
-      <PageSection title="Activité professionnelle" className="order-2">
-        <Card>
-          <CardContent className="space-y-6 p-4 sm:p-6">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-accent shrink-0" />
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Informations professionnelles{" "}
-                <span className="normal-case font-normal text-muted-foreground/70">
-                  (optionnel)
-                </span>
-              </h2>
-            </div>
+                <div className="border-t pt-3 space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Produits biocides habituels
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ces produits apparaîtront sur le certificat de traitement biocide.
+                  </p>
+                  {settings?.user_id && <ProduitsEditor userId={settings.user_id} />}
+                </div>
+              </CardContent>
+            </Card>
+          </PageSection>
+        );
 
-            <div className="space-y-3">
-              <Field label="Nom du technicien">
-                <Input
-                  placeholder="ex: Jean Dupont"
-                  value={nomTechnicien}
-                  onChange={(e) => setNomTechnicien(e.target.value)}
-                />
-              </Field>
-              <Field label="Numéro Certibiocide">
-                <Input
-                  placeholder="ex: CB-12345-2024"
-                  value={numeroCertibiocide}
-                  onChange={(e) => setNumeroCertibiocide(e.target.value)}
-                />
-              </Field>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11 w-full sm:w-auto"
-                disabled={savingPro}
-                onClick={handleSavePro}
-              >
-                {savingPro ? "Enregistrement…" : "Enregistrer"}
-              </Button>
-            </div>
+        const legalIdentitySection = (
+          <PageSection title="Identité légale et coordonnées">
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Société
+                  </h2>
+                  <Field label="Nom *" error={form.formState.errors.nom?.message}>
+                    <Input {...form.register("nom")} />
+                  </Field>
+                  <Field label="Adresse">
+                    <Textarea rows={2} {...form.register("adresse")} />
+                  </Field>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="SIRET">
+                      <Input {...form.register("siret")} />
+                    </Field>
+                    <Field label="N° TVA">
+                      <Input {...form.register("tva_number")} />
+                    </Field>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Téléphone">
+                      <Input {...form.register("telephone")} />
+                    </Field>
+                    <Field label="Email" error={form.formState.errors.email?.message}>
+                      <Input type="email" {...form.register("email")} />
+                    </Field>
+                  </div>
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                    Objectifs
+                  </h2>
+                  <Field
+                    label="Objectif CA mensuel (€)"
+                    error={form.formState.errors.objectif_ca_mensuel?.message}
+                  >
+                    <Input
+                      type="number"
+                      min={0}
+                      step={100}
+                      {...form.register("objectif_ca_mensuel")}
+                    />
+                  </Field>
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                    Coordonnées bancaires
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="IBAN">
+                      <Input {...form.register("iban")} />
+                    </Field>
+                    <Field label="BIC">
+                      <Input {...form.register("bic")} />
+                    </Field>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="min-h-11 w-full sm:w-auto sm:min-w-48"
+                    disabled={form.formState.isSubmitting}
+                  >
+                    Enregistrer
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </PageSection>
+        );
 
-            <div className="border-t pt-3 space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Produits biocides habituels
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Ces produits apparaîtront sur le certificat de traitement biocide.
-              </p>
-              {settings?.user_id && <ProduitsEditor userId={settings.user_id} />}
-            </div>
-          </CardContent>
-        </Card>
-      </PageSection>
-
-      {/* Infos société */}
-      <PageSection title="Identité légale et coordonnées" className="order-1">
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Société
-              </h2>
-              <Field label="Nom *" error={form.formState.errors.nom?.message}>
-                <Input {...form.register("nom")} />
-              </Field>
-              <Field label="Adresse">
-                <Textarea rows={2} {...form.register("adresse")} />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="SIRET">
-                  <Input {...form.register("siret")} />
-                </Field>
-                <Field label="N° TVA">
-                  <Input {...form.register("tva_number")} />
-                </Field>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Téléphone">
-                  <Input {...form.register("telephone")} />
-                </Field>
-                <Field label="Email" error={form.formState.errors.email?.message}>
-                  <Input type="email" {...form.register("email")} />
-                </Field>
-              </div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground pt-2">
-                Objectifs
-              </h2>
-              <Field
-                label="Objectif CA mensuel (€)"
-                error={form.formState.errors.objectif_ca_mensuel?.message}
-              >
-                <Input type="number" min={0} step={100} {...form.register("objectif_ca_mensuel")} />
-              </Field>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground pt-2">
-                Coordonnées bancaires
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="IBAN">
-                  <Input {...form.register("iban")} />
-                </Field>
-                <Field label="BIC">
-                  <Input {...form.register("bic")} />
-                </Field>
-              </div>
-              <Button
-                type="submit"
-                className="min-h-11 w-full sm:w-auto sm:min-w-48"
-                disabled={form.formState.isSubmitting}
-              >
-                Enregistrer
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </PageSection>
+        return (
+          <>
+            {legalIdentitySection}
+            {professionalActivitySection}
+            {identityAutomationSection}
+            {toolsSection}
+          </>
+        );
+      })()}
     </PageContainer>
   );
 }

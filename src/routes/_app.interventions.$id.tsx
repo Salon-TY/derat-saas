@@ -940,9 +940,9 @@ ${
   const hasSig = !!intervention.signature_url;
 
   return (
-    <PageContainer className="flex flex-col">
+    <PageContainer>
       {/* Barre haut */}
-      <div className="-order-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           to="/interventions"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -985,7 +985,7 @@ ${
       </div>
 
       {/* 1. En-tête rapport */}
-      <Card className="-order-2 border-primary/20 bg-primary/3">
+      <Card className="border-primary/20 bg-primary/3">
         <CardContent className="space-y-3 p-4 sm:p-6">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -1009,6 +1009,77 @@ ${
           </div>
         </CardContent>
       </Card>
+
+      {/* 3. La mission (planification) */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5 px-1">
+          <ClipboardList className="h-4 w-4" /> La mission
+        </h2>
+        <Card>
+          <CardContent className="grid gap-4 p-4 sm:p-6 lg:grid-cols-2">
+            <InfoRow
+              icon={<Bug className="h-4 w-4" />}
+              label="Type de nuisible"
+              value={intervention.type_nuisible || "—"}
+            />
+            <InfoRow
+              icon={<FlaskConical className="h-4 w-4" />}
+              label="Type d'intervention"
+              value={intervention.type_intervention || "—"}
+            />
+
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Contrat rattaché
+              </div>
+              <Select value={intervention.contract_id ?? ""} onValueChange={handleContractChange}>
+                <SelectTrigger className="h-11 text-sm">
+                  <SelectValue placeholder="Aucun contrat" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contracts
+                    .filter((c) => c.client_id === intervention.client_id)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.numero ? `${c.numero} — ` : ""}
+                        {c.nom_etablissement || "Établissement"}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Technicien assigné
+              </div>
+              <TechnicianSelect
+                value={intervention.technicien_id ?? "none"}
+                onValueChange={handleTechnicienChange}
+                triggerClassName="h-11 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <ClipboardEdit className="h-3 w-3" /> Consignes pour le technicien
+              </div>
+              <div className="space-y-1.5">
+                <Textarea
+                  rows={2}
+                  value={consignesInput}
+                  onChange={(e) => setConsignesInput(e.target.value)}
+                  placeholder="Ex. clés chez le gardien, attention chien…"
+                  className="text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={handleSaveConsignes}>
+                  Enregistrer
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* 1bis. Retour du responsable */}
       {intervention.retour_admin && (
@@ -1131,77 +1202,6 @@ ${
       {siteHistory.length > 0 && (
         <SiteHistoryPanel history={siteHistory} assignableMembers={assignableMembers} />
       )}
-
-      {/* 3. La mission (planification) */}
-      <section className="-order-1 space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5 px-1">
-          <ClipboardList className="h-4 w-4" /> La mission
-        </h2>
-        <Card>
-          <CardContent className="grid gap-4 p-4 sm:p-6 lg:grid-cols-2">
-            <InfoRow
-              icon={<Bug className="h-4 w-4" />}
-              label="Type de nuisible"
-              value={intervention.type_nuisible || "—"}
-            />
-            <InfoRow
-              icon={<FlaskConical className="h-4 w-4" />}
-              label="Type d'intervention"
-              value={intervention.type_intervention || "—"}
-            />
-
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Contrat rattaché
-              </div>
-              <Select value={intervention.contract_id ?? ""} onValueChange={handleContractChange}>
-                <SelectTrigger className="h-11 text-sm">
-                  <SelectValue placeholder="Aucun contrat" />
-                </SelectTrigger>
-                <SelectContent>
-                  {contracts
-                    .filter((c) => c.client_id === intervention.client_id)
-                    .map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.numero ? `${c.numero} — ` : ""}
-                        {c.nom_etablissement || "Établissement"}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Technicien assigné
-              </div>
-              <TechnicianSelect
-                value={intervention.technicien_id ?? "none"}
-                onValueChange={handleTechnicienChange}
-                triggerClassName="h-11 text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-                <ClipboardEdit className="h-3 w-3" /> Consignes pour le technicien
-              </div>
-              <div className="space-y-1.5">
-                <Textarea
-                  rows={2}
-                  value={consignesInput}
-                  onChange={(e) => setConsignesInput(e.target.value)}
-                  placeholder="Ex. clés chez le gardien, attention chien…"
-                  className="text-sm"
-                />
-                <Button size="sm" variant="outline" onClick={handleSaveConsignes}>
-                  Enregistrer
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
 
       {/* 4. Le compte-rendu (terrain) */}
       <section className="space-y-2">
