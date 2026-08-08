@@ -9,7 +9,15 @@ import { useMyTodoCount, useMyVanStock } from "@/lib/queries";
 import { STATUTS_INTERVENTION, formatHeure } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, MapPin, Phone, Package, TriangleAlert } from "lucide-react";
+import {
+  ArrowUpRight,
+  ClipboardList,
+  MapPin,
+  Phone,
+  Package,
+  PackagePlus,
+  TriangleAlert,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/")({
@@ -37,7 +45,7 @@ function statutLabel(v: string) {
 // admin).
 const AGENDA_DEFAULT_START_HOUR = 7;
 const AGENDA_DEFAULT_END_HOUR = 19;
-const AGENDA_HOUR_HEIGHT_PX = 64;
+const AGENDA_HOUR_HEIGHT_PX = 96;
 const AGENDA_SLOT_DURATION_MIN = 60;
 
 function timeToMinutes(t: string): number | null {
@@ -101,6 +109,10 @@ function localDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function gpsHref(address: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 function useMyTodayInterventions(userId: string | null) {
   return useQuery({
     queryKey: ["tech_today_interventions", userId],
@@ -156,25 +168,41 @@ function TechToday() {
       )}
 
       {lowStock.length > 0 && (
-        <Link to="/tech/camion" className="block">
-          <Card className="border-destructive/35 bg-destructive/5 hover:border-destructive/55 transition-colors">
-            <CardContent className="p-3 flex items-start gap-2">
-              <Package className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+        <Card className="border-destructive/35 bg-destructive/5 hover:border-destructive/55 transition-colors">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-start gap-2">
+              <Package className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
               <div className="min-w-0 text-sm">
-                <span className="font-semibold text-destructive">
+                <div className="font-semibold text-destructive">
                   {lowStock.length} produit{lowStock.length > 1 ? "s" : ""} bas sur mon camion
-                </span>
-                <ul className="mt-1 space-y-0.5">
-                  {lowStock.map((l) => (
-                    <li key={l.id} className="break-words text-xs text-destructive/85">
-                      {l.product?.nom} — {l.quantite} {l.product?.unite}
-                    </li>
-                  ))}
-                </ul>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Touchez un produit pour demander son réapprovisionnement.
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </Link>
+            </div>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {lowStock.map((l) => (
+                <Link
+                  key={l.id}
+                  to="/tech/camion"
+                  search={{ reappro: l.product_id }}
+                  className="flex min-h-11 min-w-[11rem] max-w-[15rem] flex-1 items-center justify-between gap-2 rounded-xl border border-destructive/20 bg-background/80 px-3 py-1.5 text-left transition-colors hover:bg-background active:scale-[0.99]"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{l.product?.nom}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      Reste {l.quantite} {l.product?.unite}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-destructive">
+                    <PackagePlus className="h-4 w-4" /> Réappro
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <section>
@@ -217,6 +245,12 @@ function TechToday() {
 }
 
 function TechTodayAgenda({ interventions }: { interventions: any[] }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const planned = interventions.filter((i) => i.heure_prevue);
   const unplanned = interventions.filter((i) => !i.heure_prevue);
   const hourRange = computeAgendaHourRange(planned);
@@ -229,6 +263,9 @@ function TechTodayAgenda({ interventions }: { interventions: any[] }) {
   const conflicts = new Set(
     laid.filter((entry) => entry.slotCount > 1).map((entry) => entry.item.id),
   );
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const showNow = nowMinutes >= hourRange.start * 60 && nowMinutes <= hourRange.end * 60;
+  const nowTop = ((nowMinutes - hourRange.start * 60) / 60) * AGENDA_HOUR_HEIGHT_PX;
 
   return (
     <div className="space-y-3">
@@ -259,22 +296,30 @@ function TechTodayAgenda({ interventions }: { interventions: any[] }) {
                 style={{ top: (h - hourRange.start) * AGENDA_HOUR_HEIGHT_PX }}
               />
             ))}
+            {showNow && (
+              <div
+                className="pointer-events-none absolute inset-x-0 z-20 flex -translate-y-1/2 items-center"
+                style={{ top: nowTop }}
+                aria-label={`Maintenant, ${String(now.getHours()).padStart(2, "0")} h ${String(now.getMinutes()).padStart(2, "0")}`}
+              >
+                <span className="-ml-1 h-3 w-3 shrink-0 rounded-full border-2 border-background bg-destructive shadow-sm" />
+                <span className="h-0.5 flex-1 bg-destructive" />
+                <span className="mr-1 rounded-full bg-destructive px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground shadow-sm">
+                  Maintenant
+                </span>
+              </div>
+            )}
             {laid.map(({ item: inv, start, slot, slotCount }) => {
               const top = ((start - hourRange.start * 60) / 60) * AGENDA_HOUR_HEIGHT_PX;
-              const height = Math.max(
-                (AGENDA_SLOT_DURATION_MIN / 60) * AGENDA_HOUR_HEIGHT_PX,
-                48,
-              );
+              const height = Math.max((AGENDA_SLOT_DURATION_MIN / 60) * AGENDA_HOUR_HEIGHT_PX, 48);
               const widthPct = 100 / slotCount;
               const leftPct = slot * widthPct;
               const isConflict = conflicts.has(inv.id);
               return (
-                <Link
+                <div
                   key={inv.id}
-                  to="/tech/chantiers/$id"
-                  params={{ id: inv.id }}
                   className={cn(
-                    "absolute overflow-hidden rounded-lg border p-1.5 text-[11px] leading-tight shadow-sm transition-all active:scale-[0.98]",
+                    "absolute overflow-hidden rounded-xl border p-2 text-[11px] leading-tight shadow-sm",
                     STATUT_COLORS[inv.statut] ?? "bg-muted",
                     isConflict ? "border-destructive" : "border-transparent",
                   )}
@@ -285,22 +330,44 @@ function TechTodayAgenda({ interventions }: { interventions: any[] }) {
                     width: `calc(${widthPct}% - 4px)`,
                   }}
                 >
-                  <div className="flex items-center gap-1 font-mono font-bold">
-                    {formatHeure(inv.heure_prevue)}
-                    {isConflict && (
-                      <TriangleAlert
-                        className="h-3 w-3 shrink-0"
-                        aria-label="Chevauche un autre créneau"
-                      />
+                  <Link to="/tech/chantiers/$id" params={{ id: inv.id }} className="block min-w-0">
+                    <div className="flex items-center gap-1 font-mono font-bold">
+                      {formatHeure(inv.heure_prevue)}
+                      {isConflict && (
+                        <TriangleAlert
+                          className="h-3 w-3 shrink-0"
+                          aria-label="Chevauche un autre créneau"
+                        />
+                      )}
+                    </div>
+                    <div className="truncate font-semibold">
+                      {inv.client?.raison_sociale ?? "—"}
+                    </div>
+                  </Link>
+                  <div className="mt-1 flex gap-1">
+                    {inv.adresse_site && (
+                      <a
+                        href={gpsHref(inv.adresse_site)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Ouvrir ${inv.adresse_site} dans le GPS`}
+                        className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-background/80 px-1 font-semibold shadow-sm"
+                      >
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{isConflict ? "GPS" : inv.adresse_site}</span>
+                      </a>
+                    )}
+                    {inv.client?.telephone && (
+                      <a
+                        href={`tel:${inv.client.telephone}`}
+                        className="flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-1 font-semibold text-primary-foreground shadow-sm"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        {!isConflict && "Appeler"}
+                      </a>
                     )}
                   </div>
-                  <div className="truncate font-semibold">
-                    {inv.client?.raison_sociale ?? "—"}
-                  </div>
-                  {inv.adresse_site && (
-                    <div className="truncate opacity-80">{inv.adresse_site}</div>
-                  )}
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -313,45 +380,54 @@ function TechTodayAgenda({ interventions }: { interventions: any[] }) {
             <p className="text-xs font-medium text-muted-foreground">Sans heure planifiée</p>
           )}
           {unplanned.map((inv) => (
-            <Link key={inv.id} to="/tech/chantiers/$id" params={{ id: inv.id }} className="block">
-              <Card className="hover:border-primary/40 transition-colors">
-                <CardContent className="p-3 space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="break-words text-sm font-semibold">
-                        {inv.client?.raison_sociale ?? "—"}
-                      </div>
-                      <div className="break-words text-xs text-muted-foreground">
-                        {inv.type_intervention}
-                      </div>
+            <Card key={inv.id} className="hover:border-primary/40 transition-colors">
+              <CardContent className="p-3 space-y-1.5">
+                <Link
+                  to="/tech/chantiers/$id"
+                  params={{ id: inv.id }}
+                  className="flex min-h-11 items-start justify-between gap-2 rounded-lg"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1 break-words text-sm font-semibold">
+                      {inv.client?.raison_sociale ?? "—"}
+                      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
-                        STATUT_COLORS[inv.statut] ?? "bg-muted",
-                      )}
-                    >
-                      {statutLabel(inv.statut)}
-                    </span>
+                    <div className="break-words text-xs text-muted-foreground">
+                      {inv.type_intervention}
+                    </div>
                   </div>
-                  {inv.adresse_site && (
-                    <div className="flex items-start gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                      <span className="break-words">{inv.adresse_site}</span>
-                    </div>
-                  )}
-                  {inv.client?.telephone && (
-                    <a
-                      href={`tel:${inv.client.telephone}`}
-                      className="flex min-h-11 w-fit items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Phone className="h-3 w-3" /> Appeler
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
+                      STATUT_COLORS[inv.statut] ?? "bg-muted",
+                    )}
+                  >
+                    {statutLabel(inv.statut)}
+                  </span>
+                </Link>
+                {inv.adresse_site && (
+                  <a
+                    href={gpsHref(inv.adresse_site)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-11 items-center gap-2 rounded-lg bg-secondary px-3 text-sm font-semibold text-secondary-foreground"
+                  >
+                    <MapPin className="h-4 w-4 shrink-0" />
+                    <span className="break-words underline underline-offset-2">
+                      {inv.adresse_site}
+                    </span>
+                  </a>
+                )}
+                {inv.client?.telephone && (
+                  <a
+                    href={`tel:${inv.client.telephone}`}
+                    className="flex min-h-11 w-fit items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <Phone className="h-4 w-4" /> Appeler
+                  </a>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

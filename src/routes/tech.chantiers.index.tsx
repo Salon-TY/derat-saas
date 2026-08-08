@@ -9,7 +9,15 @@ import { STATUTS_INTERVENTION, formatDateFR, formatHeure } from "@/lib/schemas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, List as ListIcon, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  MapPin,
+  Phone,
+  List as ListIcon,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/chantiers/")({
@@ -60,6 +68,22 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d);
   r.setDate(r.getDate() + n);
   return r;
+}
+
+function gpsHref(address: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+function InterventionQuickActions({ intervention }: { intervention: Intervention }) {
+  if (!intervention.client?.telephone) return null;
+  return (
+    <a
+      href={`tel:${intervention.client.telephone}`}
+      className="mt-1 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
+    >
+      <Phone className="h-4 w-4" /> Appeler
+    </a>
+  );
 }
 
 // Interventions du technicien courant sur une plage de dates (filtre en dur
@@ -249,43 +273,52 @@ function TechChantiersList() {
               {interventions.length} chantier{interventions.length > 1 ? "s" : ""}
             </div>
             {interventions.map((item) => (
-              <Link key={item.id} to="/tech/chantiers/$id" params={{ id: item.id }}>
-                <Card className="hover:border-primary/40 transition-colors cursor-pointer">
-                  <CardContent className="p-4 space-y-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          {formatHeure(item.heure_prevue) && (
-                            <span className="shrink-0 font-mono text-xs font-bold text-primary">
-                              {formatHeure(item.heure_prevue)}
-                            </span>
-                          )}
-                          <div className="break-words font-semibold">
-                            {item.client?.raison_sociale ?? "Client supprimé"}
-                          </div>
-                        </div>
-                        <div className="break-words text-xs text-muted-foreground">
-                          {formatDateFR(item.date)} · {item.type_intervention}
-                        </div>
-                      </div>
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
-                          STATUT_COLORS[item.statut] ?? "bg-muted",
+              <Card key={item.id} className="hover:border-primary/40 transition-colors">
+                <CardContent className="p-4 space-y-1.5">
+                  <Link
+                    to="/tech/chantiers/$id"
+                    params={{ id: item.id }}
+                    className="flex min-h-11 items-start justify-between gap-2 rounded-lg"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        {formatHeure(item.heure_prevue) && (
+                          <span className="shrink-0 font-mono text-xs font-bold text-primary">
+                            {formatHeure(item.heure_prevue)}
+                          </span>
                         )}
-                      >
-                        {statutLabel(item.statut)}
-                      </span>
-                    </div>
-                    {item.adresse_site && (
-                      <div className="flex items-start gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                        <span className="break-words">{item.adresse_site}</span>
+                        <div className="flex items-center gap-1 break-words font-semibold">
+                          {item.client?.raison_sociale ?? "Client supprimé"}
+                          <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
+                      <div className="break-words text-xs text-muted-foreground">
+                        {formatDateFR(item.date)} · {item.type_intervention}
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
+                        STATUT_COLORS[item.statut] ?? "bg-muted",
+                      )}
+                    >
+                      {statutLabel(item.statut)}
+                    </span>
+                  </Link>
+                  {item.adresse_site && (
+                    <a
+                      href={gpsHref(item.adresse_site)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground underline underline-offset-2"
+                    >
+                      <MapPin className="h-4 w-4 shrink-0" />
+                      <span className="break-words">{item.adresse_site}</span>
+                    </a>
+                  )}
+                  <InterventionQuickActions intervention={item} />
+                </CardContent>
+              </Card>
             ))}
           </div>
         )
@@ -377,43 +410,50 @@ function TechChantiersList() {
                           {dayInvs.map((inv) => {
                             const heure = formatHeure(inv.heure_prevue);
                             return (
-                              <Link
+                              <div
                                 key={inv.id}
-                                to="/tech/chantiers/$id"
-                                params={{ id: inv.id }}
-                                className="block"
+                                className="rounded-xl border bg-card p-3 text-xs hover:border-primary/40 transition-colors"
                               >
-                                <div className="rounded-lg border bg-card p-2.5 text-xs hover:border-primary/40 transition-colors">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5">
-                                        {heure && (
-                                          <span className="font-mono font-medium text-muted-foreground shrink-0">
-                                            {heure}
-                                          </span>
-                                        )}
-                                        <span className="break-words font-semibold">
-                                          {inv.client?.raison_sociale ?? "Client supprimé"}
+                                <Link
+                                  to="/tech/chantiers/$id"
+                                  params={{ id: inv.id }}
+                                  className="flex min-h-11 items-start justify-between gap-2 rounded-lg"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                      {heure && (
+                                        <span className="font-mono font-medium text-muted-foreground shrink-0">
+                                          {heure}
                                         </span>
+                                      )}
+                                      <div className="flex items-center gap-1 break-words font-semibold">
+                                        {inv.client?.raison_sociale ?? "Client supprimé"}
+                                        <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                                       </div>
-                                      {inv.adresse_site && (
-                                        <div className="flex items-start gap-1 text-muted-foreground mt-0.5">
-                                          <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                                          <span className="break-words">{inv.adresse_site}</span>
-                                        </div>
-                                      )}
                                     </div>
-                                    <span
-                                      className={cn(
-                                        "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium uppercase",
-                                        STATUT_COLORS[inv.statut] ?? "bg-muted",
-                                      )}
-                                    >
-                                      {statutLabel(inv.statut)}
-                                    </span>
                                   </div>
-                                </div>
-                              </Link>
+                                  <span
+                                    className={cn(
+                                      "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium uppercase",
+                                      STATUT_COLORS[inv.statut] ?? "bg-muted",
+                                    )}
+                                  >
+                                    {statutLabel(inv.statut)}
+                                  </span>
+                                </Link>
+                                {inv.adresse_site && (
+                                  <a
+                                    href={gpsHref(inv.adresse_site)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-0.5 flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-muted-foreground underline underline-offset-2"
+                                  >
+                                    <MapPin className="h-4 w-4 shrink-0" />
+                                    <span className="break-words">{inv.adresse_site}</span>
+                                  </a>
+                                )}
+                                <InterventionQuickActions intervention={inv} />
+                              </div>
                             );
                           })}
                         </div>

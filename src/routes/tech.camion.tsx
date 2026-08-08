@@ -4,7 +4,7 @@
 // niveaux, ses demandes de réappro et son historique de mouvements.
 import { createFileRoute } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +43,9 @@ import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tech/camion")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    reappro: typeof search.reappro === "string" ? search.reappro : undefined,
+  }),
   head: () => ({ meta: [{ title: `Mon camion — ${APP_NAME}` }] }),
   component: TechCamionPage,
 });
@@ -88,6 +91,7 @@ const REQUEST_STATUT_COLORS: Record<StockRequestStatut, string> = {
 type Tab = "stock" | "reappro" | "history";
 
 function TechCamionPage() {
+  const { reappro } = Route.useSearch();
   const [tab, setTab] = useState<Tab>("stock");
   const [q, setQ] = useState("");
   const [requestOpen, setRequestOpen] = useState(false);
@@ -106,6 +110,12 @@ function TechCamionPage() {
     isError: requestsError,
   } = useMyStockRequests();
   const { data: products = [] } = useStockProducts();
+
+  useEffect(() => {
+    if (!reappro) return;
+    setRequestProductId(reappro);
+    setRequestOpen(true);
+  }, [reappro]);
 
   const filtered = levels
     .filter(
