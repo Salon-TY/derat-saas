@@ -33,6 +33,13 @@ import { PermissionGate } from "@/components/permission-gate";
 import { PageContainer } from "@/components/page-layout";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/devis/$id")({
   head: () => ({ meta: [{ title: `Devis — ${APP_NAME}` }] }),
@@ -156,17 +163,21 @@ function EditDevisForm({
             <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Client *
             </Label>
-            <select
-              {...form.register("client_id")}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
+            <Select
+              value={form.watch("client_id")}
+              onValueChange={(value) => form.setValue("client_id", value, { shouldDirty: true })}
             >
-              <option value="">Sélectionner…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.raison_sociale}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner…" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.raison_sociale}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -193,16 +204,23 @@ function EditDevisForm({
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Statut
               </Label>
-              <select
-                {...form.register("statut")}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
+              <Select
+                value={form.watch("statut")}
+                onValueChange={(value) =>
+                  form.setValue("statut", value as QuoteForm["statut"], { shouldDirty: true })
+                }
               >
-                {STATUTS_DEVIS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUTS_DEVIS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

@@ -940,9 +940,9 @@ ${
   const hasSig = !!intervention.signature_url;
 
   return (
-    <PageContainer>
+    <PageContainer className="flex flex-col">
       {/* Barre haut */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="-order-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           to="/interventions"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -985,7 +985,7 @@ ${
       </div>
 
       {/* 1. En-tête rapport */}
-      <Card className="border-primary/20 bg-primary/3">
+      <Card className="-order-2 border-primary/20 bg-primary/3">
         <CardContent className="space-y-3 p-4 sm:p-6">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -1133,7 +1133,7 @@ ${
       )}
 
       {/* 3. La mission (planification) */}
-      <section className="space-y-2">
+      <section className="-order-1 space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5 px-1">
           <ClipboardList className="h-4 w-4" /> La mission
         </h2>

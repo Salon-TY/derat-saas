@@ -116,9 +116,7 @@ function layoutTimelineItems(
       intervention,
       start: intervention.heure_prevue ? timeToMinutes(intervention.heure_prevue) : null,
     }))
-    .filter(
-      (x): x is { intervention: Intervention; start: number } => x.start !== null,
-    )
+    .filter((x): x is { intervention: Intervention; start: number } => x.start !== null)
     .sort((a, b) => a.start - b.start);
 
   const result: { intervention: Intervention; start: number; slot: number; slotCount: number }[] =
@@ -130,7 +128,12 @@ function layoutTimelineItems(
     if (cluster.length === 0) return;
     const n = cluster.length;
     cluster.forEach((entry, index) => {
-      result.push({ intervention: entry.intervention, start: entry.start, slot: index, slotCount: n });
+      result.push({
+        intervention: entry.intervention,
+        start: entry.start,
+        slot: index,
+        slotCount: n,
+      });
     });
     cluster = [];
   }
@@ -157,9 +160,7 @@ function findConflicts(items: Intervention[]): Set<string> {
       intervention,
       start: intervention.heure_prevue ? timeToMinutes(intervention.heure_prevue) : null,
     }))
-    .filter(
-      (x): x is { intervention: Intervention; start: number } => x.start !== null,
-    )
+    .filter((x): x is { intervention: Intervention; start: number } => x.start !== null)
     .sort((a, b) => a.start - b.start);
   const conflicts = new Set<string>();
   for (let i = 1; i < withStart.length; i++) {
@@ -218,7 +219,7 @@ function useRangeInterventions(start: string, end: string) {
 }
 
 function InterventionsPage() {
-  const [view, setView] = useState<View>("list");
+  const [view, setView] = useState<View>("day");
   const today = useMemo(() => startOfDay(new Date()), []);
   const [selectedDate, setSelectedDate] = useState(today);
 
@@ -296,8 +297,7 @@ function InterventionsPage() {
 
   const currentWeekStart = weekStart(selectedDate);
   const currentWeekEnd = addDays(currentWeekStart, 6);
-  const isDayGranularity =
-    view === "day" || (view === "technicien" && technicienPeriod === "day");
+  const isDayGranularity = view === "day" || (view === "technicien" && technicienPeriod === "day");
   const rangeStart = isDayGranularity ? toISO(selectedDate) : toISO(currentWeekStart);
   const rangeEnd = isDayGranularity ? toISO(selectedDate) : toISO(currentWeekEnd);
   const {
@@ -309,15 +309,23 @@ function InterventionsPage() {
     view !== "list" ? rangeEnd : "9999-01-01",
   );
 
-  const filteredRangeInterventions = useMemo(
-    () =>
-      technicienFilter === "all"
-        ? rangeInterventions
-        : rangeInterventions.filter(
-            (intervention) => intervention.technicien_id === technicienFilter,
-          ),
-    [rangeInterventions, technicienFilter],
-  );
+  const filteredRangeInterventions = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return rangeInterventions.filter((intervention) => {
+      if (technicienFilter !== "all" && intervention.technicien_id !== technicienFilter)
+        return false;
+      if (statutFilter !== "all" && intervention.statut !== statutFilter) return false;
+      if (typeFilter !== "all" && intervention.type_nuisible !== typeFilter) return false;
+      if (!term) return true;
+      return [
+        intervention.client?.raison_sociale,
+        intervention.adresse_site,
+        intervention.type_intervention,
+      ]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(term));
+    });
+  }, [rangeInterventions, technicienFilter, statutFilter, typeFilter, q]);
 
   function previousPeriod() {
     setSelectedDate((date) => addDays(date, isDayGranularity ? -1 : -7));
@@ -338,12 +346,12 @@ function InterventionsPage() {
         month: "long",
       })
     : `Semaine du ${currentWeekStart.toLocaleDateString("fr-FR", {
-          day: "numeric",
-          month: "short",
-        })} au ${currentWeekEnd.toLocaleDateString("fr-FR", {
-          day: "numeric",
-          month: "short",
-        })}`;
+        day: "numeric",
+        month: "short",
+      })} au ${currentWeekEnd.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      })}`;
 
   function resetFilters() {
     setQ("");
@@ -445,7 +453,7 @@ function InterventionsPage() {
             )}
           </div>
 
-          {view === "list" && (
+          {
             <ListControls
               q={q}
               onQueryChange={setQ}
@@ -453,7 +461,7 @@ function InterventionsPage() {
               onToggleFilters={() => setFiltersOpen((open) => !open)}
               activeFiltersCount={activeFiltersCount}
             />
-          )}
+          }
 
           {view !== "list" && (
             <PeriodNavigation
@@ -467,7 +475,7 @@ function InterventionsPage() {
         </CardContent>
       </Card>
 
-      {view === "list" && filtersOpen && (
+      {filtersOpen && (
         <FilterPanel
           periodFilter={periodFilter}
           onPeriodChange={setPeriodFilter}
@@ -909,6 +917,14 @@ function InterventionListCard({
             )}
           </Link>
 
+          {intervention.client?.telephone && (
+            <Button asChild variant="outline" size="sm" className="shrink-0">
+              <a href={`tel:${intervention.client.telephone}`}>
+                <Phone className="h-4 w-4" /> Appeler
+              </a>
+            </Button>
+          )}
+
           <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground lg:mt-0" />
         </div>
       </CardContent>
@@ -1213,7 +1229,8 @@ function TechnicienView({
     );
   }
 
-  const weekDays = period === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)) : null;
+  const weekDays =
+    period === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)) : null;
 
   return (
     <div className="space-y-3">
@@ -1285,7 +1302,11 @@ function TechnicienView({
             return (
               <div key={iso}>
                 <h3 className="mb-2 text-sm font-semibold">
-                  {date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                  {date.toLocaleDateString("fr-FR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
                 </h3>
                 <DaySchedule
                   items={dayItems}
@@ -1463,7 +1484,8 @@ function TechnicienGrid({
                     title={`${formatHeure(intervention.heure_prevue) ?? ""} · ${intervention.client?.raison_sociale ?? "Client supprimé"}${intervention.adresse_site ? ` · ${intervention.adresse_site}` : ""}`}
                     className={cn(
                       "absolute overflow-hidden rounded-md border p-1 text-[10px] leading-tight shadow-sm transition-all hover:z-10 hover:shadow-elevated",
-                      STATUT_INTERVENTION_COLORS[intervention.statut] ?? "bg-muted text-muted-foreground",
+                      STATUT_INTERVENTION_COLORS[intervention.statut] ??
+                        "bg-muted text-muted-foreground",
                       isConflict ? "border-destructive" : "border-transparent",
                     )}
                     style={{

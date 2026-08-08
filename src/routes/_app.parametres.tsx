@@ -29,6 +29,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/permission-gate";
 import { PageContainer, PageHeader, PageSection } from "@/components/page-layout";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/parametres")({
   head: () => ({ meta: [{ title: `Paramètres — ${APP_NAME}` }] }),
@@ -161,17 +168,21 @@ function ProduitsEditor({ userId }: { userId: string }) {
               <label className="text-[10px] uppercase tracking-wide text-muted-foreground">
                 Type
               </label>
-              <select
+              <Select
                 value={newProduit.type}
-                onChange={(e) => setNewProduit((v) => ({ ...v, type: e.target.value }))}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
+                onValueChange={(value) => setNewProduit((v) => ({ ...v, type: value }))}
               >
-                {TYPES_BIOCIDE.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPES_BIOCIDE.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1 sm:col-span-2">
               <label className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -256,7 +267,9 @@ function ParametresPage() {
       .single();
     setSavingRelance(false);
     if (error || !data) {
-      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
+      toast.error(
+        error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.",
+      );
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -277,7 +290,9 @@ function ParametresPage() {
       .single();
     setSavingPro(false);
     if (error || !data) {
-      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
+      toast.error(
+        error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.",
+      );
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -300,7 +315,9 @@ function ParametresPage() {
         .select()
         .single();
       if (error || !data) {
-        toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
+        toast.error(
+          error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.",
+        );
         return;
       }
       qc.invalidateQueries({ queryKey: ["settings"] });
@@ -320,7 +337,9 @@ function ParametresPage() {
       .select()
       .single();
     if (error || !data) {
-      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
+      toast.error(
+        error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.",
+      );
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -505,7 +524,9 @@ function ParametresPage() {
       .select()
       .single();
     if (error || !data) {
-      toast.error(error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.");
+      toast.error(
+        error?.message ?? "Vous n'avez pas les droits pour enregistrer cette modification.",
+      );
       return;
     }
     qc.invalidateQueries({ queryKey: ["settings"] });
@@ -538,13 +559,13 @@ function ParametresPage() {
   }
 
   return (
-    <PageContainer>
+    <PageContainer className="flex flex-col">
       <PageHeader
         title="Paramètres"
         subtitle="Gérez l’identité de votre société, vos documents et vos préférences."
       />
 
-      <PageSection title="Outils">
+      <PageSection title="Outils" className="order-4">
         <div className="grid gap-3 lg:grid-cols-2">
           <Link to="/stats">
             <Card className="h-full cursor-pointer transition-colors hover:border-primary/40">
@@ -588,7 +609,7 @@ function ParametresPage() {
         </div>
       </PageSection>
 
-      <PageSection title="Identité et automatisation">
+      <PageSection title="Identité et automatisation" className="order-3">
         <div className="grid items-start gap-4 lg:grid-cols-2">
           {/* Logo société */}
           <Card className="h-full">
@@ -713,7 +734,7 @@ function ParametresPage() {
       </PageSection>
 
       {/* Informations professionnelles */}
-      <PageSection title="Activité professionnelle">
+      <PageSection title="Activité professionnelle" className="order-2">
         <Card>
           <CardContent className="space-y-6 p-4 sm:p-6">
             <div className="flex items-center gap-2">
@@ -766,7 +787,7 @@ function ParametresPage() {
       </PageSection>
 
       {/* Infos société */}
-      <PageSection title="Coordonnées de la société">
+      <PageSection title="Identité légale et coordonnées" className="order-1">
         <Card>
           <CardContent className="p-4 sm:p-6">
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

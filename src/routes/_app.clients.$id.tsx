@@ -1,7 +1,15 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { useClient, useInterventions, useContracts } from "@/lib/queries";
+import {
+  useClient,
+  useInterventions,
+  useContracts,
+  useQuotes,
+  useInvoices,
+  type Invoice,
+} from "@/lib/queries";
 import { ClientForm } from "@/components/client-form";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +26,8 @@ import {
   Mail,
   MapPin,
   Phone,
+  Pencil,
+  X,
   Trash2,
 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -40,10 +50,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { ClientForm as ClientFormType } from "@/lib/schemas";
 import { PermissionGate } from "@/components/permission-gate";
 import { PageActions, PageContainer, PageHeader, PageSection } from "@/components/page-layout";
 import { cn } from "@/lib/utils";
+import type { ClientForm as ClientFormType } from "@/lib/schemas";
 
 export const Route = createFileRoute("/_app/clients/$id")({
   head: () => ({ meta: [{ title: `Fiche client — ${APP_NAME}` }] }),
@@ -65,7 +75,12 @@ function ClientDetail() {
   const { data: client, isLoading, isError } = useClient(id);
   const { data: interventions = [] } = useInterventions({ client_id: id });
   const { data: contracts = [] } = useContracts();
+  const { data: quotes = [] } = useQuotes();
+  const { data: invoiceData = [] } = useInvoices({ client_id: id });
   const clientContracts = contracts.filter((contract) => contract.client_id === id);
+  const clientQuotes = quotes.filter((quote) => quote.client_id === id);
+  const clientInvoices = (Array.isArray(invoiceData) ? invoiceData : invoiceData.rows) as Invoice[];
+  const [isEditing, setIsEditing] = useState(false);
 
   async function handleUpdate(values: ClientFormType) {
     const { error } = await db.from("clients").update(values).eq("id", id);
@@ -76,6 +91,7 @@ function ClientDetail() {
     qc.invalidateQueries({ queryKey: ["clients"] });
     qc.invalidateQueries({ queryKey: ["client", id] });
     toast.success("Client mis à jour");
+    setIsEditing(false);
   }
 
   async function handleDelete() {
@@ -169,6 +185,7 @@ function ClientDetail() {
           </span>
           <a
             href="#modifier"
+            onClick={() => setIsEditing(true)}
             className="shrink-0 text-xs font-semibold text-primary hover:underline"
           >
             Corriger
@@ -228,6 +245,49 @@ function ClientDetail() {
             </PageSection>
           )}
 
+          <PageSection title="Devis et factures">
+            {clientQuotes.length === 0 && clientInvoices.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                  Aucun devis ni facture pour ce client.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {clientQuotes.map((quote) => (
+                  <Link key={quote.id} to="/devis/$id" params={{ id: quote.id }}>
+                    <Card className="hover:border-primary/30">
+                      <CardContent className="flex items-center justify-between gap-3 p-4">
+                        <div>
+                          <div className="font-semibold">Devis {quote.numero}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {formatDateFR(quote.date_devis)}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+                {clientInvoices.map((invoice) => (
+                  <Link key={invoice.id} to="/factures/$id" params={{ id: invoice.id }}>
+                    <Card className="hover:border-primary/30">
+                      <CardContent className="flex items-center justify-between gap-3 p-4">
+                        <div>
+                          <div className="font-semibold">Facture n°{invoice.numero}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {formatDateFR(invoice.date_facture)}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </PageSection>
+
           <PageSection title="Historique des interventions">
             {interventions.length === 0 ? (
               <Card className="hover:translate-y-0 hover:shadow-soft">
@@ -282,63 +342,114 @@ function ClientDetail() {
         </div>
 
         <aside className="space-y-6 xl:sticky xl:top-24">
-          <PageSection title="Coordonnées">
-            <Card className="hover:translate-y-0 hover:shadow-soft">
-              <CardContent className="divide-y divide-border/50 p-0">
-                {client.adresse_site && (
-                  <ContactRow icon={MapPin} label="Adresse">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.adresse_site)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="break-words text-primary hover:underline"
-                    >
-                      {client.adresse_site}
-                    </a>
-                  </ContactRow>
-                )}
-                {client.telephone && (
-                  <ContactRow icon={Phone} label="Téléphone">
-                    <a href={`tel:${client.telephone}`} className="text-primary hover:underline">
-                      {client.telephone}
-                    </a>
-                  </ContactRow>
-                )}
-                {client.email && (
-                  <ContactRow icon={Mail} label="Email">
-                    <a
-                      href={`mailto:${client.email}`}
-                      className="break-all text-primary hover:underline"
-                    >
-                      {client.email}
-                    </a>
-                  </ContactRow>
-                )}
-                {client.siret && (
-                  <ContactRow icon={Hash} label="SIRET">
-                    <span className="break-all">{client.siret}</span>
-                  </ContactRow>
-                )}
-                {!client.adresse_site && !client.telephone && !client.email && !client.siret && (
-                  <p className="p-4 text-sm text-muted-foreground">Aucune coordonnée renseignée.</p>
+          <PageSection title="Informations client" className="scroll-mt-24">
+            <Card id="modifier" className="hover:translate-y-0 hover:shadow-soft">
+              <CardContent className={cn(isEditing ? "p-4 sm:p-6" : "p-0")}>
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold">Modifier la fiche</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsEditing(false)}
+                      >
+                        <X className="h-4 w-4" /> Annuler
+                      </Button>
+                    </div>
+                    <ClientForm
+                      key={client.updated_at ?? client.id}
+                      defaultValues={client}
+                      onSubmit={handleUpdate}
+                      submitLabel="Enregistrer les modifications"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-3 border-b border-border/50 p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Identité, contact et informations légales
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        <Pencil className="h-4 w-4" /> Modifier
+                      </Button>
+                    </div>
+                    <div className="divide-y divide-border/50">
+                      <ContactRow icon={Building2} label="Raison sociale / Nom">
+                        <span className="break-words">{client.raison_sociale}</span>
+                      </ContactRow>
+                      <ContactRow icon={MapPin} label="Adresse du site">
+                        {client.adresse_site ? (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.adresse_site)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="break-words text-primary hover:underline"
+                          >
+                            {client.adresse_site}
+                          </a>
+                        ) : (
+                          <EmptyValue />
+                        )}
+                      </ContactRow>
+                      <ContactRow icon={Phone} label="Téléphone">
+                        {client.telephone ? (
+                          <a
+                            href={`tel:${client.telephone}`}
+                            className="text-primary hover:underline"
+                          >
+                            {client.telephone}
+                          </a>
+                        ) : (
+                          <EmptyValue />
+                        )}
+                      </ContactRow>
+                      <ContactRow icon={Mail} label="Email">
+                        {client.email ? (
+                          <a
+                            href={`mailto:${client.email}`}
+                            className="break-all text-primary hover:underline"
+                          >
+                            {client.email}
+                          </a>
+                        ) : (
+                          <EmptyValue />
+                        )}
+                      </ContactRow>
+                      <ContactRow icon={Hash} label="SIRET">
+                        <span>{client.siret || <EmptyValue />}</span>
+                      </ContactRow>
+                      <ContactRow icon={Hash} label="SIREN">
+                        <span>{client.siren || <EmptyValue />}</span>
+                      </ContactRow>
+                      <ContactRow icon={Hash} label="RCS">
+                        <span>{client.rcs || <EmptyValue />}</span>
+                      </ContactRow>
+                      <ContactRow icon={Building2} label="Forme juridique">
+                        <span>{client.forme_juridique || <EmptyValue />}</span>
+                      </ContactRow>
+                      <ContactRow icon={ClipboardList} label="Type de nuisible">
+                        <span>{client.type_nuisible || <EmptyValue />}</span>
+                      </ContactRow>
+                      <ContactRow icon={ClipboardList} label="Notes">
+                        <span className="whitespace-pre-wrap break-words">
+                          {client.notes || <EmptyValue />}
+                        </span>
+                      </ContactRow>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
           </PageSection>
         </aside>
       </div>
-
-      <PageSection title="Modifier la fiche" className="scroll-mt-24">
-        <Card id="modifier" className="hover:translate-y-0 hover:shadow-soft">
-          <CardContent className="p-4 sm:p-6">
-            <ClientForm
-              defaultValues={client}
-              onSubmit={handleUpdate}
-              submitLabel="Enregistrer les modifications"
-            />
-          </CardContent>
-        </Card>
-      </PageSection>
 
       <PageSection title="Zone sensible">
         <Card className="border-destructive/30 hover:translate-y-0 hover:shadow-soft">
@@ -427,6 +538,10 @@ function ContactRow({
       </div>
     </div>
   );
+}
+
+function EmptyValue() {
+  return <span className="text-muted-foreground">Non renseigné</span>;
 }
 
 function ClientDetailLoading() {
