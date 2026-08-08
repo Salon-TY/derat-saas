@@ -70,6 +70,7 @@ export const interventionSchema = z.object({
   contract_id: z.string().default(""),
   technicien_id: z.string().uuid().optional().nullable(),
   date: z.string().min(1, "Date requise"),
+  heure_prevue: z.string().optional().nullable(),
   adresse_site: z.string().max(500).default(""),
   type_nuisible: z.string().max(100).default(""),
   type_intervention: z.enum(TYPES_INTERVENTION),
@@ -198,4 +199,22 @@ export function formatDateFR(d: string | Date | null | undefined): string {
   const date = typeof d === "string" ? new Date(d) : d;
   if (isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("fr-FR");
+}
+
+const TIME_ONLY_RE = /^\d{2}:\d{2}/;
+
+/**
+ * Formate une heure pour l'affichage — accepte aussi bien un horaire pur
+ * (colonne Postgres `time`, ex. "heure_prevue" -> "14:30:00") qu'un
+ * timestamp complet (colonnes `timestamptz`, ex. "heure_debut"). Les
+ * horaires purs sont pris tels quels (pas de conversion de fuseau : ce
+ * n'est pas un instant absolu) ; les timestamps sont convertis au fuseau
+ * local du navigateur.
+ */
+export function formatHeure(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (TIME_ONLY_RE.test(value)) return value.slice(0, 5);
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }

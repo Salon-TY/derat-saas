@@ -35,6 +35,7 @@ export type Intervention = {
   devis_id?: string | null;
   technicien_id?: string | null;
   date: string;
+  heure_prevue?: string | null;
   adresse_site: string;
   type_nuisible: string;
   type_intervention: string;
@@ -622,7 +623,11 @@ export function useInterventions(filters?: {
   return useQuery({
     queryKey: ["interventions", filters ?? null],
     queryFn: async (): Promise<Intervention[] | PaginatedResult<Intervention>> => {
-      let q = db.from("interventions").select("*, client:clients(*)", paginated ? { count: "exact" } : undefined).order("date", { ascending: filters?.sortDir === "asc" });
+      let q = db
+        .from("interventions")
+        .select("*, client:clients(*)", paginated ? { count: "exact" } : undefined)
+        .order("date", { ascending: filters?.sortDir === "asc" })
+        .order("heure_prevue", { ascending: true, nullsFirst: false });
       if (filters?.client_id) q = q.eq("client_id", filters.client_id);
       if (filters?.statut) q = q.eq("statut", filters.statut);
       if (filters?.contract_id) q = q.eq("contract_id", filters.contract_id);

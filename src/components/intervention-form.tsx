@@ -208,6 +208,7 @@ export function InterventionForm({
       contract_id: defaultValues?.contract_id ?? "",
       technicien_id: defaultValues?.technicien_id ?? undefined,
       date: defaultValues?.date ?? new Date().toISOString().slice(0, 10),
+      heure_prevue: defaultValues?.heure_prevue ?? "",
       adresse_site: defaultValues?.adresse_site ?? "",
       type_nuisible: defaultValues?.type_nuisible ?? "",
       type_intervention: defaultValues?.type_intervention ?? "Dératisation",
@@ -504,9 +505,13 @@ export function InterventionForm({
             </Field>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Date *" error={form.formState.errors.date?.message}>
               <Input type="date" {...form.register("date")} />
+            </Field>
+
+            <Field label="Heure prévue">
+              <Input type="time" {...form.register("heure_prevue")} />
             </Field>
 
             <Field label="Technicien assigné">
