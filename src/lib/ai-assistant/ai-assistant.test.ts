@@ -7,6 +7,7 @@ import {
   assistantRequestSchema,
 } from "./contracts";
 import { runAiAssistant } from "./assistant.server";
+import { formatEUR } from "@/lib/schemas";
 import { isForbiddenMutationRequest, sanitizeAssistantLinks, sanitizeSearchTerm } from "./security";
 import {
   getAvailableToolDefinitions,
@@ -14,14 +15,14 @@ import {
   parseToolArguments,
 } from "./tools.server";
 
-const originalApiKey = process.env.OPENAI_API_KEY;
-const originalModel = process.env.OPENAI_MODEL;
+const originalApiKey = process.env.GROQ_API_KEY;
+const originalModel = process.env.GROQ_MODEL;
 
 afterEach(() => {
-  if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;
-  else process.env.OPENAI_API_KEY = originalApiKey;
-  if (originalModel === undefined) delete process.env.OPENAI_MODEL;
-  else process.env.OPENAI_MODEL = originalModel;
+  if (originalApiKey === undefined) delete process.env.GROQ_API_KEY;
+  else process.env.GROQ_API_KEY = originalApiKey;
+  if (originalModel === undefined) delete process.env.GROQ_MODEL;
+  else process.env.GROQ_MODEL = originalModel;
 });
 
 describe("contrats d’outils stricts", () => {
@@ -124,6 +125,19 @@ describe("garde-fous des requêtes", () => {
       ]),
     ).toEqual([{ label: "Client", href: "/clients/01234567-89ab-cdef-0123-456789abcdef" }]);
   });
+
+  test("la whitelist des liens sûrs couvre désormais /programmation et /reappro (extension 2026-09-04)", () => {
+    expect(
+      sanitizeAssistantLinks([
+        { label: "Passages à programmer", href: "/programmation" },
+        { label: "Demande de réappro", href: "/reappro?contract_id=abc-123" },
+        { label: "Hors whitelist", href: "/admin" },
+      ]),
+    ).toEqual([
+      { label: "Passages à programmer", href: "/programmation" },
+      { label: "Demande de réappro", href: "/reappro?contract_id=abc-123" },
+    ]);
+  });
 });
 
 describe("contrôle d’accès serveur", () => {
@@ -191,7 +205,7 @@ describe("contrôle d’accès serveur", () => {
   });
 });
 
-describe("indisponibilité OpenAI", () => {
+describe("indisponibilité Groq", () => {
   const ownerContext = {
     userId: "owner",
     supabase: {
@@ -199,8 +213,8 @@ describe("indisponibilité OpenAI", () => {
     },
   };
 
-  test("une demande d’écriture est refusée sans appeler OpenAI", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
+  test("une demande d’écriture est refusée sans appeler Groq", async () => {
+    process.env.GROQ_API_KEY = "test-key";
     let called = false;
     const reply = await runAiAssistant({
       request: { message: "Supprime cette facture", history: [] },
@@ -215,17 +229,17 @@ describe("indisponibilité OpenAI", () => {
   });
 
   test("l’absence de clé retourne un état non bloquant", async () => {
-    delete process.env.OPENAI_API_KEY;
+    delete process.env.GROQ_API_KEY;
     const reply = await runAiAssistant({
       request: { message: "Quels rapports sont à vérifier ?", history: [] },
       context: ownerContext,
     });
     expect(reply.unavailable).toBe(true);
-    expect(reply.answer).toContain("OPENAI_API_KEY");
+    expect(reply.answer).toContain("GROQ_API_KEY");
   });
 
-  test("une panne OpenAI ne bloque pas l’application", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
+  test("une panne Groq ne bloque pas l’application", async () => {
+    process.env.GROQ_API_KEY = "test-key";
     const reply = await runAiAssistant({
       request: { message: "Quels rapports sont à vérifier ?", history: [] },
       context: ownerContext,
@@ -236,18 +250,17 @@ describe("indisponibilité OpenAI", () => {
   });
 
   test("une réponse textuelle sans outil est acceptée", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
+    process.env.GROQ_API_KEY = "test-key";
     const reply = await runAiAssistant({
       request: { message: "Bonjour", history: [] },
       context: ownerContext,
       fetchImpl: (async () =>
         new Response(
           JSON.stringify({
-            id: "resp_test",
-            output: [
+            choices: [
               {
-                type: "message",
-                content: [{ type: "output_text", text: "Bonjour, que souhaitez-vous consulter ?" }],
+                message: { role: "assistant", content: "Bonjour, que souhaitez-vous consulter ?" },
+                finish_reason: "stop",
               },
             ],
           }),
@@ -259,7 +272,7 @@ describe("indisponibilité OpenAI", () => {
   });
 
   test("un court historique permet une question de suivi", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
+    process.env.GROQ_API_KEY = "test-key";
     let requestBody: Record<string, unknown> | null = null;
     const reply = await runAiAssistant({
       request: {
@@ -274,11 +287,10 @@ describe("indisponibilité OpenAI", () => {
         requestBody = JSON.parse(String(init?.body));
         return new Response(
           JSON.stringify({
-            id: "resp_follow_up",
-            output: [
+            choices: [
               {
-                type: "message",
-                content: [{ type: "output_text", text: "Je consulte la comparaison demandée." }],
+                message: { role: "assistant", content: "Je consulte la comparaison demandée." },
+                finish_reason: "stop",
               },
             ],
           }),
@@ -287,17 +299,17 @@ describe("indisponibilité OpenAI", () => {
       }) as typeof fetch,
     });
     expect(reply.answer).toBe("Je consulte la comparaison demandée.");
-    expect(requestBody?.input).toEqual([
+    const messages = requestBody?.messages as Array<Record<string, unknown>>;
+    expect(messages.slice(-3)).toEqual([
       { role: "user", content: "Quel est le CA de ce mois ?" },
       { role: "assistant", content: "Le CA du mois est disponible." },
       { role: "user", content: "Et le mois précédent ?" },
     ]);
-    expect(requestBody?.store).toBe(false);
   });
 
   test("une recherche sans résultat est transmise proprement au modèle", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-    let openAiCall = 0;
+    process.env.GROQ_API_KEY = "test-key";
+    let groqCall = 0;
     const emptyQuery = {
       select() {
         return this;
@@ -323,17 +335,27 @@ describe("indisponibilité OpenAI", () => {
       request: { message: "Retrouve le client Introuvable", history: [] },
       context,
       fetchImpl: (async () => {
-        openAiCall += 1;
-        if (openAiCall === 1) {
+        groqCall += 1;
+        if (groqCall === 1) {
           return new Response(
             JSON.stringify({
-              id: "resp_tool",
-              output: [
+              choices: [
                 {
-                  type: "function_call",
-                  name: "search_clients",
-                  arguments: JSON.stringify({ query: "Introuvable", limit: 5 }),
-                  call_id: "call_search",
+                  message: {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_search",
+                        type: "function",
+                        function: {
+                          name: "search_clients",
+                          arguments: JSON.stringify({ query: "Introuvable", limit: 5 }),
+                        },
+                      },
+                    ],
+                  },
+                  finish_reason: "tool_calls",
                 },
               ],
             }),
@@ -342,13 +364,10 @@ describe("indisponibilité OpenAI", () => {
         }
         return new Response(
           JSON.stringify({
-            id: "resp_answer",
-            output: [
+            choices: [
               {
-                type: "message",
-                content: [
-                  { type: "output_text", text: "Aucun client correspondant n’a été trouvé." },
-                ],
+                message: { role: "assistant", content: "Aucun client correspondant n’a été trouvé." },
+                finish_reason: "stop",
               },
             ],
           }),
@@ -356,8 +375,240 @@ describe("indisponibilité OpenAI", () => {
         );
       }) as typeof fetch,
     });
-    expect(openAiCall).toBe(2);
+    expect(groqCall).toBe(2);
     expect(reply.answer).toBe("Aucun client correspondant n’a été trouvé.");
     expect(reply.links).toEqual([]);
+  });
+});
+
+describe("mise en forme structurée du corps (Lot 1)", () => {
+  test("un seul outil « valeurs » produit un corps structuré et des sources honnêtes", async () => {
+    process.env.GROQ_API_KEY = "test-key";
+    let groqCall = 0;
+    const context = {
+      userId: "owner",
+      supabase: {
+        rpc: async (name: string) => {
+          if (name === "dashboard_money_stats") {
+            return {
+              data: [
+                { ca_month: 18420, ca_prev_month: 21060, unpaid_total: 4380, unpaid_count: 7 },
+              ],
+              error: null,
+            };
+          }
+          return { data: "owner", error: null };
+        },
+      },
+    };
+    const reply = await runAiAssistant({
+      request: { message: "Où en est ma trésorerie ce mois-ci ?", history: [] },
+      context,
+      fetchImpl: (async () => {
+        groqCall += 1;
+        if (groqCall === 1) {
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_revenue",
+                        type: "function",
+                        function: { name: "get_revenue_overview", arguments: "{}" },
+                      },
+                    ],
+                  },
+                  finish_reason: "tool_calls",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: { role: "assistant", content: "Le CA du mois est de 18 420 €." },
+                finish_reason: "stop",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }) as typeof fetch,
+    });
+    expect(reply.body?.kind).toBe("valeurs");
+    if (reply.body?.kind === "valeurs") {
+      expect(reply.body.items).toHaveLength(3);
+      expect(reply.body.items[0]).toMatchObject({
+        label: "CA du mois",
+        value: formatEUR(18420),
+        service: "Calcul : CA selon le tableau de bord.",
+      });
+      expect(reply.body.items[2]).toMatchObject({ tone: "destructive" });
+    }
+    expect(reply.sources?.summary).toContain("Agrégats financiers");
+  });
+
+  test("un outil de liste sans résultat garde la forme texte plutôt qu'une liste vide fabriquée", async () => {
+    process.env.GROQ_API_KEY = "test-key";
+    let groqCall = 0;
+    const emptyQuery = {
+      select() {
+        return this;
+      },
+      or() {
+        return this;
+      },
+      order() {
+        return this;
+      },
+      async limit() {
+        return { data: [], error: null, count: 0 };
+      },
+    };
+    const context = {
+      userId: "owner",
+      supabase: {
+        rpc: async () => ({ data: "owner", error: null }),
+        from: () => emptyQuery,
+      },
+    };
+    const reply = await runAiAssistant({
+      request: { message: "Retrouve le client Introuvable", history: [] },
+      context,
+      fetchImpl: (async () => {
+        groqCall += 1;
+        if (groqCall === 1) {
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_search",
+                        type: "function",
+                        function: {
+                          name: "search_clients",
+                          arguments: JSON.stringify({ query: "Introuvable", limit: 5 }),
+                        },
+                      },
+                    ],
+                  },
+                  finish_reason: "tool_calls",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: { role: "assistant", content: "Aucun client correspondant n’a été trouvé." },
+                finish_reason: "stop",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }) as typeof fetch,
+    });
+    expect(reply.body).toEqual({ kind: "texte" });
+    expect(reply.sources?.volumeShown).toBe(0);
+  });
+
+  test("plusieurs outils distincts sur un même tour ne fusionnent jamais en un corps improvisé", async () => {
+    process.env.GROQ_API_KEY = "test-key";
+    let groqCall = 0;
+    const reportsQuery = {
+      select() {
+        return this;
+      },
+      eq() {
+        return this;
+      },
+      order() {
+        return this;
+      },
+      async limit() {
+        return { data: [], error: null, count: 0 };
+      },
+    };
+    const context = {
+      userId: "owner",
+      supabase: {
+        rpc: async (name: string) => {
+          if (name === "dashboard_money_stats") {
+            return {
+              data: [{ ca_month: 100, ca_prev_month: 90, unpaid_total: 0, unpaid_count: 0 }],
+              error: null,
+            };
+          }
+          return { data: "owner", error: null };
+        },
+        from: () => reportsQuery,
+      },
+    };
+    const reply = await runAiAssistant({
+      request: { message: "Fais-moi un point complet de mon activité", history: [] },
+      context,
+      fetchImpl: (async () => {
+        groqCall += 1;
+        if (groqCall === 1) {
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_revenue",
+                        type: "function",
+                        function: { name: "get_revenue_overview", arguments: "{}" },
+                      },
+                      {
+                        id: "call_reports",
+                        type: "function",
+                        function: {
+                          name: "list_reports_to_review",
+                          arguments: JSON.stringify({ limit: 5 }),
+                        },
+                      },
+                    ],
+                  },
+                  finish_reason: "tool_calls",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: { role: "assistant", content: "Voici un point complet." },
+                finish_reason: "stop",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }) as typeof fetch,
+    });
+    expect(reply.body).toBeUndefined();
+    expect(reply.sources).toBeUndefined();
   });
 });

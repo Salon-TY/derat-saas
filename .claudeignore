@@ -1,0 +1,4 @@
+# Graphify — gros JSON structurel, ne pas gonfler le cache de prompt.
+# GRAPH_REPORT.md et graph.html restent lisibles normalement (pas dans ce fichier).
+graph.json
+graphify-out/

@@ -49,6 +49,8 @@
   --shadow-soft: var(--shadow-soft-value);
   --shadow-elevated: var(--shadow-elevated-value);
   --shadow-nav: var(--shadow-nav-value);
+  --color-copilot-rule: var(--copilot-rule);
+  --color-copilot-footer: var(--copilot-footer);
 }
 
 :root {
@@ -93,6 +95,11 @@
   --sidebar-accent-foreground: oklch(0.99 0.005 145);
   --sidebar-border: oklch(0.22 0.05 155);
   --sidebar-ring: oklch(0.7 0.19 48);
+
+  /* Copilote (brief design/briefs/copilote-assistant.md §6.6) — dérivés de
+     --primary, zéro couleur nouvelle introduite. */
+  --copilot-rule: oklch(0.28 0.07 155 / 55%);
+  --copilot-footer: var(--background);
 }
 
 .dark {
@@ -131,6 +138,9 @@
   --sidebar-accent-foreground: oklch(0.97 0.005 145);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.7 0.19 48);
+
+  --copilot-rule: oklch(0.7 0.19 48 / 55%);
+  --copilot-footer: var(--background);
 }
 
 @layer base {
@@ -232,5 +242,73 @@
   /* Smooth tap feedback */
   button, a {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ================================================================
+     Copilote — signature de mouvement « la fiche qui se pose »
+     (brief design/briefs/copilote-assistant.md §6.8). CSS/Tailwind
+     uniquement, transform/opacity uniquement (aucun décalage de mise
+     en page). N'affecte que les classes .copilote-* : les animations
+     existantes de l'app (.animate-in-up, .animate-fade-in, .fab, le
+     lift des Card) ne sont pas touchées.
+     ================================================================ */
+  @keyframes copiloteFicheIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes copiloteRuleIn {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  @keyframes copiloteAttente {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 1; }
+  }
+  @keyframes copiloteItemIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .copilote-fiche-in {
+    animation: copiloteFicheIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .copilote-rule-in {
+    transform-origin: left;
+    animation: copiloteRuleIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .copilote-pied-in {
+    animation: copiloteFicheIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 120ms;
+  }
+  .copilote-attente {
+    animation: copiloteAttente 1.2s ease-in-out infinite;
+  }
+  /* Révélation progressive des lignes du corps : même image que
+     .copilote-fiche-in, échelonnée de 40ms, plafonnée à 5 lignes
+     (+200ms maximum quel que soit le nombre de résultats). */
+  .copilote-item-in {
+    animation: copiloteItemIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .copilote-item-in:nth-child(1) { animation-delay: 0s; }
+  .copilote-item-in:nth-child(2) { animation-delay: 0.04s; }
+  .copilote-item-in:nth-child(3) { animation-delay: 0.08s; }
+  .copilote-item-in:nth-child(4) { animation-delay: 0.12s; }
+  .copilote-item-in:nth-child(5) { animation-delay: 0.16s; }
+  .copilote-item-in:nth-child(n+6) { animation-delay: 0.2s; }
+
+  /* Sous 640px le tracé du filet est imperceptible : désactivé. */
+  @media (max-width: 639px) {
+    .copilote-rule-in { animation: none; }
+  }
+
+  /* Repli statique, scopé aux classes du Copilote uniquement (constat
+     vérifié : aucune occurrence de prefers-reduced-motion ailleurs dans
+     le dépôt — portée volontairement limitée, arbitrage du 2026-09-03). */
+  @media (prefers-reduced-motion: reduce) {
+    .copilote-fiche-in, .copilote-rule-in, .copilote-pied-in,
+    .copilote-item-in, .copilote-attente {
+      animation: none !important;
+    }
+    .copilote-item-in { animation-delay: 0s !important; }
   }
 }

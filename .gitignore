@@ -43,3 +43,12 @@ dist-ssr
 # NE JAMAIS committer. (.claude/launch.json reste suivi, lui.)
 .mcp.json
 .claude/mcp.json
+
+# Graphify — cache/métadonnées locales, sans intérêt à partager.
+# graphify-out/graph.json et GRAPH_REPORT.md restent suivis (partagés
+# avec les autres agents/devs qui rouvriront ce projet).
+graphify-out/cost.json
+graphify-out/cache/
+graphify-out/graph.html
+graphify-out/manifest.json
+graphify-out/.graphify_*

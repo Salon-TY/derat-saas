@@ -28,11 +28,74 @@ export type AssistantLink = {
   href: string;
 };
 
+// --- Corps structuré du Copilote (§6.2 du brief design/briefs/copilote-assistant.md) ---
+// Catalogue FERMÉ à 6 formes : une réponse qui n'entre dans aucune ne prend
+// jamais une forme improvisée, elle prend la forme "texte" par défaut.
+//
+// Seules "valeurs"/"liste"/"texte" sont produites par assistant.server.ts
+// aujourd'hui (mappées depuis les outils existants). "comparaison"/"tableau"/
+// "classement" sont typées pour que les composants de présentation existent et
+// soient prêts, mais aucune donnée réelle ne les alimente tant que le Lot 2 du
+// cadrage technique (stats techniciens, etc.) n'est pas construit — ne jamais
+// les peupler avec des exemples ou des données inventées.
+
+export type CopiloteValeur = {
+  label: string;
+  value: string;
+  /** Ligne de service sous la valeur, ex. "Calcul : ...". Absente = simple fait. */
+  service?: string;
+  tone?: "default" | "success" | "warning" | "destructive";
+};
+
+export type CopiloteListeItem = {
+  title: string;
+  qualifier?: string;
+  href?: string;
+  linkLabel?: string;
+};
+
+export type CopiloteEcart = CopiloteValeur & { direction: "up" | "down" | "flat" };
+
+export type CopiloteClassementItem = {
+  rank: number;
+  label: string;
+  value: string;
+  /** 0-100, largeur de la barre de proportion. */
+  percent: number;
+};
+
+export type CopiloteProjection = {
+  hypothesis: string;
+  value: string;
+  note: string;
+};
+
+export type CopiloteCorps =
+  | { kind: "texte"; projection?: CopiloteProjection }
+  | { kind: "valeurs"; items: CopiloteValeur[] }
+  | { kind: "liste"; items: CopiloteListeItem[] }
+  | { kind: "comparaison"; left: CopiloteValeur; right: CopiloteValeur; ecart: CopiloteEcart }
+  | { kind: "tableau"; columns: string[]; rows: string[][] }
+  | { kind: "classement"; items: CopiloteClassementItem[] };
+
+// --- Zone "Sources" du pied de fiche (§6.2) ---
+// Reprend uniquement ce que les outils calculent déjà côté serveur
+// (ToolExecutionResult.summary / total / items.length / period) : aucune
+// nouvelle donnée, seulement une exposition explicite au client.
+export type AssistantSources = {
+  summary: string;
+  volumeShown?: number;
+  volumeTotal?: number;
+  period?: string;
+};
+
 export type AssistantReply = {
   answer: string;
   links: AssistantLink[];
   refused?: boolean;
   unavailable?: boolean;
+  body?: CopiloteCorps;
+  sources?: AssistantSources;
 };
 
 export type JsonSchema = {

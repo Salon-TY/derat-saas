@@ -23,6 +23,18 @@ export type ToolExecutionResult = {
   summary: string;
   items: unknown[];
   links: AssistantLink[];
+  /**
+   * Volume réel trouvé côté serveur, quand distinct du volume affiché
+   * (`items.length`). Déjà calculé par la plupart des outils de recherche
+   * (`{ count: "exact" }`) mais jusqu'ici jamais remonté au-delà du texte de
+   * `summary` — exposé séparément pour la zone "Sources" du Copilote, sans
+   * nouvelle requête ni nouvelle donnée.
+   */
+  total?: number;
+  /** Période couverte par le résultat, quand elle est déterminée par les
+   * arguments de l'outil (ex. date_from/date_to) plutôt que par la donnée
+   * elle-même. */
+  period?: string;
 };
 
 const nullableDateSchema = z
@@ -259,6 +271,7 @@ async function getRevenueOverview(context: AssistantContext): Promise<ToolExecut
   return {
     summary: "Agrégats financiers calculés par la fonction métier existante.",
     items: [item],
+    period: item.period,
     links: [
       { label: "Voir la trésorerie", href: "/tresorerie" },
       { label: "Voir les statistiques", href: "/stats" },
@@ -325,6 +338,8 @@ async function listInterventions(
         ? `${items.length} intervention(s) correspondante(s) affichée(s).`
         : `${exactTotal} intervention(s) trouvée(s), dont ${items.length} affichée(s).`,
     items,
+    total: exactTotal ?? undefined,
+    period: args.date_from || args.date_to ? `${args.date_from ?? "…"} – ${args.date_to ?? "…"}` : undefined,
     links: items.map((item) => ({
       label: `${item.client ?? "Intervention"} — ${item.date}`,
       href: `/interventions/${item.id}`,
@@ -413,7 +428,7 @@ async function listReportsToReview(
   context: AssistantContext,
   args: z.infer<(typeof toolArgumentSchemas)["list_reports_to_review"]>,
 ): Promise<ToolExecutionResult> {
-  const { data, error } = await context.supabase
+  const { data, error, count } = await context.supabase
     .from("interventions")
     .select(
       "id, date, adresse_site, observations, produits, technicien_id, client:clients(raison_sociale)",
@@ -436,6 +451,7 @@ async function listReportsToReview(
   return {
     summary: `${count ?? items.length} rapport(s) à vérifier, dont ${items.length} affiché(s).`,
     items,
+    total: count ?? items.length,
     links: items.map((item) => ({
       label: `${item.client ?? "Rapport"} — ${item.date}`,
       href: `/interventions/${item.id}`,
@@ -483,6 +499,8 @@ async function searchInvoices(
   return {
     summary: `${count ?? items.length} facture(s) trouvée(s), dont ${items.length} affichée(s).`,
     items,
+    total: count ?? items.length,
+    period: args.date_from || args.date_to ? `${args.date_from ?? "…"} – ${args.date_to ?? "…"}` : undefined,
     links: items.map((item) => ({
       label: `Facture N°${item.number}${item.client ? ` — ${item.client}` : ""}`,
       href: `/factures/${item.id}`,
@@ -529,6 +547,7 @@ async function searchQuotes(
   return {
     summary: `${count ?? items.length} devis trouvé(s), dont ${items.length} affiché(s).`,
     items,
+    total: count ?? items.length,
     links: items.map((item) => ({
       label: `Devis ${item.number}${item.client ? ` — ${item.client}` : ""}`,
       href: `/devis/${item.id}`,
@@ -575,6 +594,7 @@ async function searchContracts(
   return {
     summary: `${count ?? items.length} contrat(s) trouvé(s), dont ${items.length} affiché(s).`,
     items,
+    total: count ?? items.length,
     links: items.map((item) => ({
       label: `${item.number ?? "Contrat"}${item.client ? ` — ${item.client}` : ""}`,
       href: `/contrats/${item.id}`,

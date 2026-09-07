@@ -32,6 +32,7 @@ import { Route as AppStatsRouteImport } from './routes/_app.stats'
 import { Route as AppPlanningRouteImport } from './routes/_app.planning'
 import { Route as AppParametresRouteImport } from './routes/_app.parametres'
 import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
+import { Route as AppAssistantRouteImport } from './routes/_app.assistant'
 import { Route as AppAppRouteImport } from './routes/_app.app'
 import { Route as TechChantiersIndexRouteImport } from './routes/tech.chantiers.index'
 import { Route as AppStockIndexRouteImport } from './routes/_app.stock.index'
@@ -168,6 +169,11 @@ const AppOnboardingRoute = AppOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssistantRoute = AppAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAppRoute = AppAppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -288,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/platform': typeof PlatformRouteWithChildren
   '/tech': typeof TechRouteWithChildren
   '/app': typeof AppAppRoute
+  '/assistant': typeof AppAssistantRoute
   '/onboarding': typeof AppOnboardingRoute
   '/parametres': typeof AppParametresRoute
   '/planning': typeof AppPlanningRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/demande-en-attente': typeof DemandeEnAttenteRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/app': typeof AppAppRoute
+  '/assistant': typeof AppAssistantRoute
   '/onboarding': typeof AppOnboardingRoute
   '/parametres': typeof AppParametresRoute
   '/planning': typeof AppPlanningRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/platform': typeof PlatformRouteWithChildren
   '/tech': typeof TechRouteWithChildren
   '/_app/app': typeof AppAppRoute
+  '/_app/assistant': typeof AppAssistantRoute
   '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/parametres': typeof AppParametresRoute
   '/_app/planning': typeof AppPlanningRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/tech'
     | '/app'
+    | '/assistant'
     | '/onboarding'
     | '/parametres'
     | '/planning'
@@ -468,6 +478,7 @@ export interface FileRouteTypes {
     | '/demande-en-attente'
     | '/mentions-legales'
     | '/app'
+    | '/assistant'
     | '/onboarding'
     | '/parametres'
     | '/planning'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/tech'
     | '/_app/app'
+    | '/_app/assistant'
     | '/_app/onboarding'
     | '/_app/parametres'
     | '/_app/planning'
@@ -725,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOnboardingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/assistant': {
+      id: '/_app/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AppAssistantRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/app': {
       id: '/_app/app'
       path: '/app'
@@ -877,6 +896,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAppRoute: typeof AppAppRoute
+  AppAssistantRoute: typeof AppAssistantRoute
   AppOnboardingRoute: typeof AppOnboardingRoute
   AppParametresRoute: typeof AppParametresRoute
   AppPlanningRoute: typeof AppPlanningRoute
@@ -904,6 +924,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAppRoute: AppAppRoute,
+  AppAssistantRoute: AppAssistantRoute,
   AppOnboardingRoute: AppOnboardingRoute,
   AppParametresRoute: AppParametresRoute,
   AppPlanningRoute: AppPlanningRoute,

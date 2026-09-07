@@ -25,8 +25,15 @@ export function forbiddenMutationReply(): string {
   );
 }
 
+// Liste explicite des destinations sûres pour les Suites du Copilote.
+// Extension 2026-09-04 : ajout de /programmation et /reappro (destinations
+// identifiées par le cadrage technique, jusqu'ici absentes — les Suites qui y
+// pointaient étaient jusqu'ici filtrées en silence par sanitizeAssistantLinks,
+// jamais affichées, sans que ce soit visible). Toute nouvelle destination doit
+// être ajoutée ici explicitement, jamais via un élargissement générique du
+// motif (voir ai-assistant.test.ts pour la couverture de cette liste).
 const SAFE_INTERNAL_LINK =
-  /^\/(?:clients|interventions|factures|devis|contrats|stock|stats|tresorerie|equipe)(?:\/[0-9a-f-]+)?(?:\?[a-z0-9_=&%-]+)?$/i;
+  /^\/(?:clients|interventions|factures|devis|contrats|stock|stats|tresorerie|equipe|programmation|reappro)(?:\/[0-9a-f-]+)?(?:\?[a-z0-9_=&%-]+)?$/i;
 
 export function sanitizeAssistantLinks(links: AssistantLink[]): AssistantLink[] {
   const seen = new Set<string>();

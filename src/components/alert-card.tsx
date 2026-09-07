@@ -13,25 +13,52 @@ const TONE_STYLES = {
   primary: {
     card: "border-primary/40 bg-primary/5 hover:border-primary/60",
     icon: "text-primary",
+    flatBorder: "border-primary",
   },
   warning: {
     card: "border-warning/50 bg-warning/10 hover:border-warning/70",
     icon: "text-warning",
+    flatBorder: "border-warning",
   },
   destructive: {
     card: "border-destructive/50 bg-destructive/5 hover:border-destructive/70",
     icon: "text-destructive",
+    flatBorder: "border-destructive",
   },
 } as const;
 
-export function AlertCard({ icon: Icon, tone = "warning", href, children, className }: {
+export function AlertCard({
+  icon: Icon,
+  tone = "warning",
+  href,
+  children,
+  className,
+  variant = "card",
+}: {
   icon: LucideIcon;
   tone?: keyof typeof TONE_STYLES;
   href?: string;
   children: React.ReactNode;
   className?: string;
+  /**
+   * "flat" = mêmes tonalités, sans l'enveloppe Card — pour un constat déjà
+   * posé sur la surface d'une fiche du Copilote, où une Card imbriquée
+   * violerait le budget de surfaces (design/briefs/copilote-assistant.md
+   * §6.11). Le rendu "card" (Dashboard) reste strictement inchangé.
+   */
+  variant?: "card" | "flat";
 }) {
   const styles = TONE_STYLES[tone];
+
+  if (variant === "flat") {
+    return (
+      <div className={cn("flex gap-3 border-l-2 pl-3", styles.flatBorder, className)}>
+        <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", styles.icon)} />
+        <div className="min-w-0 flex-1 text-sm">{children}</div>
+      </div>
+    );
+  }
+
   const content = (
     <Card className={cn("transition-all duration-200", styles.card, className)}>
       <CardContent className="flex items-start gap-3 p-4">

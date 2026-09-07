@@ -9,6 +9,7 @@ import {
   Package,
   PackagePlus,
   Settings,
+  Sparkles,
   TrendingUp,
   Truck,
   UserCog,
@@ -45,6 +46,7 @@ export const APP_SECONDARY_NAV_ITEMS: AppNavItem[] = [
     icon: CalendarClock,
     perm: "programmation",
   },
+  { to: "/assistant", label: "Copilote", icon: Sparkles, perm: "assistant_ia" },
   { to: "/stats", label: "Statistiques", icon: BarChart2, perm: "stats" },
   { to: "/parametres", label: "Paramètres", icon: Settings, perm: "parametres" },
 ];

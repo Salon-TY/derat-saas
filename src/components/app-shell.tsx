@@ -519,7 +519,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   variant="ghost"
                   size="icon"
                   onClick={() => setAssistantOpen(true)}
-                  aria-label="Ouvrir l’assistant IA"
+                  aria-label="Ouvrir le Copilote"
                   className="h-11 w-11 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground lg:text-foreground lg:hover:bg-muted lg:hover:text-foreground"
                 >
                   <Sparkles className="h-5 w-5" />

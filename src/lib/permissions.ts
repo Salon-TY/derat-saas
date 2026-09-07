@@ -27,7 +27,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   stats: "Statistiques",
   parametres: "Paramètres",
   export: "Export Excel",
-  assistant_ia: "Assistant IA (lecture seule)",
+  assistant_ia: "Copilote (lecture seule)",
 };
 
 export const ALL_PERMISSION_KEYS = Object.keys(PERMISSION_LABELS) as PermissionKey[];

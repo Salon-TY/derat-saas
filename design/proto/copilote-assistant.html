@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype — Copilote / assistant (Piste C)</title>
+<!--
+  PROTOTYPE UX/UI ISOLÉ — derat-saas — Piste C « La consultation »
+  Brief de référence : design/briefs/copilote-assistant.md
+
+  Démonstration mockée, autonome, sans build et sans dépendance.
+  N'est PAS l'implémentation : aucune logique métier, aucune donnée réelle,
+  aucun appel réseau. Toutes les valeurs affichées sont des exemples,
+  signalés comme tels dans l'interface.
+
+  Les tokens de couleur sont recopiés à l'identique de src/styles.css
+  (valeurs OKLCH), plus les 2 tokens du brief : --copilot-rule, --copilot-footer.
+-->
+<style>
+/* ============================================================
+   1. TOKENS — recopiés de src/styles.css (ne rien inventer ici)
+   ============================================================ */
+:root{
+  --background: oklch(0.97 0.008 145);
+  --foreground: oklch(0.18 0.04 155);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.28 0.07 155);
+  --primary-foreground: oklch(0.99 0.005 145);
+  --secondary: oklch(0.94 0.02 150);
+  --muted: oklch(0.94 0.012 150);
+  --muted-foreground: oklch(0.52 0.03 155);
+  --accent: oklch(0.7 0.19 48);
+  --accent-foreground: oklch(0.99 0.005 145);
+  --destructive: oklch(0.58 0.22 25);
+  --success: oklch(0.6 0.15 155);
+  --warning: oklch(0.78 0.16 75);
+  --border: oklch(0.91 0.015 150);
+  --ring: oklch(0.28 0.07 155);
+  --focus-ring: oklch(0.28 0.07 155 / 18%);
+  --shadow-soft: 0 1px 2px oklch(0.15 0.03 155 / 4%), 0 4px 16px oklch(0.15 0.03 155 / 6%);
+
+  /* --- 2 tokens nouveaux du brief, zéro couleur nouvelle --- */
+  --copilot-rule: oklch(0.28 0.07 155 / 55%);   /* = --primary, opacité réduite */
+  --copilot-footer: var(--background);          /* le pied « creuse » le papier */
+}
+[data-theme="dark"]{
+  --background: oklch(0.16 0.03 155);
+  --foreground: oklch(0.97 0.005 145);
+  --card: oklch(0.20 0.04 155);
+  --primary: oklch(0.7 0.19 48);
+  --primary-foreground: oklch(0.16 0.03 155);
+  --secondary: oklch(0.26 0.05 155);
+  --muted: oklch(0.26 0.05 155);
+  --muted-foreground: oklch(0.72 0.02 145);
+  --accent: oklch(0.7 0.19 48);
+  --accent-foreground: oklch(0.16 0.03 155);
+  --destructive: oklch(0.58 0.22 25);
+  --success: oklch(0.6 0.15 155);
+  --warning: oklch(0.78 0.16 75);
+  --border: oklch(1 0 0 / 10%);
+  --ring: oklch(0.7 0.19 48);
+  --focus-ring: oklch(0.7 0.19 48 / 22%);
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 20%), 0 4px 16px oklch(0 0 0 / 24%);
+  --copilot-rule: oklch(0.7 0.19 48 / 55%);
+  --copilot-footer: var(--background);
+}
+
+/* ============================================================
+   2. BASE
+   ============================================================ */
+*{box-sizing:border-box;border-color:var(--border)}
+html,body{margin:0;padding:0}
+body{
+  background:var(--background);color:var(--foreground);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-tap-highlight-color:transparent;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus-ring)}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* --- échelle typographique : 5 niveaux, plancher 11px --- */
+.t-valeur{font-size:24px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+.t-intitule{font-size:16px;font-weight:600;letter-spacing:-0.01em}
+.t-corps{font-size:14px;line-height:1.55}
+.t-struct{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted-foreground)}
+.t-mention{font-size:12px;color:var(--muted-foreground)}
+@media (min-width:1024px){ .t-valeur{font-size:30px} }
+
+/* ============================================================
+   3. CHROME EXISTANT DE L'APP (reproduit pour situer, pas redessiné)
+   ============================================================ */
+.app{display:flex;min-height:100vh;background:var(--background)}
+.sidebar{display:none}
+@media (min-width:1024px){
+  .sidebar{
+    display:flex;flex-direction:column;width:256px;flex:0 0 256px;
+    border-right:1px solid var(--border);background:var(--card);
+    position:sticky;top:0;height:100vh;
+  }
+}
+.sidebar__brand{display:flex;align-items:center;gap:12px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)}
+.sidebar__logo{width:40px;height:40px;border-radius:12px;background:var(--accent);display:grid;place-items:center;color:var(--accent-foreground);flex:0 0 auto}
+.sidebar__name{font-size:14px;font-weight:700;letter-spacing:-0.01em}
+.sidebar__tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.16em;color:var(--accent);margin-top:4px}
+.sidebar__nav{display:flex;flex-direction:column;gap:6px;padding:16px;overflow-y:auto}
+.navlink{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:500;color:var(--muted-foreground)}
+.navlink:hover{background:var(--muted);color:var(--foreground)}
+.navlink[aria-current="page"]{background:var(--primary);color:var(--primary-foreground);box-shadow:var(--shadow-soft)}
+.navsep{border-top:1px solid var(--border);margin:8px 0}
+
+.shell{display:flex;flex-direction:column;min-width:0;flex:1}
+.header{
+  position:sticky;top:0;z-index:30;
+  background:linear-gradient(135deg,oklch(0.28 0.07 155) 0%,oklch(0.20 0.045 155) 100%);
+  color:oklch(0.99 0.005 145);
+}
+@media (min-width:1024px){
+  .header{background:var(--background);color:var(--foreground);border-bottom:1px solid var(--border)}
+}
+.header__in{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:12px 16px}
+@media (min-width:1024px){ .header__in{min-height:72px;padding:12px 32px} }
+.header__brand{display:flex;align-items:center;gap:12px;min-width:0}
+@media (min-width:1024px){ .header__brand{display:none} }
+.header__logo{width:40px;height:40px;border-radius:16px;background:var(--accent);display:grid;place-items:center;flex:0 0 auto}
+.header__name{font-size:16px;font-weight:700;letter-spacing:-0.01em;line-height:1}
+.header__tag{font-size:11px;text-transform:uppercase;letter-spacing:.14em;opacity:.65;margin-top:8px}
+.header__act{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.iconbtn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center}
+.iconbtn:hover{background:oklch(1 0 0 / 12%)}
+@media (min-width:1024px){ .iconbtn:hover{background:var(--muted)} }
+.avatar{width:36px;height:36px;border-radius:999px;background:oklch(1 0 0 / 12%);display:grid;place-items:center;margin-left:8px}
+@media (min-width:1024px){ .avatar{background:var(--muted)} }
+
+.main{flex:1;background:color-mix(in oklab,var(--muted) 20%,transparent);padding:20px 16px 112px}
+@media (min-width:1024px){ .main{padding:24px 32px 48px} }
+
+/* bottom nav + FAB : présents pour vérifier la non-collision avec la saisie */
+.bottomnav{
+  position:fixed;left:0;right:0;bottom:0;z-index:35;display:flex;
+  background:var(--card);border-top:1px solid var(--border);
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+}
+@media (min-width:1024px){ .bottomnav{display:none} }
+.bottomnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;font-size:11px;color:var(--muted-foreground)}
+.fab{
+  position:fixed;right:16px;bottom:calc(80px + env(safe-area-inset-bottom));z-index:40;
+  width:58px;height:58px;border-radius:999px;display:grid;place-items:center;
+  background:linear-gradient(135deg,oklch(0.7 0.19 48) 0%,oklch(0.6 0.17 45) 100%);
+  color:oklch(0.99 0.005 145);box-shadow:0 6px 24px oklch(0.7 0.19 48 / 40%);
+}
+@media (min-width:1024px){ .fab{display:none} }
+
+/* ============================================================
+   4. LA PAGE /assistant — silhouette
+   ============================================================ */
+.page{max-width:1024px;margin:0 auto;width:100%}          /* max-w-5xl */
+.pagehead{margin-bottom:24px}
+.pagehead h1{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin:0}
+@media (min-width:1024px){ .pagehead h1{font-size:24px} }
+.pagehead p{margin:8px 0 0;font-size:14px;color:var(--muted-foreground)}
+
+.fil{display:flex;flex-direction:column;gap:16px}
+@media (min-width:1024px){ .fil{gap:24px} }
+
+/* ============================================================
+   5. LE GABARIT DE FICHE — la signature
+   ============================================================ */
+.fiche{
+  position:relative;overflow:hidden;
+  background:var(--card);
+  border:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  border-radius:20px;                 /* budget rayons : valeur 1/2 */
+  box-shadow:var(--shadow-soft);      /* budget ombres : l'unique ombre */
+}
+/* une fiche n'est pas un bouton : aucun lift, aucun changement au survol */
+.fiche:hover{box-shadow:var(--shadow-soft);transform:none}
+
+.fiche__rule{position:absolute;inset-inline:0;top:0;height:2px;background:var(--copilot-rule);transform-origin:left}
+
+.fiche__head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:16px 16px 0}
+@media (min-width:1024px){ .fiche__head{padding:24px 24px 0} }
+.fiche__head h2{margin:0;min-width:0}
+.fiche__heure{flex:0 0 auto;font-size:12px;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+
+.fiche__corps{padding:16px}
+@media (min-width:1024px){ .fiche__corps{padding:24px} }
+
+.fiche__pied{
+  background:var(--copilot-footer);
+  border-top:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  padding:12px 16px;
+  display:flex;flex-direction:column;gap:12px;   /* mobile : empilé */
+}
+@media (min-width:1024px){
+  .fiche__pied{flex-direction:row;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px}
+}
+/* mobile : Suites → Sources → Lecture seule (l'action sous le pouce) */
+.pied__suites{order:1;display:flex;flex-wrap:wrap;gap:8px}
+.pied__sources{order:2}
+.pied__seule{order:3}
+@media (min-width:1024px){
+  .pied__sources{order:1}.pied__suites{order:2;justify-content:flex-end;flex:1}.pied__seule{order:3}
+}
+.pied__seule{font-size:12px;color:var(--muted-foreground);white-space:nowrap}
+
+/* Suites : 3 maximum, seul autre emploi de l'orange avec le bouton d'envoi */
+.suite{
+  display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;
+  border-radius:12px;border:1px solid color-mix(in oklab,var(--accent) 35%,transparent);
+  color:var(--accent);font-size:13px;font-weight:600;
+}
+.suite:hover{background:color-mix(in oklab,var(--accent) 8%,transparent)}
+
+/* Sources : dépliant — le 3e niveau de surface, exceptionnel */
+.sources__btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:12px}
+.sources__btn:hover{background:var(--muted)}
+.sources__pan{display:none;margin-top:12px;background:var(--muted);border-radius:12px;padding:12px;font-size:12px}
+.sources__pan[data-open="true"]{display:block}
+.sources__row{display:flex;justify-content:space-between;gap:16px;padding:4px 0;font-variant-numeric:tabular-nums}
+.sources__row span:first-child{color:var(--muted-foreground)}
+.chev{transition:transform .18s ease;display:inline-block}
+.sources__btn[aria-expanded="true"] .chev{transform:rotate(90deg)}
+
+/* Fiche repliée (historique) */
+.fiche--replie{padding:0}
+.replie__btn{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:12px 16px;text-align:left}
+@media (min-width:1024px){ .replie__btn{padding:12px 24px} }
+.replie__t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}
+
+/* ============================================================
+   6. LES 6 FORMES DE CORPS
+   ============================================================ */
+/* -- Valeurs -- */
+.f-valeurs{display:flex;flex-direction:column;gap:16px}
+@media (min-width:640px){ .f-valeurs{flex-direction:row;gap:32px} }
+.valeur{min-width:0;flex:1}
+.valeur .t-struct{margin-bottom:8px}
+.valeur__svc{margin-top:8px;font-size:12px;color:var(--muted-foreground)}
+
+/* -- Liste -- */
+.f-liste{display:flex;flex-direction:column}
+.ligne{
+  display:flex;align-items:center;gap:12px;min-height:44px;padding:12px 0;
+  border-bottom:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+}
+.ligne:last-child{border-bottom:0;padding-bottom:0}
+.ligne:first-child{padding-top:0}
+.ligne__t{flex:1;min-width:0}
+.ligne__n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ligne__q{font-size:12px;color:var(--muted-foreground);margin-top:4px;font-variant-numeric:tabular-nums}
+.ligne__l{flex:0 0 auto;font-size:13px;font-weight:600;color:var(--accent);min-height:44px;display:inline-flex;align-items:center;padding:0 8px;border-radius:12px}
+
+/* -- Comparaison : le point focal est l'écart -- */
+.f-compare{display:flex;flex-direction:column;gap:16px}
+@media (min-width:640px){ .f-compare{flex-direction:row;align-items:stretch;gap:24px} }
+.cmp{flex:1;min-width:0}
+.cmp__v{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:8px}
+.ecart{
+  flex:1;min-width:0;padding-top:8px;
+  border-top:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+}
+@media (min-width:640px){
+  .ecart{border-top:0;border-left:1px solid color-mix(in oklab,var(--border) 50%,transparent);padding:0 0 0 24px}
+}
+.ecart__v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;margin-top:8px}
+@media (min-width:1024px){ .ecart__v{font-size:30px} }
+.is-down{color:var(--destructive)}
+.is-up{color:var(--success)}
+
+/* -- Tableau : scroll horizontal confiné, jamais le body -- */
+.f-tableau{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+th{
+  text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--muted-foreground);padding:0 16px 12px 0;white-space:nowrap;
+}
+th:last-child,td:last-child{padding-right:0;text-align:right}
+td{padding:12px 16px 12px 0;border-top:1px solid color-mix(in oklab,var(--border) 50%,transparent);font-variant-numeric:tabular-nums}
+td:first-child{font-weight:600;font-variant-numeric:normal}
+
+/* -- Classement : reprend le motif de barre de _app.stats.tsx -- */
+.f-rang{display:flex;flex-direction:column;gap:16px}
+.rang{display:flex;align-items:center;gap:12px}
+.rang__n{
+  flex:0 0 auto;width:20px;height:20px;border-radius:999px;display:grid;place-items:center;
+  font-size:11px;font-weight:700;background:var(--muted);color:var(--muted-foreground);
+}
+.rang--1 .rang__n{background:var(--primary);color:var(--primary-foreground)}
+.rang--1 .rang__nom{font-weight:700}
+.rang__c{flex:1;min-width:0}
+.rang__l{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}
+.rang__nom{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rang__v{font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto}
+.bar{height:6px;border-radius:999px;background:var(--muted);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--primary)}
+
+/* -- Texte + projection (distinction fait / calcul / projection) -- */
+.hypo{
+  display:inline-block;margin-bottom:8px;padding:4px 8px;border-radius:12px;
+  background:var(--muted);color:var(--muted-foreground);
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;
+}
+.proj{font-size:20px;font-weight:500;font-variant-numeric:tabular-nums} /* jamais la graisse d'un fait */
+
+/* ============================================================
+   7. CONSTATS (variante « flat » d'AlertCard : mêmes tonalités, sans carte)
+   ============================================================ */
+.constats{display:flex;flex-direction:column;gap:16px}
+.constat{display:flex;gap:12px;padding-left:12px;border-left:2px solid var(--muted-foreground)}
+.constat--warning{border-left-color:var(--warning)}
+.constat--destructive{border-left-color:var(--destructive)}
+.constat--primary{border-left-color:var(--primary)}
+.constat__t{font-weight:600}
+.constat--destructive .constat__t{color:var(--destructive)}
+.constat__s{margin-top:4px;font-size:12px;color:var(--muted-foreground)}
+
+/* --- constat actionnable + liaison constat → fiche (comportement 4) --- */
+.constat__act{
+  display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;margin-top:4px;
+  margin-left:-8px;border-radius:12px;color:var(--accent);font-size:13px;font-weight:600;
+}
+.constat__act:hover{background:color-mix(in oklab,var(--accent) 8%,transparent)}
+.constat__lien{
+  display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-top:4px;
+  font-size:12px;color:var(--muted-foreground);
+}
+.constat__lien u{text-decoration:underline;text-underline-offset:2px}
+
+/* ============================================================
+   8. PISTES + SAISIE
+   ============================================================ */
+.orient{margin-top:24px}
+.orient__p{font-size:12px;color:var(--muted-foreground);margin:0 0 8px}
+.surprise{
+  display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:8px;padding:0 8px;
+  margin-left:-8px;border-radius:12px;font-size:13px;font-weight:600;color:var(--accent);
+}
+.surprise:hover{background:color-mix(in oklab,var(--accent) 8%,transparent)}
+.pistes{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.piste{
+  display:block;width:100%;text-align:left;min-height:44px;padding:12px;
+  background:var(--card);border:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  border-radius:12px;font-size:13px;font-weight:500;
+}
+.piste:hover{background:var(--muted)}
+
+.saisie{margin-top:24px}
+.saisie__box{
+  display:flex;align-items:flex-end;gap:8px;padding:8px;
+  background:var(--card);border:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  border-radius:12px;box-shadow:var(--shadow-soft);
+}
+.saisie__box:focus-within{box-shadow:0 0 0 3px var(--focus-ring)}
+.saisie textarea{
+  flex:1;min-width:0;min-height:44px;max-height:128px;resize:none;border:0;background:transparent;
+  padding:8px;font:inherit;color:inherit;outline:none;
+}
+/* le bouton d'envoi reste DANS le flux : jamais flottant, jamais en collision avec le FAB */
+.envoi{
+  flex:0 0 auto;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+  background:var(--accent);color:var(--accent-foreground);
+}
+.saisie__meta{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:12px;color:var(--muted-foreground)}
+/* bouton « + » — affordance principale du menu, seule affordance sur mobile */
+.plus{
+  flex:0 0 auto;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+  color:var(--muted-foreground);
+}
+.plus:hover{background:var(--muted);color:var(--foreground)}
+
+/* ============================================================
+   8 bis. MENU DU COPILOTE (⌘K) — complément du pied, jamais son remplacement
+   ============================================================ */
+.menuwrap{position:relative}
+.menu{
+  display:none;position:absolute;left:0;bottom:calc(100% + 8px);z-index:50;width:min(320px,calc(100vw - 32px));
+  background:var(--card);border:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  border-radius:12px;box-shadow:var(--shadow-soft);padding:8px;
+  /* Le menu ne déborde JAMAIS de l'écran : hauteur plafonnée, défilement interne.
+     Plafond unique à toutes les tailles — vérifié aux 3 breakpoints : un plafond
+     plus généreux au-dessus de lg sortait du viewport en 1024x768 (hauteur
+     d'écran, pas largeur : c'est la hauteur qui contraint un menu ouvert
+     vers le haut). Une seule règle vaut mieux qu'un palier par largeur. */
+  max-height:min(45vh,420px);overflow-y:auto;overscroll-behavior:contain;
+}
+.menu[data-open="true"]{display:block}
+.menu__grp+.menu__grp{margin-top:12px;padding-top:12px;border-top:1px solid color-mix(in oklab,var(--border) 50%,transparent)}
+.menu__h{padding:0 8px 8px}
+.menu__item{
+  display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 8px;
+  border-radius:12px;text-align:left;font-size:13px;
+}
+.menu__item:hover{background:var(--muted)}
+.menu__kbd{
+  display:none;margin-top:8px;padding:8px 8px 0;
+  border-top:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  font-size:12px;color:var(--muted-foreground);
+}
+@media (min-width:1024px){ .menu__kbd{display:flex;justify-content:space-between;gap:8px} }
+kbd{
+  font:inherit;font-size:11px;border:1px solid var(--border);border-radius:12px;padding:2px 6px;
+  background:var(--muted);
+}
+
+/* ============================================================
+   9. ÉTAT « RIEN À SIGNALER » — le seul emplacement d'une illustration
+   ============================================================ */
+.calme{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;padding:24px 0}
+.calme svg{width:96px;height:96px}
+.calme__t{font-weight:600}
+.calme__s{font-size:13px;color:var(--muted-foreground);max-width:44ch}
+
+/* ============================================================
+   10. LE SHEET — variante compacte DU MÊME gabarit
+   ============================================================ */
+.sheet{
+  width:100%;max-width:448px;background:var(--background);
+  border:1px solid var(--border);border-radius:20px;overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:var(--shadow-soft);
+}
+.sheet__head{background:var(--primary);color:var(--primary-foreground);padding:20px}
+.sheet__head h3{margin:0;font-size:16px;font-weight:600}
+.sheet__head p{margin:8px 0 0;font-size:13px;opacity:.72}
+.sheet__body{padding:16px;background:color-mix(in oklab,var(--muted) 20%,transparent);display:flex;flex-direction:column;gap:16px}
+.sheet__open{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
+  min-height:44px;padding:12px;border-radius:12px;
+  background:var(--card);border:1px solid color-mix(in oklab,var(--border) 50%,transparent);
+  font-size:13px;font-weight:600;
+}
+/* en compact le pied reste empilé quelle que soit la largeur */
+.sheet .fiche__pied{flex-direction:column;align-items:stretch;padding:12px 16px}
+.sheet .pied__sources{order:2}.sheet .pied__suites{order:1}.sheet .pied__seule{order:3}
+.sheet .fiche__head,.sheet .fiche__corps{padding-left:16px;padding-right:16px}
+
+/* ============================================================
+   11. SIGNATURE DE MOUVEMENT — CSS seul, transform/opacity uniquement
+       (aucune librairie ; aucune animation de height/width/margin)
+   ============================================================ */
+@keyframes copiloteFicheIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes copiloteRuleIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes copiloteAttente{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes copiloteItemIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Révélation progressive : même image, échelonnée 40 ms, PLAFONNÉE à 5 lignes.
+   Au-delà, plus aucun délai n'est ajouté — une liste de 20 résultats n'est
+   jamais plus lente qu'une liste de 5. */
+.copilote-item-in{animation:copiloteItemIn .2s cubic-bezier(.16,1,.3,1) both}
+.copilote-item-in:nth-child(1){animation-delay:0s}
+.copilote-item-in:nth-child(2){animation-delay:.04s}
+.copilote-item-in:nth-child(3){animation-delay:.08s}
+.copilote-item-in:nth-child(4){animation-delay:.12s}
+.copilote-item-in:nth-child(5){animation-delay:.16s}
+.copilote-item-in:nth-child(n+6){animation-delay:.2s}
+
+.copilote-fiche-in{animation:copiloteFicheIn .2s cubic-bezier(.16,1,.3,1) both}
+.copilote-rule-in{animation:copiloteRuleIn .24s cubic-bezier(.16,1,.3,1) both}
+.copilote-pied-in{animation:copiloteFicheIn .2s cubic-bezier(.16,1,.3,1) both;animation-delay:.12s}
+.copilote-attente{animation:copiloteAttente 1.2s ease-in-out infinite}
+
+/* sous 640px le tracé du filet est imperceptible : désactivé */
+@media (max-width:639px){ .copilote-rule-in{animation:none} }
+
+/* --- Repli statique : media query réelle + classe de démonstration --- */
+@media (prefers-reduced-motion: reduce){
+  .copilote-fiche-in,.copilote-rule-in,.copilote-pied-in,.copilote-attente,.copilote-item-in{animation:none !important}
+  .copilote-item-in{animation-delay:0s !important}
+  .chev{transition:none !important}
+}
+[data-motion="reduced"] .copilote-fiche-in,
+[data-motion="reduced"] .copilote-rule-in,
+[data-motion="reduced"] .copilote-pied-in,
+[data-motion="reduced"] .copilote-attente,
+[data-motion="reduced"] .copilote-item-in{animation:none !important}
+[data-motion="reduced"] .copilote-item-in{animation-delay:0s !important}
+[data-motion="reduced"] .chev{transition:none !important}
+
+/* ============================================================
+   12. ÉCHAFAUDAGE DE PROTOTYPE — volontairement distinct du produit.
+       Rien de ce qui suit n'appartient à la direction artistique.
+   ============================================================ */
+.proto-bar{
+  position:sticky;top:0;z-index:60;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  padding:8px 16px;background:var(--foreground);color:var(--background);font-size:12px;
+}
+.proto-bar strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.proto-bar button{
+  border:1px dashed currentColor;border-radius:12px;padding:6px 10px;font-size:12px;
+}
+.proto-note{
+  max-width:1024px;margin:0 auto 16px;padding:8px 12px;border:1px dashed var(--muted-foreground);
+  border-radius:12px;font-size:12px;color:var(--muted-foreground);
+}
+.proto-planche{max-width:1024px;margin:0 auto;padding:32px 0 0}
+.proto-planche>h2{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;
+  color:var(--muted-foreground);margin:0 0 12px;
+}
+.proto-grid{display:flex;flex-wrap:wrap;gap:16px}
+.proto-grid>*{flex:1 1 320px;min-width:0}
+.mock{
+  display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.14em;color:var(--muted-foreground);
+  border:1px dashed var(--muted-foreground);border-radius:12px;padding:2px 8px;
+}
+.ico{width:16px;height:16px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico--lg{width:20px;height:20px}
+</style>
+</head>
+<body data-theme="light" data-motion="full">
+
+<!-- ÉCHAFAUDAGE (hors design) -->
+<div class="proto-bar">
+  <strong>Prototype — Copilote · Piste C</strong>
+  <span>Maquette isolée, données d'exemple, aucune logique réelle</span>
+  <button type="button" onclick="document.body.dataset.theme = document.body.dataset.theme==='dark'?'light':'dark'">Thème clair / sombre</button>
+  <button type="button" onclick="document.body.dataset.motion = document.body.dataset.motion==='reduced'?'full':'reduced'">Mouvement complet / réduit</button>
+  <button type="button" onclick="document.querySelectorAll('.fiche').forEach(f=>{f.classList.remove('copilote-fiche-in');void f.offsetWidth;f.classList.add('copilote-fiche-in')})">Rejouer l'entrée des fiches</button>
+</div>
+
+<div class="app">
+
+  <!-- Sidebar existante + entrée « Copilote » (2e niveau d'accès : sidebar) -->
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <div class="sidebar__logo">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 3v3M8 6l-2-2M16 6l2-2M5 11H2M22 11h-3M6 16l-2 2M18 16l2 2"/><rect x="7" y="6" width="10" height="13" rx="5"/></svg>
+      </div>
+      <div>
+        <div class="sidebar__name">Gestion Dératisation</div>
+        <div class="sidebar__tag">Espace professionnel</div>
+      </div>
+    </div>
+    <nav class="sidebar__nav">
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Accueil</a>
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/></svg>Clients</a>
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Terrain</a>
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Factures</a>
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 12l9 5 9-5"/></svg>Stock</a>
+      <div class="navsep"></div>
+      <!-- ENTRÉE COPILOTE — accès permanent -->
+      <a class="navlink" href="#" aria-current="page">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z"/></svg>
+        Copilote
+      </a>
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Statistiques</a>
+      <a class="navlink" href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 7l-.1-.1a2 2 0 1 1 2.8-2.8L7.4 4a1.7 1.7 0 0 0 1.9.3H9.4A1.7 1.7 0 0 0 10.6 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1A1.7 1.7 0 0 0 21 10.6H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Paramètres</a>
+    </nav>
+  </aside>
+
+  <div class="shell">
+
+    <!-- Header existant + bouton Sparkles (1er niveau d'accès : rapide) -->
+    <header class="header">
+      <div class="header__in">
+        <div class="header__brand">
+          <div class="header__logo">
+            <svg class="ico ico--lg" viewBox="0 0 24 24" style="color:var(--accent-foreground)"><path d="M12 3v3M8 6l-2-2M16 6l2-2M5 11H2M22 11h-3M6 16l-2 2M18 16l2 2"/><rect x="7" y="6" width="10" height="13" rx="5"/></svg>
+          </div>
+          <div style="min-width:0">
+            <div class="header__name">Gestion Dératisation</div>
+            <div class="header__tag">Dératisation · Désinsectisation</div>
+          </div>
+        </div>
+        <div class="header__act">
+          <button class="iconbtn" type="button" aria-label="Ouvrir le Copilote">
+            <svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z"/></svg>
+          </button>
+          <button class="iconbtn" type="button" aria-label="Recherche">
+            <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          </button>
+          <div class="avatar"><svg class="ico" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="page">
+
+        <div class="pagehead">
+          <h1>Copilote</h1>
+          <p>Consultation sécurisée en lecture seule</p>
+        </div>
+
+        <div class="fil">
+
+          <!-- ============ FICHE DU JOUR ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Relevé du mercredi 3 septembre 2026</h2>
+              <span class="fiche__heure">08:12</span>
+            </div>
+            <div class="fiche__corps">
+              <p class="mock" style="margin:0 0 16px">Données d'exemple</p>
+              <!-- phrase d'ouverture factuelle : le Copilote constate, il ne se met pas en scène -->
+              <p class="t-corps" style="margin:0 0 16px">Activité examinée ce matin. Trois points méritent votre attention.</p>
+              <div class="constats">
+                <div class="constat constat--warning copilote-item-in">
+                  <svg class="ico" viewBox="0 0 24 24" style="margin-top:2px;color:var(--warning)"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                  <div>
+                    <div class="constat__t">Le chiffre d'affaires du mois atteint 62 % de l'objectif, à 12 jours de la fin.</div>
+                    <div class="constat__s">Calcul : 18 420 € encaissés sur un objectif mensuel de 30 000 €.</div>
+                    <!-- constat déjà approfondi : marque de liaison vers la fiche émise -->
+                    <a class="constat__lien" href="#fiche-approfondie">→ approfondi à <span class="tnum">08:15</span> — <u>revoir la fiche</u></a>
+                  </div>
+                </div>
+                <div class="constat constat--destructive copilote-item-in">
+                  <svg class="ico" viewBox="0 0 24 24" style="margin-top:2px;color:var(--destructive)"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                  <div>
+                    <div class="constat__t">2 factures ont dépassé leur délai de relance sans qu'aucune relance ait été envoyée.</div>
+                    <div class="constat__s">Fait constaté au 3 septembre, sur les factures impayées de plus de 30 jours.</div>
+                    <button class="constat__act" type="button">Approfondir <span class="chev">›</span></button>
+                  </div>
+                </div>
+                <div class="constat constat--warning copilote-item-in">
+                  <svg class="ico" viewBox="0 0 24 24" style="margin-top:2px;color:var(--warning)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  <div>
+                    <div class="constat__t">1 devis expire dans 4 jours.</div>
+                    <div class="constat__s">Fait constaté à partir de la date de validité du devis.</div>
+                    <button class="constat__act" type="button">Approfondir <span class="chev">›</span></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Période couverte</span><span>1 – 3 septembre 2026</span></div>
+                  <div class="sources__row"><span>Objectif mensuel</span><span>30 000 €</span></div>
+                  <div class="sources__row"><span>Factures examinées</span><span>14 trouvées, 14 examinées</span></div>
+                  <div class="sources__row"><span>Devis examinés</span><span>6 trouvés, 6 examinés</span></div>
+                </div>
+              </div>
+              <div class="pied__suites">
+                <a class="suite" href="#">Voir les factures concernées</a>
+                <a class="suite" href="#">Comparer au mois dernier</a>
+              </div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+          <!-- ============ FICHE ÉMISE DEPUIS UN CONSTAT (comportement 4) ============
+               Aucune bascule en conversation : l'approfondissement est une fiche de plus. -->
+          <article class="fiche copilote-fiche-in" id="fiche-approfondie">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Le chiffre d'affaires du mois atteint 62 % de l'objectif</h2>
+              <span class="fiche__heure">08:15</span>
+            </div>
+            <div class="fiche__corps">
+              <p class="t-mention" style="margin:0 0 16px">Approfondissement du relevé du jour.</p>
+              <div class="f-valeurs">
+                <div class="valeur copilote-item-in">
+                  <div class="t-struct">Encaissé</div>
+                  <div class="t-valeur">18 420 €</div>
+                </div>
+                <div class="valeur copilote-item-in">
+                  <div class="t-struct">Objectif</div>
+                  <div class="t-valeur">30 000 €</div>
+                </div>
+                <div class="valeur copilote-item-in">
+                  <div class="t-struct">Reste à faire</div>
+                  <div class="t-valeur" style="color:var(--warning)">11 580 €</div>
+                  <div class="valeur__svc">Calcul : objectif − encaissé, sur 12 jours restants.</div>
+                </div>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Origine</span><span>Constat du relevé du 3 septembre</span></div>
+                  <div class="sources__row"><span>Objectif</span><span>Paramètres de la société</span></div>
+                  <div class="sources__row"><span>Période</span><span>1 – 3 septembre 2026</span></div>
+                </div>
+              </div>
+              <!-- Deux natures de Suites : approfondissement (chevron) / navigation (lien sortant) -->
+              <div class="pied__suites">
+                <button class="suite" type="button">Comparer au mois dernier <span class="chev">›</span></button>
+                <a class="suite" href="#">Voir la trésorerie <svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+              </div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+          <!-- ============ FICHE REPLIÉE (historique) ============ -->
+          <article class="fiche fiche--replie copilote-fiche-in">
+            <div class="fiche__rule" aria-hidden="true"></div>
+            <button class="replie__btn" type="button" aria-expanded="false">
+              <span class="chev">›</span>
+              <span class="replie__t">Quelles interventions sont prévues aujourd'hui ?</span>
+              <span class="fiche__heure">08:14</span>
+            </button>
+          </article>
+
+          <!-- ============ FORME 1 — VALEURS ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Trésorerie du mois en cours</h2>
+              <span class="fiche__heure">08:16</span>
+            </div>
+            <div class="fiche__corps">
+              <div class="f-valeurs">
+                <div class="valeur">
+                  <div class="t-struct">CA du mois</div>
+                  <div class="t-valeur">18 420 €</div>
+                  <div class="valeur__svc">Calcul : factures encaissées du 1<sup>er</sup> au 3 septembre.</div>
+                </div>
+                <div class="valeur">
+                  <div class="t-struct">Mois précédent</div>
+                  <div class="t-valeur">21 060 €</div>
+                </div>
+                <div class="valeur">
+                  <div class="t-struct">Impayés</div>
+                  <div class="t-valeur" style="color:var(--destructive)">4 380 €</div>
+                  <div class="valeur__svc">7 factures.</div>
+                </div>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="true" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan" data-open="true">
+                  <div class="sources__row"><span>Origine</span><span>Agrégat financier de l'application</span></div>
+                  <div class="sources__row"><span>Période</span><span>1 – 3 septembre 2026</span></div>
+                  <div class="sources__row"><span>Volume</span><span>21 factures trouvées, 21 prises en compte</span></div>
+                  <div class="sources__row"><span>Définition du CA</span><span>Encaissé, hors devis</span></div>
+                </div>
+              </div>
+              <div class="pied__suites">
+                <a class="suite" href="#">Voir la trésorerie</a>
+                <a class="suite" href="#">Détailler les impayés</a>
+              </div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+          <!-- ============ FORME 2 — LISTE ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Factures en retard de plus de 7 jours</h2>
+              <span class="fiche__heure">08:19</span>
+            </div>
+            <div class="fiche__corps">
+              <p class="mock" style="margin:0 0 16px">Données d'exemple</p>
+              <div class="f-liste">
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">Boulangerie du Marché</div><div class="ligne__q">1 240,00 € · 34 jours de retard · relance N2 non envoyée</div></div><a class="ligne__l" href="#">Voir</a></div>
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">Résidence Les Tilleuls</div><div class="ligne__q">860,00 € · 21 jours de retard · relance N1 envoyée</div></div><a class="ligne__l" href="#">Voir</a></div>
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">Restaurant Le Comptoir</div><div class="ligne__q">1 480,00 € · 16 jours de retard · relance N1 non envoyée</div></div><a class="ligne__l" href="#">Voir</a></div>
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">SCI Bellevue</div><div class="ligne__q">800,00 € · 9 jours de retard</div></div><a class="ligne__l" href="#">Voir</a></div>
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">Cabinet Vaillant</div><div class="ligne__q">640,00 € · 8 jours de retard</div></div><a class="ligne__l" href="#">Voir</a></div>
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">Garage Ostier</div><div class="ligne__q">520,00 € · 8 jours de retard</div></div><a class="ligne__l" href="#">Voir</a></div>
+                <div class="ligne copilote-item-in"><div class="ligne__t"><div class="ligne__n">Pharmacie Centrale</div><div class="ligne__q">410,00 € · 7 jours de retard</div></div><a class="ligne__l" href="#">Voir</a></div>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Volume</span><span>7 factures trouvées, 7 affichées</span></div>
+                  <div class="sources__row"><span>Filtre</span><span>Impayées, échéance dépassée de plus de 7 jours</span></div>
+                  <div class="sources__row"><span>Arrêté au</span><span>3 septembre 2026, 08:19</span></div>
+                </div>
+              </div>
+              <div class="pied__suites">
+                <button class="suite" type="button">Grouper par client <span class="chev">›</span></button>
+                <a class="suite" href="#">Voir toutes les impayées <svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+                <a class="suite" href="#">Voir les passages à programmer <svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+              </div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+          <p class="proto-note">
+            Note de prototype (hors design) — la Suite « Voir les passages à programmer » pointe vers
+            <code>/programmation</code>, cible qui n'est <em>pas</em> encore dans la whitelist serveur
+            <code>SAFE_INTERNAL_LINK</code>. Elle est montrée normalement ici, jamais masquée en silence :
+            l'extension de la whitelist est une dette explicite pour <code>developpeur-autonome</code>,
+            pas un point à résoudre visuellement.
+          </p>
+
+          <!-- ============ FORME 3 — COMPARAISON ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Septembre comparé à août</h2>
+              <span class="fiche__heure">08:22</span>
+            </div>
+            <div class="fiche__corps">
+              <div class="f-compare">
+                <div class="cmp"><div class="t-struct">Septembre (en cours)</div><div class="cmp__v">18 420 €</div></div>
+                <div class="cmp"><div class="t-struct">Août</div><div class="cmp__v">21 060 €</div></div>
+                <div class="ecart">
+                  <div class="t-struct">Écart</div>
+                  <div class="ecart__v is-down">− 2 640 €</div>
+                  <div class="valeur__svc">− 12,5 % · calcul : septembre − août, sur les montants encaissés.</div>
+                </div>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Périodes</span><span>1 – 3 sept. 2026 · 1 – 31 août 2026</span></div>
+                  <div class="sources__row"><span>Réserve</span><span>Mois en cours incomplet (3 jours sur 30)</span></div>
+                </div>
+              </div>
+              <div class="pied__suites"><a class="suite" href="#">Voir le détail d'août</a></div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+          <!-- ============ FORME 4 — TABLEAU ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Interventions par technicien cette semaine</h2>
+              <span class="fiche__heure">08:25</span>
+            </div>
+            <div class="fiche__corps">
+              <p class="mock" style="margin:0 0 16px">Données d'exemple</p>
+              <div class="f-tableau">
+                <table>
+                  <thead><tr><th>Technicien</th><th>Planifiées</th><th>Terminées</th><th>À vérifier</th><th>Durée moyenne</th></tr></thead>
+                  <tbody>
+                    <tr><td>Karim B.</td><td>9</td><td>7</td><td>2</td><td>48 min</td></tr>
+                    <tr><td>Sophie M.</td><td>7</td><td>7</td><td>0</td><td>52 min</td></tr>
+                    <tr><td>Yann D.</td><td>6</td><td>4</td><td>1</td><td>41 min</td></tr>
+                    <tr><td>Non attribué</td><td>2</td><td>0</td><td>0</td><td>—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Période</span><span>31 août – 3 septembre 2026</span></div>
+                  <div class="sources__row"><span>Volume</span><span>24 interventions trouvées, 24 prises en compte</span></div>
+                </div>
+              </div>
+              <div class="pied__suites"><a class="suite" href="#">Voir le terrain</a><a class="suite" href="#">Voir les rapports à vérifier</a></div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+          <!-- ============ FORME 5 — CLASSEMENT ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Chiffre d'affaires par technicien, mois en cours</h2>
+              <span class="fiche__heure">08:28</span>
+            </div>
+            <div class="fiche__corps">
+              <p class="mock" style="margin:0 0 16px">Données d'exemple</p>
+              <div class="f-rang">
+                <div class="rang rang--1">
+                  <span class="rang__n">1</span>
+                  <div class="rang__c"><div class="rang__l"><span class="rang__nom">Karim B.</span><span class="rang__v">7 940 €</span></div><div class="bar"><i style="width:100%"></i></div></div>
+                </div>
+                <div class="rang">
+                  <span class="rang__n">2</span>
+                  <div class="rang__c"><div class="rang__l"><span class="rang__nom">Sophie M.</span><span class="rang__v">6 210 €</span></div><div class="bar"><i style="width:78%"></i></div></div>
+                </div>
+                <div class="rang">
+                  <span class="rang__n">3</span>
+                  <div class="rang__c"><div class="rang__l"><span class="rang__nom">Yann D.</span><span class="rang__v">4 270 €</span></div><div class="bar"><i style="width:54%"></i></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Période</span><span>1 – 3 septembre 2026</span></div>
+                  <div class="sources__row"><span>Rattachement</span><span>Facture → intervention → technicien</span></div>
+                  <div class="sources__row"><span>Non attribué</span><span>1 240 € non rattachés à un technicien</span></div>
+                </div>
+              </div>
+              <div class="pied__suites"><a class="suite" href="#">Voir les statistiques</a></div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+          <!-- ============ FORME 6 — TEXTE (avec projection) ============ -->
+          <article class="fiche copilote-fiche-in">
+            <div class="fiche__rule copilote-rule-in" aria-hidden="true"></div>
+            <div class="fiche__head">
+              <h2 class="t-intitule">Vais-je atteindre mon objectif ce mois-ci ?</h2>
+              <span class="fiche__heure">08:31</span>
+            </div>
+            <div class="fiche__corps">
+              <p class="t-corps" style="margin:0 0 16px">
+                À ce jour, 18 420 € ont été encaissés sur un objectif de 30 000 €, soit 62 % à 12 jours
+                de la fin du mois. C'est un fait constaté sur les factures encaissées.
+              </p>
+              <div>
+                <span class="hypo">Projection — hypothèse : rythme identique aux 12 derniers jours</span>
+                <div class="proj">≈ 27 600 € en fin de mois</div>
+                <p class="t-corps" style="margin:8px 0 0;color:var(--muted-foreground)">
+                  Cette valeur n'est pas encore arrivée : elle prolonge le rythme observé et ne tient
+                  compte ni des impayés en cours, ni des devis non signés.
+                </p>
+              </div>
+            </div>
+            <div class="fiche__pied copilote-pied-in">
+              <div class="pied__sources">
+                <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)">
+                  <span class="chev">›</span> Sources
+                </button>
+                <div class="sources__pan">
+                  <div class="sources__row"><span>Fait</span><span>18 420 € encaissés au 3 sept.</span></div>
+                  <div class="sources__row"><span>Objectif</span><span>30 000 € (paramètres de la société)</span></div>
+                  <div class="sources__row"><span>Hypothèse de projection</span><span>Rythme des 12 derniers jours</span></div>
+                </div>
+              </div>
+              <div class="pied__suites"><a class="suite" href="#">Voir les devis en attente</a><a class="suite" href="#">Détailler les impayés</a></div>
+              <div class="pied__seule">Lecture seule · aucune action automatique</div>
+            </div>
+          </article>
+
+        </div><!-- /fil -->
+
+        <!-- ============ ORIENTATION + PISTES + SURPRENEZ-MOI ============ -->
+        <div class="orient">
+          <div class="t-struct" style="margin-bottom:8px">Par où commencer ?</div>
+          <p class="orient__p">Vous ne savez pas quoi demander ? Ces pistes sont établies à partir de ce que vous pouvez consulter aujourd'hui.</p>
+          <div class="pistes" style="margin-top:0">
+            <button class="piste" type="button">Quelles factures ont dépassé leur délai de relance ?</button>
+            <button class="piste" type="button">Que reste-t-il à programmer sur mes contrats ?</button>
+            <button class="piste" type="button">Où en suis-je par rapport à mon objectif ?</button>
+          </div>
+          <!-- « Surprenez-moi » : hors du plafond de 3 pistes, emphase moindre -->
+          <button class="surprise" type="button">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/></svg>
+            Surprenez-moi
+          </button>
+        </div>
+
+        <form class="saisie" onsubmit="return false">
+          <div class="saisie__box">
+            <!-- bouton « + » : affordance principale du menu, seule affordance sur mobile -->
+            <div class="menuwrap">
+              <button class="plus" type="button" id="menu-btn" aria-haspopup="dialog" aria-expanded="false"
+                      aria-label="Ouvrir le menu du Copilote" onclick="toggleMenu()">
+                <svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <div class="menu" id="menu" role="dialog" aria-label="Menu du Copilote">
+                <div class="menu__grp">
+                  <div class="menu__h t-struct">Analyser</div>
+                  <button class="menu__item" type="button">Où en suis-je ?</button>
+                  <button class="menu__item" type="button">Qu'est-ce qui mérite mon attention ?</button>
+                  <button class="menu__item" type="button">Comprendre mon activité</button>
+                </div>
+                <div class="menu__grp">
+                  <div class="menu__h t-struct">Comparer</div>
+                  <button class="menu__item" type="button">Comparer deux périodes</button>
+                  <button class="menu__item" type="button">Comparer mes techniciens</button>
+                </div>
+                <div class="menu__grp">
+                  <div class="menu__h t-struct">Explorer</div>
+                  <button class="menu__item" type="button">Explorer mes données</button>
+                  <button class="menu__item" type="button">Surprenez-moi</button>
+                </div>
+                <div class="menu__kbd"><span>Raccourci</span><kbd>⌘ K</kbd></div>
+              </div>
+            </div>
+            <textarea rows="2" placeholder="Posez une question…" aria-label="Question pour le Copilote"></textarea>
+            <button class="envoi" type="submit" aria-label="Envoyer la question">
+              <svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
+          <div class="saisie__meta">
+            <span>Lecture seule · aucune action automatique</span>
+            <span class="tnum">0/1000</span>
+          </div>
+        </form>
+        <p class="proto-note">
+          Note de prototype (hors design) — le menu ne contient <strong>aucune</strong> entrée d'écriture
+          ni d'export : le groupe « Actions » de la maquette de référence (créer un rapport, plan d'action,
+          exporter) est refusé, la V1 restant strictement en lecture seule. Le raccourci ⌘K est écouté
+          <strong>sur la surface du Copilote uniquement</strong>, jamais sur <code>window</code> — il reste
+          donc disponible pour une future palette de recherche globale.
+        </p>
+
+        <!-- ============================================================
+             PLANCHES DE PROTOTYPE — états et variante Sheet
+             (échafaudage : ne fait pas partie de la page finale)
+             ============================================================ -->
+
+        <section class="proto-planche">
+          <h2>Planche — états</h2>
+
+          <div class="proto-grid">
+
+            <!-- Attente -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head copilote-attente" aria-live="polite">
+                <h2 class="t-intitule">Consultation…</h2>
+                <span class="fiche__heure">08:33</span>
+              </div>
+              <div class="fiche__corps"><p class="t-mention" style="margin:0">Le corps se remplit lorsque la réponse arrive.</p></div>
+            </article>
+
+            <!-- Rien à signaler -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head">
+                <h2 class="t-intitule">Relevé du mercredi 3 septembre 2026</h2>
+                <span class="fiche__heure">08:12</span>
+              </div>
+              <div class="fiche__corps">
+                <div class="calme">
+                  <svg viewBox="0 0 96 96" aria-hidden="true">
+                    <rect x="14" y="24" width="68" height="52" rx="8" fill="none" stroke="var(--border)" stroke-width="2"/>
+                    <path d="M26 40h30M26 50h44M26 60h24" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="70" cy="34" r="10" fill="none" stroke="var(--success)" stroke-width="2"/>
+                    <path d="M65.5 34.5l3.5 3.5 6-7" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <div class="calme__t">Rien à signaler aujourd'hui.</div>
+                  <div class="calme__s">Aucun écart significatif détecté sur votre activité. Vous pouvez tout de même poser une question ci-dessous.</div>
+                </div>
+              </div>
+              <div class="fiche__pied">
+                <div class="pied__sources">
+                  <button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)"><span class="chev">›</span> Sources</button>
+                  <div class="sources__pan"><div class="sources__row"><span>Vérifié le</span><span>3 septembre 2026, 08:12</span></div><div class="sources__row"><span>Périmètre</span><span>Trésorerie, devis, contrats, stock</span></div></div>
+                </div>
+                <div class="pied__suites"></div>
+                <div class="pied__seule">Lecture seule · aucune action automatique</div>
+              </div>
+            </article>
+
+            <!-- Aucun résultat : rien trouvé -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head"><h2 class="t-intitule">Factures du client « Dupont »</h2><span class="fiche__heure">08:36</span></div>
+              <div class="fiche__corps"><p class="t-corps" style="margin:0">Aucune facture trouvée.</p><p class="t-mention" style="margin:8px 0 0">La recherche a bien été effectuée : ce client n'a aucune facture correspondante.</p></div>
+              <div class="fiche__pied">
+                <div class="pied__sources"><button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)"><span class="chev">›</span> Sources</button><div class="sources__pan"><div class="sources__row"><span>Volume</span><span>0 facture trouvée</span></div></div></div>
+                <div class="pied__suites"><a class="suite" href="#">Voir la fiche client</a></div>
+                <div class="pied__seule">Lecture seule · aucune action automatique</div>
+              </div>
+            </article>
+
+            <!-- Aucun résultat : capacité indisponible (distinction §9) -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head"><h2 class="t-intitule">Objectif de marge par chantier</h2><span class="fiche__heure">08:38</span></div>
+              <div class="fiche__corps"><p class="t-corps" style="margin:0">Je ne sais pas encore répondre à cette question.</p><p class="t-mention" style="margin:8px 0 0">Ce n'est pas une absence de données : seul l'objectif de chiffre d'affaires mensuel existe aujourd'hui. Reformuler ne changera pas le résultat.</p></div>
+              <div class="fiche__pied">
+                <div class="pied__sources"><button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)"><span class="chev">›</span> Sources</button><div class="sources__pan"><div class="sources__row"><span>Capacité</span><span>Non disponible</span></div></div></div>
+                <div class="pied__suites"><a class="suite" href="#">Voir l'objectif du mois</a></div>
+                <div class="pied__seule">Lecture seule · aucune action automatique</div>
+              </div>
+            </article>
+
+            <!-- Refus : ton neutre, jamais --destructive -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head"><h2 class="t-intitule">Envoyer la relance à la Boulangerie du Marché</h2><span class="fiche__heure">08:41</span></div>
+              <div class="fiche__corps"><p class="t-corps" style="margin:0">Je suis limité à la consultation : je ne peux ni créer, modifier, supprimer, envoyer, valider ou changer un statut. Utilisez l'écran concerné pour effectuer cette action.</p></div>
+              <div class="fiche__pied">
+                <div class="pied__sources"></div>
+                <div class="pied__suites"><a class="suite" href="#">Ouvrir la facture</a></div>
+                <div class="pied__seule">Lecture seule · aucune action automatique</div>
+              </div>
+            </article>
+
+            <!-- Indisponible — non configuré -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head"><h2 class="t-intitule">Copilote non configuré</h2><span class="fiche__heure">08:42</span></div>
+              <div class="fiche__corps"><p class="t-corps" style="margin:0">Le Copilote n'est pas encore configuré sur ce serveur.</p></div>
+              <div class="fiche__pied"><div class="pied__sources"></div><div class="pied__suites"></div><div class="pied__seule">Lecture seule · aucune action automatique</div></div>
+            </article>
+
+            <!-- Indisponible — panne -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head"><h2 class="t-intitule">Service momentanément indisponible</h2><span class="fiche__heure">08:43</span></div>
+              <div class="fiche__corps"><p class="t-corps" style="margin:0">Le service de consultation est momentanément indisponible. Le reste de l'application continue de fonctionner.</p></div>
+              <div class="fiche__pied"><div class="pied__sources"></div><div class="pied__suites"></div><div class="pied__seule">Lecture seule · aucune action automatique</div></div>
+            </article>
+
+            <!-- Erreur réseau -->
+            <article class="fiche">
+              <div class="fiche__rule" aria-hidden="true"></div>
+              <div class="fiche__head"><h2 class="t-intitule">Consultation interrompue</h2><span class="fiche__heure">08:44</span></div>
+              <div class="fiche__corps"><p class="t-corps" style="margin:0">La consultation est indisponible pour le moment. Vérifiez votre connexion puis réessayez.</p></div>
+              <div class="fiche__pied"><div class="pied__sources"></div><div class="pied__suites"><a class="suite" href="#">Réessayer</a></div><div class="pied__seule">Lecture seule · aucune action automatique</div></div>
+            </article>
+
+          </div>
+        </section>
+
+        <section class="proto-planche">
+          <h2>Planche — accès rapide (Sheet) : même gabarit, variante compacte</h2>
+          <div class="sheet">
+            <div class="sheet__head">
+              <h3>Copilote</h3>
+              <p>Consultation sécurisée en lecture seule</p>
+            </div>
+            <div class="sheet__body">
+              <button class="sheet__open" type="button">
+                <span>Ouvrir le relevé du jour</span>
+                <svg class="ico" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg>
+              </button>
+
+              <article class="fiche">
+                <div class="fiche__rule" aria-hidden="true"></div>
+                <div class="fiche__head"><h2 class="t-intitule">Trésorerie du mois</h2><span class="fiche__heure">08:16</span></div>
+                <div class="fiche__corps">
+                  <div class="f-valeurs" style="flex-direction:column;gap:16px">
+                    <div class="valeur"><div class="t-struct">CA du mois</div><div class="t-valeur">18 420 €</div></div>
+                    <div class="valeur"><div class="t-struct">Impayés</div><div class="t-valeur" style="color:var(--destructive)">4 380 €</div></div>
+                  </div>
+                </div>
+                <div class="fiche__pied">
+                  <div class="pied__suites"><a class="suite" href="#">Voir la trésorerie</a></div>
+                  <div class="pied__sources"><button class="sources__btn t-struct" type="button" aria-expanded="false" onclick="toggleSources(this)"><span class="chev">›</span> Sources</button><div class="sources__pan"><div class="sources__row"><span>Volume</span><span>21 factures prises en compte</span></div></div></div>
+                  <div class="pied__seule">Lecture seule · aucune action automatique</div>
+                </div>
+              </article>
+
+              <form class="saisie" style="margin-top:0" onsubmit="return false">
+                <div class="saisie__box">
+                  <button class="plus" type="button" aria-haspopup="dialog" aria-label="Ouvrir le menu du Copilote">
+                    <svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                  </button>
+                  <textarea rows="2" placeholder="Posez une question…" aria-label="Question pour le Copilote"></textarea>
+                  <button class="envoi" type="submit" aria-label="Envoyer la question"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+                </div>
+                <div class="saisie__meta"><span>Lecture seule · aucune action automatique</span><span class="tnum">0/1000</span></div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /page -->
+    </main>
+
+    <!-- bottom nav + FAB : présents uniquement pour vérifier la non-collision mobile -->
+    <nav class="bottomnav">
+      <a href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Accueil</a>
+      <a href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/></svg>Clients</a>
+      <a href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Terrain</a>
+      <a href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 12l9 5 9-5"/></svg>Stock</a>
+      <a href="#"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Plus</a>
+    </nav>
+    <button class="fab" type="button" aria-label="Intervention rapide"><svg class="ico ico--lg" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+
+  </div><!-- /shell -->
+</div><!-- /app -->
+
+<script>
+function toggleSources(btn){
+  var open = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', String(!open));
+  btn.parentElement.querySelector('.sources__pan').dataset.open = String(!open);
+}
+
+/* --- Menu du Copilote (⌘K) ------------------------------------------------
+   Le raccourci est écouté sur la SURFACE DU COPILOTE (.page), jamais sur
+   window : ⌘K reste libre pour une future palette de recherche globale.
+   Le bouton « + » reste l'affordance principale, et la seule sur mobile. */
+function setMenu(open){
+  var m = document.getElementById('menu'), b = document.getElementById('menu-btn');
+  m.dataset.open = String(open);
+  b.setAttribute('aria-expanded', String(open));
+  if (open) { var first = m.querySelector('.menu__item'); if (first) first.focus(); }
+  else { b.focus(); }
+}
+function toggleMenu(){ setMenu(document.getElementById('menu').dataset.open !== 'true'); }
+
+var copiloteScope = document.querySelector('.page');
+copiloteScope.addEventListener('keydown', function(e){
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); toggleMenu(); }
+  if (e.key === 'Escape' && document.getElementById('menu').dataset.open === 'true') { e.preventDefault(); setMenu(false); }
+});
+document.addEventListener('click', function(e){
+  var m = document.getElementById('menu');
+  if (m.dataset.open === 'true' && !e.target.closest('.menuwrap')) setMenu(false);
+});
+</script>
+</body>
+</html>

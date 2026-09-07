@@ -17,6 +17,9 @@ export function StatCard({
   href,
   search,
   className,
+  variant = "default",
+  tone,
+  service,
 }: {
   icon?: LucideIcon;
   label: React.ReactNode;
@@ -27,7 +30,41 @@ export function StatCard({
   /** Search params optionnels transmis au Link (ex. { statut: "retard" }). */
   search?: Record<string, unknown>;
   className?: string;
+  /**
+   * "dense" = sans tuile d'icône, sans enveloppe Card (déjà posée par la
+   * surface qui l'accueille) — pour un usage dans une surface déjà cadrée,
+   * ex. la forme "Valeurs" d'une fiche du Copilote
+   * (design/briefs/copilote-assistant.md §6.11). Le rendu "default"
+   * (Dashboard) reste strictement inchangé.
+   */
+  variant?: "default" | "dense";
+  /** Teinte sémantique de la valeur, dense uniquement. */
+  tone?: "default" | "success" | "warning" | "destructive";
+  /** Ligne de service sous la valeur (ex. "Calcul : ..."), dense uniquement —
+   * distingue un fait d'un calcul sans changer la graisse de la valeur. */
+  service?: React.ReactNode;
 }) {
+  if (variant === "dense") {
+    return (
+      <div className={cn("min-w-0 flex-1", className)}>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {label}
+        </div>
+        <div
+          className={cn(
+            "mt-2 text-2xl font-bold tracking-tight tabular-nums lg:text-3xl",
+            tone === "destructive" && "text-destructive",
+            tone === "warning" && "text-warning",
+            tone === "success" && "text-success",
+          )}
+        >
+          {value}
+        </div>
+        {service && <div className="mt-2 text-xs text-muted-foreground">{service}</div>}
+      </div>
+    );
+  }
+
   const card = (
     <Card
       className={cn(
